@@ -14,11 +14,17 @@ const navLinks = [
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
-  const [isDark, setIsDark] = useState(true)
+  const [isDark, setIsDark] = useState(false)
 
   useEffect(() => {
     const saved = localStorage.getItem('theme')
-    if (saved === 'light') {
+    const nextIsDark = saved === 'dark'
+
+    if (nextIsDark) {
+      document.documentElement.classList.add('dark')
+      document.documentElement.classList.remove('light')
+      setIsDark(true)
+    } else {
       document.documentElement.classList.remove('dark')
       document.documentElement.classList.add('light')
       setIsDark(false)
@@ -76,8 +82,8 @@ const Navbar = () => {
           >
             {isDark ? <Sun size={18} /> : <Moon size={18} />}
           </button>
-          <a href="#courses" className="glow-button text-sm">
-            View Demo
+          <a href="#auth" className="glow-button text-sm">
+            Login
           </a>
         </div>
 
@@ -103,8 +109,8 @@ const Navbar = () => {
               {link.label}
             </a>
           ))}
-          <a href="#courses" className="glow-button block text-center mt-3 text-sm">
-            View Demo
+          <a href="#auth" className="glow-button block text-center mt-3 text-sm">
+            Login
           </a>
         </div>
       )}

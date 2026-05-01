@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Navbar from './components/Navbar'
 import HeroSection from './components/HeroSection'
 import AboutSection from './components/AboutSection'
@@ -14,9 +14,31 @@ import CTASection from './components/CTASection'
 import FooterSection from './components/FooterSection'
 import LeadCaptureModal from './components/LeadCaptureModal'
 import DownloadButton from './components/DownloadButton'
+import AuthSection from './components/AuthSection'
+import AdminDashboard from './components/AdminDashboard'
+
+const getRoute = () => (window.location.hash === '#admin' ? 'admin' : 'home')
 
 function App() {
   const [modalOpen, setModalOpen] = useState(false)
+  const [route, setRoute] = useState(getRoute)
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const nextRoute = getRoute()
+      setRoute(nextRoute)
+      if (nextRoute === 'admin') {
+        window.scrollTo(0, 0)
+      }
+    }
+
+    window.addEventListener('hashchange', handleHashChange)
+    return () => window.removeEventListener('hashchange', handleHashChange)
+  }, [])
+
+  if (route === 'admin') {
+    return <AdminDashboard />
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -27,6 +49,7 @@ function App() {
       <ProgramsSection />
       <CurriculumSection />
       <PricingSection />
+      <AuthSection />
       <DashboardPreview />
       <TestimonialsSection />
       <BlogSection />
