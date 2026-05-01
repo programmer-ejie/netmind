@@ -15,9 +15,29 @@ import FooterSection from './components/FooterSection'
 import LeadCaptureModal from './components/LeadCaptureModal'
 import DownloadButton from './components/DownloadButton'
 import AuthSection from './components/AuthSection'
-import AdminDashboard from './components/AdminDashboard'
+import AdminAnalytics from './pages/admin/AdminAnalytics'
+import AdminDashboard from './pages/admin/AdminDashboard'
+import AdminPlayers from './pages/admin/AdminPlayers'
+import AdminSettings from './pages/admin/AdminSettings'
+import AdminTeamDetails from './pages/admin/AdminTeamDetails'
+import AdminTeams from './pages/admin/AdminTeams'
+import AdminTrainers from './pages/admin/AdminTrainers'
+import AdminTraining from './pages/admin/AdminTraining'
 
-const getRoute = () => (window.location.hash === '#admin' ? 'admin' : 'home')
+const getRoute = () => {
+  const hash = window.location.hash || ''
+  if (!hash.startsWith('#admin')) return { area: 'home', hash }
+
+  const parts = hash.replace(/^#/, '').split('/')
+  const page = parts[1] || 'dashboard'
+
+  return {
+    area: 'admin',
+    hash,
+    page,
+    id: parts[2],
+  }
+}
 
 function App() {
   const [modalOpen, setModalOpen] = useState(false)
@@ -27,7 +47,7 @@ function App() {
     const handleHashChange = () => {
       const nextRoute = getRoute()
       setRoute(nextRoute)
-      if (nextRoute === 'admin') {
+      if (nextRoute.area === 'admin') {
         window.scrollTo(0, 0)
       }
     }
@@ -36,8 +56,23 @@ function App() {
     return () => window.removeEventListener('hashchange', handleHashChange)
   }, [])
 
-  if (route === 'admin') {
-    return <AdminDashboard />
+  if (route.area === 'admin') {
+    if (route.page === 'teams' && route.id) {
+      return <AdminTeamDetails teamId={route.id} currentPath={route.hash} />
+    }
+
+    const pages = {
+      dashboard: AdminDashboard,
+      teams: AdminTeams,
+      players: AdminPlayers,
+      trainers: AdminTrainers,
+      training: AdminTraining,
+      analytics: AdminAnalytics,
+      settings: AdminSettings,
+    }
+    const AdminPage = pages[route.page] || AdminDashboard
+
+    return <AdminPage currentPath={route.hash} />
   }
 
   return (

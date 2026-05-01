@@ -1,4 +1,5 @@
 const express = require("express");
+const bcrypt = require("bcryptjs");
 const { query } = require("../config/db");
 const asyncHandler = require("../utils/asyncHandler");
 const ApiError = require("../utils/apiError");
@@ -31,6 +32,7 @@ router.get("/routes", (req, res) => {
       "GET /api/users",
       "GET /api/users/:id",
       "PATCH /api/users/:id",
+      "PATCH /api/users/:userId/password",
       "DELETE /api/users/:id",
       "GET /api/players",
       "GET /api/coaches",
@@ -145,6 +147,30 @@ router.get("/trainers", asyncHandler(async (req, res) => {
     "SELECT id, name, email, role, position, jersey_number, is_active, created_at FROM users WHERE role = 'trainer' ORDER BY name"
   );
   res.json(rows);
+}));
+
+router.patch("/users/:userId/password", asyncHandler(async (req, res) => {
+  const { current_password: currentPassword, new_password: newPassword } = req.body;
+
+  if (!currentPassword || !newPassword) {
+    throw new ApiError(400, "Current password and new password are required");
+  }
+
+  if (String(newPassword).length < 6) {
+    throw new ApiError(400, "New password must be at least 6 characters");
+  }
+
+  const rows = await query("SELECT id, password_hash FROM users WHERE id = ?", [req.params.userId]);
+  const user = rows[0];
+
+  if (!user || !(await bcrypt.compare(currentPassword, user.password_hash))) {
+    throw new ApiError(401, "Current password is incorrect");
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, 12);
+  await query("UPDATE users SET password_hash = ? WHERE id = ?", [passwordHash, req.params.userId]);
+
+  res.json({ message: "Password updated" });
 }));
 
 router.get("/teams/:teamId/members", asyncHandler(async (req, res) => {
