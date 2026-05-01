@@ -1,6 +1,12 @@
 const express = require("express");
 const cors = require("cors");
-require("dotenv").config();
+require("dotenv").config({ quiet: true });
+
+const analyticsRoutes = require("./routes/analyticsRoutes");
+const workflowRoutes = require("./routes/workflowRoutes");
+const authRoutes = require("./routes/authRoutes");
+const crudRoutes = require("./routes/crudRoutes");
+const { errorHandler, notFound } = require("./middleware/errorHandler");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -15,6 +21,14 @@ app.get("/", (req, res) => {
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
 });
+
+app.use("/api/auth", authRoutes);
+app.use("/api", analyticsRoutes);
+app.use("/api", workflowRoutes);
+app.use("/api", crudRoutes);
+
+app.use(notFound);
+app.use(errorHandler);
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
