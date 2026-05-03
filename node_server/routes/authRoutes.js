@@ -1,11 +1,13 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const { body, validationResult } = require("express-validator");
-const { query } = require("../config/db");
+const { pool, query } = require("../config/db");
 const { protect } = require("../middleware/auth");
 const asyncHandler = require("../utils/asyncHandler");
 const ApiError = require("../utils/apiError");
+const { sendTemporaryPasswordEmail } = require("../utils/emailService");
 
 const router = express.Router();
 
@@ -27,6 +29,72 @@ function assertValid(req) {
     throw new ApiError(400, errors.array().map((error) => error.msg).join(", "));
   }
 }
+
+function generateTemporaryPassword(length = 16) {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:,.<>?";
+  const bytes = crypto.randomBytes(length);
+
+  return Array.from(bytes, (byte) => chars[byte % chars.length]).join("");
+}
+
+router.post(
+  "/register-coach",
+  [
+    body("name").trim().notEmpty().withMessage("Name is required"),
+    body("email").isEmail().withMessage("Valid email is required"),
+  ],
+  asyncHandler(async (req, res) => {
+    assertValid(req);
+
+    const name = req.body.name.trim();
+    const email = req.body.email.trim().toLowerCase();
+    const existing = await query("SELECT id FROM users WHERE email = ?", [email]);
+
+    if (existing.length) {
+      throw new ApiError(409, "Email is already registered");
+    }
+
+    const temporaryPassword = generateTemporaryPassword();
+    const passwordHash = await bcrypt.hash(temporaryPassword, 12);
+    const connection = await pool.getConnection();
+
+    try {
+      await connection.beginTransaction();
+
+      const [result] = await connection.execute(
+        "INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, 'coach')",
+        [name, email, passwordHash]
+      );
+      const [rows] = await connection.execute(
+        "SELECT id, name, email, role, position, jersey_number, is_active, created_at FROM users WHERE id = ?",
+        [result.insertId]
+      );
+      const user = rows[0];
+
+      try {
+        await sendTemporaryPasswordEmail({
+          to: email,
+          name,
+          password: temporaryPassword,
+        });
+      } catch {
+        throw new ApiError(502, "Unable to send the temporary password email. Check Gmail sender settings.");
+      }
+
+      await connection.commit();
+
+      res.status(201).json({
+        message: "Coach account created. Temporary password sent to email.",
+        user,
+      });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  })
+);
 
 router.post(
   "/register",

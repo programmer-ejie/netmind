@@ -67,6 +67,13 @@ export const registerUser = async (body) => {
   return payload.user || payload
 }
 
+export const registerCoachWithTemporaryPassword = async (body) => {
+  const payload = await apiRequest('/auth/register-coach', { method: 'POST', body })
+  return payload.user || payload
+}
+
+export const loginUser = async (body) => apiRequest('/auth/login', { method: 'POST', body })
+
 export const readSavedUser = () => {
   try {
     return JSON.parse(localStorage.getItem('netmind_user') || 'null')

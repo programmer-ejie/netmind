@@ -104,6 +104,70 @@
   font-weight: 700;
 }
 
+.auth-status-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: hsl(var(--background) / 0.72);
+  backdrop-filter: blur(12px);
+}
+
+.auth-status-modal {
+  width: min(100%, 390px);
+  border: 1px solid hsl(var(--border));
+  border-radius: 16px;
+  background: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+  padding: 30px;
+  text-align: center;
+  box-shadow: 0 24px 70px hsl(var(--background) / 0.36);
+}
+
+.auth-status-icon {
+  width: 68px;
+  height: 68px;
+  display: inline-grid;
+  place-items: center;
+  margin-bottom: 18px;
+  border-radius: 999px;
+  background: hsl(var(--primary) / 0.12);
+  color: hsl(var(--primary));
+}
+
+.auth-status-icon.is-loading svg {
+  animation: auth-spin 0.9s linear infinite;
+}
+
+.auth-status-icon.is-error {
+  background: hsl(var(--destructive) / 0.12);
+  color: hsl(var(--destructive));
+}
+
+.auth-status-modal h4 {
+  margin-bottom: 10px;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.auth-status-modal p {
+  color: hsl(var(--muted-foreground));
+  line-height: 1.55;
+}
+
+.auth-status-button {
+  width: 100%;
+  margin-top: 24px;
+}
+
+@keyframes auth-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .admin-page {
   --admin-primary: #635bff;
   --admin-secondary: #14e9e2;
