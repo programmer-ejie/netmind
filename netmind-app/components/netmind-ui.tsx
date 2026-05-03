@@ -262,7 +262,7 @@ const styles = StyleSheet.create({
   },
   rowIcon: {
     alignItems: 'center',
-    backgroundColor: '#e7f4f1',
+    backgroundColor: palette.courtSoft,
     borderRadius: 8,
     height: 36,
     justifyContent: 'center',

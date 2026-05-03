@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   tagline: {
-    color: '#d5f2ee',
+    color: palette.courtMist,
     fontSize: 16,
     lineHeight: 24,
     maxWidth: 310,

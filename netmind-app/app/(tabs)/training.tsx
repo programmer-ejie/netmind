@@ -28,7 +28,7 @@ export default function TrainingScreen() {
             <Text style={styles.taskTitle}>{task.title}</Text>
             <Text style={styles.doneBadge}>Done</Text>
           </View>
-          <ProgressBar color={palette.green} value={task.progress} />
+          <ProgressBar color={palette.aqua} value={task.progress} />
           <Text style={styles.progressText}>{task.due}</Text>
         </Card>
       ))}
@@ -62,9 +62,9 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   doneBadge: {
-    backgroundColor: '#dcfce7',
+    backgroundColor: palette.courtSoft,
     borderRadius: 8,
-    color: '#166534',
+    color: palette.courtDark,
     fontSize: 12,
     fontWeight: '900',
     paddingHorizontal: 10,

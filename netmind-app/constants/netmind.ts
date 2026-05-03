@@ -1,15 +1,17 @@
 export const palette = {
-  ink: '#172026',
-  muted: '#66727f',
-  line: '#dce4ea',
+  ink: '#10252c',
+  muted: '#627983',
+  line: '#d5e5ea',
   surface: '#ffffff',
-  wash: '#f5f8fa',
-  court: '#0f766e',
-  courtDark: '#115e59',
+  wash: '#f3f9fb',
+  court: '#0896aa',
+  courtDark: '#045867',
+  courtSoft: '#e0f7fa',
+  courtMist: '#c9f1f6',
   gold: '#f5b849',
   coral: '#ef6f5e',
-  blue: '#2563eb',
-  green: '#16a34a',
+  blue: '#0a6f88',
+  aqua: '#06a6b8',
 };
 
 export const currentPlayer = {
