@@ -3,6 +3,7 @@ import { StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Card, PrimaryButton, ProgressBar, Screen, SectionTitle } from '@/components/netmind-ui';
 import { palette, performanceMetrics } from '@/constants/netmind';
+import { useNetmindTheme } from '@/contexts/netmind-theme';
 
 const skillSliders = [
   { label: 'Attack power', value: 82, color: palette.coral },
@@ -12,6 +13,7 @@ const skillSliders = [
 
 export default function PerformanceScreen() {
   const [notes, setNotes] = useState('Felt strong on cross-court attacks. Need faster block recovery.');
+  const { colors } = useNetmindTheme();
 
   return (
     <Screen title="Log Performance" subtitle="Record match or training data while the session is fresh.">
@@ -25,8 +27,8 @@ export default function PerformanceScreen() {
       <View style={styles.metrics}>
         {performanceMetrics.map((metric) => (
           <Card key={metric.label} style={styles.metric}>
-            <Text style={styles.metricValue}>{metric.value}</Text>
-            <Text style={styles.metricLabel}>{metric.label}</Text>
+            <Text style={[styles.metricValue, { color: colors.ink }]}>{metric.value}</Text>
+            <Text style={[styles.metricLabel, { color: colors.muted }]}>{metric.label}</Text>
           </Card>
         ))}
       </View>
@@ -36,8 +38,8 @@ export default function PerformanceScreen() {
         {skillSliders.map((item) => (
           <View key={item.label} style={styles.sliderRow}>
             <View style={styles.sliderHeader}>
-              <Text style={styles.sliderLabel}>{item.label}</Text>
-              <Text style={styles.sliderValue}>{item.value}%</Text>
+              <Text style={[styles.sliderLabel, { color: colors.ink }]}>{item.label}</Text>
+              <Text style={[styles.sliderValue, { color: colors.muted }]}>{item.value}%</Text>
             </View>
             <ProgressBar color={item.color} value={item.value} />
           </View>
@@ -48,7 +50,11 @@ export default function PerformanceScreen() {
       <TextInput
         multiline
         onChangeText={setNotes}
-        style={styles.notes}
+        placeholderTextColor={colors.muted}
+        style={[
+          styles.notes,
+          { backgroundColor: colors.surface, borderColor: colors.line, color: colors.ink },
+        ]}
         textAlignVertical="top"
         value={notes}
       />
@@ -71,12 +77,10 @@ const styles = StyleSheet.create({
     minWidth: '47%',
   },
   metricValue: {
-    color: palette.ink,
     fontSize: 28,
     fontWeight: '900',
   },
   metricLabel: {
-    color: palette.muted,
     fontSize: 13,
     fontWeight: '800',
   },
@@ -91,19 +95,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   sliderLabel: {
-    color: palette.ink,
     fontWeight: '800',
   },
   sliderValue: {
-    color: palette.muted,
     fontWeight: '800',
   },
   notes: {
-    backgroundColor: '#ffffff',
-    borderColor: palette.line,
     borderRadius: 8,
     borderWidth: 1,
-    color: palette.ink,
     fontSize: 15,
     minHeight: 118,
     padding: 14,

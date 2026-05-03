@@ -2,18 +2,21 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { Card, MetricCard, Screen, SectionTitle } from '@/components/netmind-ui';
 import { careerStats, currentPlayer, palette } from '@/constants/netmind';
+import { useNetmindTheme } from '@/contexts/netmind-theme';
 
 export default function ProfileScreen() {
+  const { colors } = useNetmindTheme();
+
   return (
     <Screen title="Profile" subtitle="Player information, team identity, and career totals.">
       <Card style={styles.heroCard}>
-        <View style={styles.avatar}>
+        <View style={[styles.avatar, { backgroundColor: colors.court }]}>
           <Text style={styles.avatarText}>{currentPlayer.number}</Text>
         </View>
         <View style={styles.profileText}>
-          <Text style={styles.name}>{currentPlayer.name}</Text>
-          <Text style={styles.meta}>{currentPlayer.role}</Text>
-          <Text style={styles.meta}>{currentPlayer.team}</Text>
+          <Text style={[styles.name, { color: colors.ink }]}>{currentPlayer.name}</Text>
+          <Text style={[styles.meta, { color: colors.muted }]}>{currentPlayer.role}</Text>
+          <Text style={[styles.meta, { color: colors.muted }]}>{currentPlayer.team}</Text>
         </View>
       </Card>
 
@@ -35,10 +38,12 @@ export default function ProfileScreen() {
 }
 
 function Detail({ label, value }: { label: string; value: string }) {
+  const { colors } = useNetmindTheme();
+
   return (
     <View style={styles.detailRow}>
-      <Text style={styles.detailLabel}>{label}</Text>
-      <Text style={styles.detailValue}>{value}</Text>
+      <Text style={[styles.detailLabel, { color: colors.muted }]}>{label}</Text>
+      <Text style={[styles.detailValue, { color: colors.ink }]}>{value}</Text>
     </View>
   );
 }
@@ -51,7 +56,6 @@ const styles = StyleSheet.create({
   },
   avatar: {
     alignItems: 'center',
-    backgroundColor: palette.court,
     borderRadius: 8,
     height: 74,
     justifyContent: 'center',
@@ -67,12 +71,10 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   name: {
-    color: palette.ink,
     fontSize: 22,
     fontWeight: '900',
   },
   meta: {
-    color: palette.muted,
     fontSize: 14,
     fontWeight: '700',
   },
@@ -85,11 +87,9 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   detailLabel: {
-    color: palette.muted,
     fontWeight: '800',
   },
   detailValue: {
-    color: palette.ink,
     flex: 1,
     fontWeight: '900',
     textAlign: 'right',

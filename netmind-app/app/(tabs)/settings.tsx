@@ -4,21 +4,30 @@ import { StyleSheet, Switch, Text, View } from 'react-native';
 
 import { Card, ListRow, PrimaryButton, Screen, SectionTitle } from '@/components/netmind-ui';
 import { palette } from '@/constants/netmind';
+import { useNetmindTheme } from '@/contexts/netmind-theme';
 
 export default function SettingsScreen() {
   const [notifications, setNotifications] = useState(true);
-  const [darkTheme, setDarkTheme] = useState(false);
+  const { colors, isDark, setDarkTheme } = useNetmindTheme();
 
   return (
     <Screen title="Settings" subtitle="Manage app preferences and data options.">
       <SectionTitle>Preferences</SectionTitle>
       <Card style={styles.settingsCard}>
         <SettingToggle
+          activeColor={colors.court}
           label="Notifications"
           onValueChange={setNotifications}
+          textColor={colors.ink}
           value={notifications}
         />
-        <SettingToggle label="Dark theme" onValueChange={setDarkTheme} value={darkTheme} />
+        <SettingToggle
+          activeColor={colors.court}
+          label="Dark theme"
+          onValueChange={setDarkTheme}
+          textColor={colors.ink}
+          value={isDark}
+        />
       </Card>
 
       <SectionTitle>Data</SectionTitle>
@@ -38,22 +47,26 @@ export default function SettingsScreen() {
 }
 
 function SettingToggle({
+  activeColor = palette.court,
   label,
+  textColor = palette.ink,
   value,
   onValueChange,
 }: {
+  activeColor?: string;
   label: string;
+  textColor?: string;
   value: boolean;
   onValueChange: (value: boolean) => void;
 }) {
   return (
     <View style={styles.toggleRow}>
-      <Text style={styles.toggleLabel}>{label}</Text>
+      <Text style={[styles.toggleLabel, { color: textColor }]}>{label}</Text>
       <Switch
         ios_backgroundColor="#d1dbe3"
         onValueChange={onValueChange}
         thumbColor="#ffffff"
-        trackColor={{ false: '#d1dbe3', true: palette.court }}
+        trackColor={{ false: '#d1dbe3', true: activeColor }}
         value={value}
       />
     </View>
@@ -71,7 +84,6 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
   toggleLabel: {
-    color: palette.ink,
     fontSize: 16,
     fontWeight: '900',
   },

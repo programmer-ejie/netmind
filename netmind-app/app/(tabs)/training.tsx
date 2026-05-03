@@ -2,8 +2,10 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { Card, ProgressBar, Screen, SectionTitle } from '@/components/netmind-ui';
 import { palette, trainingTasks } from '@/constants/netmind';
+import { useNetmindTheme } from '@/contexts/netmind-theme';
 
 export default function TrainingScreen() {
+  const { colors } = useNetmindTheme();
   const pending = trainingTasks.filter((task) => !task.completed);
   const completed = trainingTasks.filter((task) => task.completed);
 
@@ -13,11 +15,11 @@ export default function TrainingScreen() {
       {pending.map((task) => (
         <Card key={task.title} style={styles.taskCard}>
           <View style={styles.taskHeader}>
-            <Text style={styles.taskTitle}>{task.title}</Text>
+            <Text style={[styles.taskTitle, { color: colors.ink }]}>{task.title}</Text>
             <Text style={styles.badge}>{task.due}</Text>
           </View>
           <ProgressBar color={palette.gold} value={task.progress} />
-          <Text style={styles.progressText}>{task.progress}% complete</Text>
+          <Text style={[styles.progressText, { color: colors.muted }]}>{task.progress}% complete</Text>
         </Card>
       ))}
 
@@ -25,11 +27,17 @@ export default function TrainingScreen() {
       {completed.map((task) => (
         <Card key={task.title} style={styles.taskCard}>
           <View style={styles.taskHeader}>
-            <Text style={styles.taskTitle}>{task.title}</Text>
-            <Text style={styles.doneBadge}>Done</Text>
+            <Text style={[styles.taskTitle, { color: colors.ink }]}>{task.title}</Text>
+            <Text
+              style={[
+                styles.doneBadge,
+                { backgroundColor: colors.courtSoft, color: colors.courtMist },
+              ]}>
+              Done
+            </Text>
           </View>
           <ProgressBar color={palette.aqua} value={task.progress} />
-          <Text style={styles.progressText}>{task.due}</Text>
+          <Text style={[styles.progressText, { color: colors.muted }]}>{task.due}</Text>
         </Card>
       ))}
     </Screen>
@@ -47,7 +55,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   taskTitle: {
-    color: palette.ink,
     flex: 1,
     fontSize: 16,
     fontWeight: '900',
@@ -62,16 +69,13 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   doneBadge: {
-    backgroundColor: palette.courtSoft,
     borderRadius: 8,
-    color: palette.courtDark,
     fontSize: 12,
     fontWeight: '900',
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
   progressText: {
-    color: palette.muted,
     fontSize: 13,
     fontWeight: '700',
   },

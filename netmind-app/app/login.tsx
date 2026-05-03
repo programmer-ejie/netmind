@@ -14,14 +14,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PrimaryButton } from '@/components/netmind-ui';
 import { palette } from '@/constants/netmind';
+import { useNetmindTheme } from '@/contexts/netmind-theme';
 
 export default function LoginScreen() {
   const [gmail, setGmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordVisible, setPasswordVisible] = useState(false);
+  const { colors } = useNetmindTheme();
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.courtDark }]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.container}>
@@ -30,31 +32,40 @@ export default function LoginScreen() {
             <MaterialIcons name="sports-volleyball" size={34} color="#ffffff" />
           </View>
           <Text style={styles.brand}>NetMind</Text>
-          <Text style={styles.tagline}>Sign in to your volleyball performance dashboard.</Text>
+          <Text style={[styles.tagline, { color: colors.courtMist }]}>
+            Sign in to your volleyball performance dashboard.
+          </Text>
         </View>
 
-        <View style={styles.formCard}>
-          <Text style={styles.formTitle}>Login</Text>
+        <View style={[styles.formCard, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.formTitle, { color: colors.ink }]}>Login</Text>
 
-          <Text style={styles.label}>Gmail</Text>
+          <Text style={[styles.label, { color: colors.ink }]}>Gmail</Text>
           <TextInput
             autoCapitalize="none"
             keyboardType="email-address"
             onChangeText={setGmail}
             placeholder="yourname@gmail.com"
-            placeholderTextColor="#8a96a3"
-            style={styles.input}
+            placeholderTextColor={colors.muted}
+            style={[
+              styles.input,
+              { backgroundColor: colors.wash, borderColor: colors.line, color: colors.ink },
+            ]}
             value={gmail}
           />
 
-          <Text style={styles.label}>Password</Text>
-          <View style={styles.passwordBox}>
+          <Text style={[styles.label, { color: colors.ink }]}>Password</Text>
+          <View
+            style={[
+              styles.passwordBox,
+              { backgroundColor: colors.wash, borderColor: colors.line },
+            ]}>
             <TextInput
               onChangeText={setPassword}
               placeholder="Password"
-              placeholderTextColor="#8a96a3"
+              placeholderTextColor={colors.muted}
               secureTextEntry={!passwordVisible}
-              style={styles.passwordInput}
+              style={[styles.passwordInput, { color: colors.ink }]}
               value={password}
             />
             <Pressable
@@ -64,7 +75,7 @@ export default function LoginScreen() {
               <MaterialIcons
                 name={passwordVisible ? 'visibility-off' : 'visibility'}
                 size={22}
-                color={palette.muted}
+                color={colors.muted}
               />
             </Pressable>
           </View>
@@ -83,7 +94,6 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: palette.courtDark,
   },
   container: {
     flex: 1,
@@ -108,49 +118,39 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   tagline: {
-    color: palette.courtMist,
     fontSize: 16,
     lineHeight: 24,
     maxWidth: 310,
   },
   formCard: {
-    backgroundColor: '#ffffff',
     borderRadius: 8,
     gap: 12,
     padding: 18,
   },
   formTitle: {
-    color: palette.ink,
     fontSize: 24,
     fontWeight: '900',
     marginBottom: 4,
   },
   label: {
-    color: palette.ink,
     fontSize: 13,
     fontWeight: '800',
   },
   input: {
-    backgroundColor: palette.wash,
-    borderColor: palette.line,
     borderRadius: 8,
     borderWidth: 1,
-    color: palette.ink,
     fontSize: 16,
     minHeight: 48,
     paddingHorizontal: 14,
   },
   passwordBox: {
     alignItems: 'center',
-    backgroundColor: palette.wash,
-    borderColor: palette.line,
     borderRadius: 8,
     borderWidth: 1,
     flexDirection: 'row',
     minHeight: 48,
   },
   passwordInput: {
-    color: palette.ink,
     flex: 1,
     fontSize: 16,
     paddingHorizontal: 14,

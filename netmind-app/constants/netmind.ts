@@ -14,6 +14,22 @@ export const palette = {
   aqua: '#06a6b8',
 };
 
+export const darkPalette = {
+  ink: '#e7f8fb',
+  muted: '#9fc2cb',
+  line: '#17404a',
+  surface: '#0c2b34',
+  wash: '#061c23',
+  court: '#19c4d8',
+  courtDark: '#031219',
+  courtSoft: '#123c47',
+  courtMist: '#9deaf3',
+  gold: '#f7c867',
+  coral: '#ff8b7c',
+  blue: '#32bad2',
+  aqua: '#31d3e5',
+};
+
 export const currentPlayer = {
   name: 'Mika Reyes',
   role: 'Outside Hitter',

@@ -3,23 +3,31 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { NetmindThemeProvider, useNetmindTheme } from '@/contexts/netmind-theme';
 
 export const unstable_settings = {
   anchor: 'index',
 };
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
+  return (
+    <NetmindThemeProvider>
+      <RootNavigator />
+    </NetmindThemeProvider>
+  );
+}
+
+function RootNavigator() {
+  const { isDark } = useNetmindTheme();
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
       <Stack>
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       </Stack>
-      <StatusBar style="auto" />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
     </ThemeProvider>
   );
 }

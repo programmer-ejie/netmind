@@ -3,21 +3,23 @@ import React from 'react';
 
 import { HapticTab } from '@/components/haptic-tab';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { palette } from '@/constants/netmind';
+import { useNetmindTheme } from '@/contexts/netmind-theme';
 
 export default function TabLayout() {
+  const { colors } = useNetmindTheme();
+
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: palette.court,
-        tabBarInactiveTintColor: '#8a96a3',
+        tabBarActiveTintColor: colors.court,
+        tabBarInactiveTintColor: colors.muted,
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '800',
         },
         tabBarStyle: {
-          backgroundColor: '#ffffff',
-          borderTopColor: palette.line,
+          backgroundColor: colors.surface,
+          borderTopColor: colors.line,
           height: 68,
           paddingBottom: 8,
           paddingTop: 8,

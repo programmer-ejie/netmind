@@ -5,10 +5,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PrimaryButton } from '@/components/netmind-ui';
 import { palette } from '@/constants/netmind';
+import { useNetmindTheme } from '@/contexts/netmind-theme';
 
 export default function HomeScreen() {
+  const { colors } = useNetmindTheme();
+
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.courtDark }]}>
       <View style={styles.container}>
         <View style={styles.hero}>
           <View style={styles.logo}>
@@ -16,23 +19,23 @@ export default function HomeScreen() {
           </View>
           <Text style={styles.brand}>NetMind</Text>
           <Text style={styles.headline}>Explore Us</Text>
-          <Text style={styles.tagline}>
+          <Text style={[styles.tagline, { color: colors.courtMist }]}>
             Train smarter, track performance, and manage volleyball goals from one mobile app.
           </Text>
         </View>
 
-        <View style={styles.previewCard}>
+        <View style={[styles.previewCard, { backgroundColor: colors.surface, borderColor: colors.line }]}>
           <View style={styles.previewRow}>
-            <MaterialIcons name="analytics" size={24} color={palette.court} />
-            <Text style={styles.previewText}>Player analytics and jump trends</Text>
+            <MaterialIcons name="analytics" size={24} color={colors.court} />
+            <Text style={[styles.previewText, { color: colors.ink }]}>Player analytics and jump trends</Text>
           </View>
           <View style={styles.previewRow}>
             <MaterialIcons name="assignment" size={24} color={palette.coral} />
-            <Text style={styles.previewText}>Training tasks from coaches</Text>
+            <Text style={[styles.previewText, { color: colors.ink }]}>Training tasks from coaches</Text>
           </View>
           <View style={styles.previewRow}>
             <MaterialIcons name="edit-note" size={24} color={palette.blue} />
-            <Text style={styles.previewText}>Fast performance logging</Text>
+            <Text style={[styles.previewText, { color: colors.ink }]}>Fast performance logging</Text>
           </View>
         </View>
 
@@ -45,7 +48,6 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: palette.courtDark,
   },
   container: {
     flex: 1,
@@ -75,15 +77,12 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   tagline: {
-    color: palette.courtMist,
     fontSize: 16,
     lineHeight: 24,
     maxWidth: 330,
   },
   previewCard: {
-    backgroundColor: '#ffffff',
     borderRadius: 8,
-    borderColor: palette.line,
     borderWidth: 1,
     gap: 16,
     padding: 18,

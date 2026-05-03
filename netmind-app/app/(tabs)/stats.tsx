@@ -2,8 +2,11 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { Card, MetricCard, MiniBarChart, ProgressBar, Screen, SectionTitle } from '@/components/netmind-ui';
 import { jumpTrend, palette, strengths } from '@/constants/netmind';
+import { useNetmindTheme } from '@/contexts/netmind-theme';
 
 export default function StatsScreen() {
+  const { colors } = useNetmindTheme();
+
   return (
     <Screen title="My Stats" subtitle="Track performance trends and where your training is paying off.">
       <View style={styles.metrics}>
@@ -14,7 +17,9 @@ export default function StatsScreen() {
       <SectionTitle>Jump trend</SectionTitle>
       <Card>
         <MiniBarChart values={jumpTrend} />
-        <Text style={styles.caption}>Last 7 sessions, measured in centimeters.</Text>
+        <Text style={[styles.caption, { color: colors.muted }]}>
+          Last 7 sessions, measured in centimeters.
+        </Text>
       </Card>
 
       <SectionTitle>Strengths</SectionTitle>
@@ -22,8 +27,8 @@ export default function StatsScreen() {
         {strengths.map((item) => (
           <View key={item.label} style={styles.strengthRow}>
             <View style={styles.strengthHeader}>
-              <Text style={styles.strengthLabel}>{item.label}</Text>
-              <Text style={styles.strengthScore}>{item.score}</Text>
+              <Text style={[styles.strengthLabel, { color: colors.ink }]}>{item.label}</Text>
+              <Text style={[styles.strengthScore, { color: colors.court }]}>{item.score}</Text>
             </View>
             <ProgressBar value={item.score} />
           </View>
@@ -39,7 +44,6 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   caption: {
-    color: palette.muted,
     fontSize: 12,
     fontWeight: '700',
     marginTop: 10,
@@ -55,11 +59,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   strengthLabel: {
-    color: palette.ink,
     fontWeight: '800',
   },
   strengthScore: {
-    color: palette.court,
     fontWeight: '900',
   },
 });

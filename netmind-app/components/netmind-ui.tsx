@@ -12,19 +12,25 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { palette } from '@/constants/netmind';
+import { useNetmindTheme } from '@/contexts/netmind-theme';
 
 export function Screen({
   title,
   subtitle,
   children,
 }: PropsWithChildren<{ title: string; subtitle?: string }>) {
+  const { colors } = useNetmindTheme();
+
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.screen} showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.wash }]}>
+      <ScrollView
+        contentContainerStyle={styles.screen}
+        showsVerticalScrollIndicator={false}
+        style={{ backgroundColor: colors.wash }}>
         <View style={styles.header}>
-          <Text style={styles.eyebrow}>NetMind Volleyball</Text>
-          <Text style={styles.title}>{title}</Text>
-          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+          <Text style={[styles.eyebrow, { color: colors.court }]}>NetMind Volleyball</Text>
+          <Text style={[styles.title, { color: colors.ink }]}>{title}</Text>
+          {subtitle ? <Text style={[styles.subtitle, { color: colors.muted }]}>{subtitle}</Text> : null}
         </View>
         {children}
       </ScrollView>
@@ -33,11 +39,28 @@ export function Screen({
 }
 
 export function Card({ children, style }: PropsWithChildren<{ style?: ViewStyle }>) {
-  return <View style={[styles.card, style]}>{children}</View>;
+  const { colors, isDark } = useNetmindTheme();
+
+  return (
+    <View
+      style={[
+        styles.card,
+        {
+          backgroundColor: colors.surface,
+          borderColor: colors.line,
+          shadowOpacity: isDark ? 0 : 0.05,
+        },
+        style,
+      ]}>
+      {children}
+    </View>
+  );
 }
 
 export function SectionTitle({ children }: PropsWithChildren) {
-  return <Text style={styles.sectionTitle}>{children}</Text>;
+  const { colors } = useNetmindTheme();
+
+  return <Text style={[styles.sectionTitle, { color: colors.ink }]}>{children}</Text>;
 }
 
 export function MetricCard({
@@ -51,12 +74,14 @@ export function MetricCard({
   delta?: string;
   tone?: string;
 }) {
+  const { colors } = useNetmindTheme();
+
   return (
     <Card style={styles.metricCard}>
-      <View style={[styles.metricDot, { backgroundColor: tone ?? palette.court }]} />
-      <Text style={styles.metricValue}>{value}</Text>
-      <Text style={styles.metricLabel}>{label}</Text>
-      {delta ? <Text style={styles.metricDelta}>{delta}</Text> : null}
+      <View style={[styles.metricDot, { backgroundColor: tone ?? colors.court }]} />
+      <Text style={[styles.metricValue, { color: colors.ink }]}>{value}</Text>
+      <Text style={[styles.metricLabel, { color: colors.muted }]}>{label}</Text>
+      {delta ? <Text style={[styles.metricDelta, { color: colors.court }]}>{delta}</Text> : null}
     </Card>
   );
 }
@@ -71,32 +96,48 @@ export function PrimaryButton({
   icon?: keyof typeof MaterialIcons.glyphMap;
   variant?: 'solid' | 'outline';
 }) {
+  const { colors } = useNetmindTheme();
+
   return (
     <Pressable
       {...props}
       style={({ pressed }) => [
         styles.button,
-        variant === 'outline' ? styles.buttonOutline : styles.buttonSolid,
+        variant === 'outline'
+          ? [styles.buttonOutline, { backgroundColor: colors.surface, borderColor: colors.line }]
+          : [styles.buttonSolid, { backgroundColor: colors.court }],
         pressed ? styles.buttonPressed : null,
       ]}>
       {icon ? (
         <MaterialIcons
           name={icon}
           size={20}
-          color={variant === 'outline' ? palette.court : '#ffffff'}
+          color={variant === 'outline' ? colors.court : '#ffffff'}
         />
       ) : null}
-      <Text style={variant === 'outline' ? styles.buttonOutlineText : styles.buttonSolidText}>
+      <Text
+        style={[
+          variant === 'outline' ? styles.buttonOutlineText : styles.buttonSolidText,
+          variant === 'outline' ? { color: colors.court } : null,
+        ]}>
         {title}
       </Text>
     </Pressable>
   );
 }
 
-export function ProgressBar({ value, color = palette.court }: { value: number; color?: string }) {
+export function ProgressBar({ value, color }: { value: number; color?: string }) {
+  const { colors } = useNetmindTheme();
+  const fillColor = color ?? colors.court;
+
   return (
-    <View style={styles.progressTrack}>
-      <View style={[styles.progressFill, { width: `${Math.max(0, Math.min(value, 100))}%`, backgroundColor: color }]} />
+    <View style={[styles.progressTrack, { backgroundColor: colors.line }]}>
+      <View
+        style={[
+          styles.progressFill,
+          { width: `${Math.max(0, Math.min(value, 100))}%`, backgroundColor: fillColor },
+        ]}
+      />
     </View>
   );
 }
@@ -112,27 +153,30 @@ export function ListRow({
   meta?: string;
   icon?: keyof typeof MaterialIcons.glyphMap;
 }) {
+  const { colors } = useNetmindTheme();
+
   return (
     <View style={styles.row}>
-      <View style={styles.rowIcon}>
-        <MaterialIcons name={icon} size={20} color={palette.court} />
+      <View style={[styles.rowIcon, { backgroundColor: colors.courtSoft }]}>
+        <MaterialIcons name={icon} size={20} color={colors.court} />
       </View>
       <View style={styles.rowBody}>
-        <Text style={styles.rowTitle}>{title}</Text>
-        {detail ? <Text style={styles.rowDetail}>{detail}</Text> : null}
+        <Text style={[styles.rowTitle, { color: colors.ink }]}>{title}</Text>
+        {detail ? <Text style={[styles.rowDetail, { color: colors.muted }]}>{detail}</Text> : null}
       </View>
-      {meta ? <Text style={styles.rowMeta}>{meta}</Text> : null}
+      {meta ? <Text style={[styles.rowMeta, { color: colors.muted }]}>{meta}</Text> : null}
     </View>
   );
 }
 
 export function MiniBarChart({ values }: { values: number[] }) {
+  const { colors } = useNetmindTheme();
   const max = Math.max(...values);
   return (
     <View style={styles.chart}>
       {values.map((value, index) => (
-        <View key={`${value}-${index}`} style={styles.chartColumn}>
-          <View style={[styles.chartBar, { height: `${(value / max) * 100}%` }]} />
+        <View key={`${value}-${index}`} style={[styles.chartColumn, { backgroundColor: colors.line }]}>
+          <View style={[styles.chartBar, { backgroundColor: colors.court, height: `${(value / max) * 100}%` }]} />
         </View>
       ))}
     </View>
