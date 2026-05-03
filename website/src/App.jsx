@@ -17,7 +17,9 @@ import DownloadButton from './components/DownloadButton'
 import AuthSection from './components/AuthSection'
 import AdminAnalytics from './pages/admin/AdminAnalytics'
 import AdminDashboard from './pages/admin/AdminDashboard'
+import AdminMatches from './pages/admin/AdminMatches'
 import AdminPlayers from './pages/admin/AdminPlayers'
+import AdminProfile from './pages/admin/AdminProfile'
 import AdminSettings from './pages/admin/AdminSettings'
 import AdminTeamDetails from './pages/admin/AdminTeamDetails'
 import AdminTeams from './pages/admin/AdminTeams'
@@ -46,10 +48,13 @@ function App() {
   useEffect(() => {
     const handleHashChange = () => {
       const nextRoute = getRoute()
-      setRoute(nextRoute)
-      if (nextRoute.area === 'admin') {
-        window.scrollTo(0, 0)
-      }
+      setRoute((currentRoute) => {
+        if (currentRoute.area !== 'admin' && nextRoute.area === 'admin') {
+          window.scrollTo(0, 0)
+        }
+
+        return nextRoute
+      })
     }
 
     window.addEventListener('hashchange', handleHashChange)
@@ -63,9 +68,11 @@ function App() {
 
     const pages = {
       dashboard: AdminDashboard,
+      profile: AdminProfile,
       teams: AdminTeams,
       players: AdminPlayers,
       trainers: AdminTrainers,
+      matches: AdminMatches,
       training: AdminTraining,
       analytics: AdminAnalytics,
       settings: AdminSettings,

@@ -1,5 +1,5 @@
 import { CheckCircle } from 'lucide-react'
-import instructorImg from '../assets/instructor.jpg'
+import instructorImg from '../assets/logo_volley.jpg'
 import { siteContent } from '../data/netmindData'
 
 const bullets = [

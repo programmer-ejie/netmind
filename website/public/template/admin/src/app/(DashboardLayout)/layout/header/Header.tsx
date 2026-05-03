@@ -15,7 +15,6 @@ import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 const Header = () => {
   const { theme, setTheme } = useTheme()
   const [isSticky, setIsSticky] = useState(false)
-  const [mobileMenu, setMobileMenu] = useState('')
   const [isOpen, setIsOpen] = useState(false)
 
   useEffect(() => {
@@ -46,13 +45,16 @@ const Header = () => {
         <nav
           className={`rounded-none  py-4 sm:ps-6 max-w-full! sm:pe-10 dark:bg-dark flex justify-between items-center px-6`}>
           {/* Mobile Toggle Icon */}
-          <div
+          <button
+            type='button'
+            aria-label='Open sidebar'
+            aria-expanded={isOpen}
             onClick={() => {
-              setIsOpen(true)
+              setIsOpen((current) => !current)
             }}
             className='px-3.5 hover:text-primary dark:hover:text-primary text-link dark:text-darklink relative after:absolute after:w-10 after:h-10 after:rounded-full hover:after:bg-lightprimary  after:bg-transparent rounded-full xl:hidden flex justify-center items-center cursor-pointer'>
             <Icon icon='tabler:menu-2' height={20} width={20} />
-          </div>
+          </button>
 
           <div className='block xl:hidden'>
             <FullLogo />

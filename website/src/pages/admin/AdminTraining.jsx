@@ -47,6 +47,7 @@ const AdminTraining = ({ currentPath = '#admin/training' }) => {
   const [coaches, setCoaches] = useState([])
   const [drillModal, setDrillModal] = useState(false)
   const [assignModal, setAssignModal] = useState(false)
+  const [activeView, setActiveView] = useState('drills')
   const [editingDrill, setEditingDrill] = useState(null)
   const [drillForm, setDrillForm] = useState(blankDrill)
   const [assignmentForm, setAssignmentForm] = useState(blankAssignment)
@@ -169,19 +170,48 @@ const AdminTraining = ({ currentPath = '#admin/training' }) => {
     <AdminLayout title="Training" currentPath={currentPath}>
       {error && <div className="admin-alert">{error}</div>}
 
-      <div className="admin-two-column wide-left">
-        <AdminCard>
-          <div className="admin-card-header">
-            <div>
-              <h2>Drills Library</h2>
-              <p className="admin-muted">Manage reusable training drills.</p>
-            </div>
-            <AdminButton onClick={openCreateDrill}>
-              <Plus size={17} />
-              Add Drill
-            </AdminButton>
+      <AdminCard>
+        <div className="admin-card-header">
+          <div>
+            <h2>{activeView === 'drills' ? 'Drills Library' : 'Training Assignments'}</h2>
+            <p className="admin-muted">
+              {activeView === 'drills'
+                ? 'Manage reusable training drills.'
+                : 'Assign drills and update player training status.'}
+            </p>
           </div>
+          <div className="admin-card-actions">
+            <div className="admin-segmented" role="tablist" aria-label="Training view">
+              <button
+                type="button"
+                className={activeView === 'drills' ? 'active' : ''}
+                onClick={() => setActiveView('drills')}
+              >
+                Drills
+              </button>
+              <button
+                type="button"
+                className={activeView === 'assignments' ? 'active' : ''}
+                onClick={() => setActiveView('assignments')}
+              >
+                Assignments
+              </button>
+            </div>
+            {activeView === 'drills' ? (
+              <AdminButton onClick={openCreateDrill}>
+                <Plus size={17} />
+                Add Drill
+              </AdminButton>
+            ) : (
+              <AdminButton onClick={() => setAssignModal(true)}>
+                <Plus size={17} />
+                Assign Training
+              </AdminButton>
+            )}
+          </div>
+        </div>
 
+        {activeView === 'drills' ? (
           <div className="admin-table">
             <table className="admin-native-table">
               <thead>
@@ -219,20 +249,7 @@ const AdminTraining = ({ currentPath = '#admin/training' }) => {
             </table>
             {!drills.length && <EmptyState>No drills created yet.</EmptyState>}
           </div>
-        </AdminCard>
-
-        <AdminCard>
-          <div className="admin-card-header">
-            <div>
-              <h2>Training Assignments</h2>
-              <p className="admin-muted">Assign drills and update status.</p>
-            </div>
-            <AdminButton onClick={() => setAssignModal(true)}>
-              <Plus size={17} />
-              Assign Training
-            </AdminButton>
-          </div>
-
+        ) : (
           <div className="admin-table">
             <table className="admin-native-table">
               <thead>
@@ -263,8 +280,8 @@ const AdminTraining = ({ currentPath = '#admin/training' }) => {
             </table>
             {!assignments.length && <EmptyState>No training assignments yet.</EmptyState>}
           </div>
-        </AdminCard>
-      </div>
+        )}
+      </AdminCard>
 
       <AdminModal open={drillModal} title={editingDrill ? 'Edit Drill' : 'Add Drill'} onClose={() => setDrillModal(false)}>
         <form className="admin-form admin-form-grid" onSubmit={saveDrill}>

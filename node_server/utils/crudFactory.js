@@ -5,7 +5,7 @@ const MAX_LIMIT = 100;
 
 function toSelect(config) {
   const fields = config.publicFields || ["*"];
-  return fields.map((field) => `\`${field}\``).join(", ");
+  return fields.map((field) => (field === "*" ? "*" : `\`${field}\``)).join(", ");
 }
 
 function normalizeBody(config, body, partial = false) {
@@ -64,8 +64,8 @@ function createCrudController(config) {
       const sortDir = String(req.query.sortDir).toLowerCase() === "asc" ? "ASC" : "DESC";
 
       const rows = await query(
-        `SELECT ${toSelect(config)} FROM \`${config.table}\` ${whereSql} ORDER BY \`${sortBy}\` ${sortDir} LIMIT ? OFFSET ?`,
-        [...values, limit, offset]
+        `SELECT ${toSelect(config)} FROM \`${config.table}\` ${whereSql} ORDER BY \`${sortBy}\` ${sortDir} LIMIT ${limit} OFFSET ${offset}`,
+        values
       );
       const totalRows = await query(`SELECT COUNT(*) AS total FROM \`${config.table}\` ${whereSql}`, values);
 

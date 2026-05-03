@@ -6,32 +6,42 @@ import AdminLayout, {
   AdminField,
   AdminInput,
   AdminModal,
+  AdminSelect,
   EmptyState,
   StatusBadge,
   formatDate,
   getName,
 } from './AdminLayout'
-import { createResource, deleteResource, listResource, updateResource } from '../../lib/api'
+import { apiRequest, createResource, deleteResource, listResource, updateResource } from '../../lib/api'
 
-const blankTeam = { team_name: '', team_color: '#635bff' }
+const blankTeam = { team_name: '', team_color: '#635bff', coach_id: '', trainer_id: '' }
 
 const AdminTeams = ({ currentPath = '#admin/teams' }) => {
   const [teams, setTeams] = useState([])
   const [coaches, setCoaches] = useState([])
+  const [trainers, setTrainers] = useState([])
   const [form, setForm] = useState(blankTeam)
   const [editing, setEditing] = useState(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [error, setError] = useState('')
 
-  const primaryCoachId = useMemo(() => coaches[0]?.id || 1, [coaches])
+  const availableOwners = useMemo(() => {
+    const trainerOnlyRows = trainers.filter((trainer) => (
+      !coaches.some((coach) => String(coach.id) === String(trainer.id))
+    ))
+
+    return [...coaches, ...trainerOnlyRows]
+  }, [coaches, trainers])
 
   const load = async () => {
-    const [teamRows, coachRows] = await Promise.all([
+    const [teamRows, coachRows, trainerRows] = await Promise.all([
       listResource('teams', { limit: 100, sortDir: 'asc' }),
       listResource('coaches'),
+      listResource('trainers'),
     ])
     setTeams(teamRows)
     setCoaches(coachRows)
+    setTrainers(trainerRows)
   }
 
   useEffect(() => {
@@ -40,7 +50,10 @@ const AdminTeams = ({ currentPath = '#admin/teams' }) => {
 
   const openCreate = () => {
     setEditing(null)
-    setForm(blankTeam)
+    setForm({
+      ...blankTeam,
+      coach_id: coaches[0]?.id || trainers[0]?.id || '',
+    })
     setModalOpen(true)
   }
 
@@ -49,6 +62,8 @@ const AdminTeams = ({ currentPath = '#admin/teams' }) => {
     setForm({
       team_name: team.team_name || '',
       team_color: team.team_color || '#635bff',
+      coach_id: team.coach_id || '',
+      trainer_id: '',
     })
     setModalOpen(true)
   }
@@ -59,9 +74,28 @@ const AdminTeams = ({ currentPath = '#admin/teams' }) => {
 
     try {
       if (editing) {
-        await updateResource('teams', editing.id, form)
+        await updateResource('teams', editing.id, {
+          team_name: form.team_name,
+          team_color: form.team_color,
+          coach_id: form.coach_id || editing.coach_id,
+        })
       } else {
-        await createResource('teams', { ...form, coach_id: primaryCoachId })
+        const coachId = form.coach_id || form.trainer_id || availableOwners[0]?.id || 1
+        const createdTeam = await createResource('teams', {
+          team_name: form.team_name,
+          team_color: form.team_color,
+          coach_id: coachId,
+        })
+
+        if (form.trainer_id) {
+          await apiRequest(`/teams/${createdTeam.id}/trainers`, {
+            method: 'POST',
+            body: {
+              trainer_id: form.trainer_id,
+              assigned_by: coachId,
+            },
+          })
+        }
       }
       setModalOpen(false)
       await load()
@@ -128,7 +162,7 @@ const AdminTeams = ({ currentPath = '#admin/teams' }) => {
                       </span>
                     </span>
                   </td>
-                  <td>{getName(coaches, team.coach_id)}</td>
+                  <td>{getName(availableOwners, team.coach_id)}</td>
                   <td>
                     <span className="admin-color-pill">
                       <i style={{ background: team.team_color || '#635bff' }} />
@@ -185,8 +219,42 @@ const AdminTeams = ({ currentPath = '#admin/teams' }) => {
             </div>
           </AdminField>
 
-          {!coaches.length && (
-            <StatusBadge tone="warning">No coach record found. The first coach id defaults to 1.</StatusBadge>
+          <AdminField label="Team Coach">
+            <AdminSelect
+              required
+              value={form.coach_id}
+              onChange={(event) => setForm((current) => ({ ...current, coach_id: event.target.value }))}
+            >
+              <option value="">Select coach or owner</option>
+              {coaches.map((coach) => (
+                <option key={`coach-${coach.id}`} value={coach.id}>{coach.name}</option>
+              ))}
+              {!coaches.length && trainers.map((trainer) => (
+                <option key={`trainer-owner-${trainer.id}`} value={trainer.id}>{trainer.name} (trainer)</option>
+              ))}
+            </AdminSelect>
+          </AdminField>
+
+          {!editing && (
+            <AdminField label="Available Trainer">
+              <AdminSelect
+                value={form.trainer_id}
+                onChange={(event) => setForm((current) => ({ ...current, trainer_id: event.target.value }))}
+              >
+                <option value="">Assign after creating</option>
+                {trainers.map((trainer) => (
+                  <option key={trainer.id} value={trainer.id}>{trainer.name}</option>
+                ))}
+              </AdminSelect>
+            </AdminField>
+          )}
+
+          {!coaches.length && !trainers.length && (
+            <StatusBadge tone="warning">No coach or trainer record found. The owner id defaults to 1.</StatusBadge>
+          )}
+
+          {!coaches.length && trainers.length > 0 && (
+            <StatusBadge tone="warning">No coach record found. Choose a trainer as the team owner.</StatusBadge>
           )}
 
           <div className="admin-form-actions">

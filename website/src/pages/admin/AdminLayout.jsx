@@ -7,12 +7,16 @@ import {
   LogOut,
   Menu,
   Moon,
+  Swords,
   Search,
   Settings,
   Shield,
+  Sun,
+  UserCircle,
   UserRound,
   Users,
 } from 'lucide-react'
+import { useThemeMode } from '../../lib/theme'
 
 export const positions = ['OH', 'OPP', 'MB', 'S', 'L']
 export const drillCategories = [
@@ -68,7 +72,10 @@ export const parseRankings = (value) => {
 const sidebarGroups = [
   {
     label: 'Dashboards',
-    items: [{ href: '#admin', icon: Home, label: 'Dashboard' }],
+    items: [
+      { href: '#admin', icon: Home, label: 'Dashboard' },
+      { href: '#admin/profile', icon: UserCircle, label: 'Profile' },
+    ],
   },
   {
     label: 'Management',
@@ -81,6 +88,7 @@ const sidebarGroups = [
   {
     label: 'Performance',
     items: [
+      { href: '#admin/matches', icon: Swords, label: 'Matches' },
       { href: '#admin/training', icon: Dumbbell, label: 'Training' },
       { href: '#admin/analytics', icon: BarChart3, label: 'Analytics' },
     ],
@@ -88,6 +96,24 @@ const sidebarGroups = [
   {
     label: 'Utilities',
     items: [{ href: '#admin/settings', icon: Settings, label: 'Settings' }],
+  },
+]
+
+const notifications = [
+  {
+    title: 'Training plan due',
+    body: '3 player assignments need review today.',
+    time: '10 min ago',
+  },
+  {
+    title: 'Roster update',
+    body: 'A player readiness note was added.',
+    time: '42 min ago',
+  },
+  {
+    title: 'Match analytics ready',
+    body: 'Latest team performance report is available.',
+    time: '1 hr ago',
   },
 ]
 
@@ -177,29 +203,26 @@ export const BarSet = ({ data, valueKey = 'value', labelKey = 'label' }) => {
 export const AdminLayout = ({ children, title, kicker = 'Volleyball Analytics', currentPath }) => {
   const hash = currentPath || window.location.hash || '#admin'
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [darkMode, setDarkMode] = useState(() => {
-    try {
-      return localStorage.getItem('netmind_admin_theme') === 'dark'
-    } catch {
-      return false
-    }
-  })
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const sidebarVisible = window.innerWidth > 1100 ? !sidebarCollapsed : sidebarOpen
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
+  const { isDark, toggleTheme } = useThemeMode()
 
   const closeSidebar = () => setSidebarOpen(false)
-  const toggleDarkMode = () => {
-    setDarkMode((current) => {
-      const next = !current
-      try {
-        localStorage.setItem('netmind_admin_theme', next ? 'dark' : 'light')
-      } catch {
-        // Ignore unavailable storage.
-      }
-      return next
-    })
+  const closeNotifications = () => setNotificationsOpen(false)
+  const closeProfile = () => setProfileOpen(false)
+  const toggleSidebar = () => {
+    if (window.innerWidth <= 1100) {
+      setSidebarOpen((current) => !current)
+      return
+    }
+
+    setSidebarCollapsed((current) => !current)
   }
 
   return (
-    <main className={`admin-page ${sidebarOpen ? 'sidebar-open' : ''} ${darkMode ? 'admin-dark' : ''}`}>
+    <main className={`admin-page ${sidebarOpen ? 'sidebar-open' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${isDark ? 'admin-dark' : ''}`}>
       <button
         type="button"
         className="admin-sidebar-backdrop"
@@ -251,8 +274,12 @@ export const AdminLayout = ({ children, title, kicker = 'Volleyball Analytics', 
           <nav>
             <button
               className="admin-icon-button admin-mobile-toggle"
-              aria-label="Open menu"
-              onClick={() => setSidebarOpen(true)}
+              aria-label={sidebarVisible ? 'Close menu' : 'Open menu'}
+              aria-expanded={sidebarVisible}
+              onClick={() => {
+                closeNotifications()
+                toggleSidebar()
+              }}
               type="button"
             >
               <Menu size={21} />
@@ -276,19 +303,85 @@ export const AdminLayout = ({ children, title, kicker = 'Volleyball Analytics', 
               <button
                 className="admin-icon-button"
                 aria-label="Toggle dark mode"
-                aria-pressed={darkMode}
-                onClick={toggleDarkMode}
+                aria-pressed={isDark}
+                onClick={() => {
+                  closeNotifications()
+                  toggleTheme()
+                }}
                 type="button"
               >
-                <Moon size={20} />
+                {isDark ? <Moon size={20} /> : <Sun size={20} />}
               </button>
-              <button className="admin-icon-button" aria-label="Notifications">
-                <Bell size={21} />
-                <span className="admin-notification-dot" />
-              </button>
-              <span className="admin-profile-trigger">
-                <span className="admin-profile" aria-label="Admin profile">NM</span>
-              </span>
+              <div className="admin-notifications">
+                <button
+                  className="admin-icon-button"
+                  aria-label="Notifications"
+                  aria-expanded={notificationsOpen}
+                  aria-haspopup="menu"
+                  onClick={() => setNotificationsOpen((current) => !current)}
+                  type="button"
+                >
+                  <Bell size={21} />
+                  <span className="admin-notification-dot" />
+                </button>
+
+                {notificationsOpen && (
+                  <div className="admin-notification-menu" role="menu">
+                    <div className="admin-notification-head">
+                      <strong>Notifications</strong>
+                      <span>{notifications.length} new</span>
+                    </div>
+
+                    {notifications.map((item) => (
+                      <button
+                        type="button"
+                        className="admin-notification-item"
+                        key={item.title}
+                        role="menuitem"
+                        onClick={closeNotifications}
+                      >
+                        <span>
+                          <strong>{item.title}</strong>
+                          <small>{item.body}</small>
+                        </span>
+                        <time>{item.time}</time>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="admin-profile-menu-wrap">
+                <button
+                  className="admin-profile-trigger"
+                  aria-label="Admin profile menu"
+                  aria-expanded={profileOpen}
+                  aria-haspopup="menu"
+                  onClick={() => {
+                    closeNotifications()
+                    setProfileOpen((current) => !current)
+                  }}
+                  type="button"
+                >
+                  <span className="admin-profile">NM</span>
+                </button>
+
+                {profileOpen && (
+                  <div className="admin-profile-menu" role="menu">
+                    <a href="#admin/profile" role="menuitem" onClick={closeProfile}>
+                      <UserCircle size={16} />
+                      Profile
+                    </a>
+                    <a href="#admin/settings" role="menuitem" onClick={closeProfile}>
+                      <Settings size={16} />
+                      Settings
+                    </a>
+                    <a className="admin-profile-logout" href="#auth" role="menuitem" onClick={closeProfile}>
+                      <LogOut size={16} />
+                      Logout
+                    </a>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
           </nav>
