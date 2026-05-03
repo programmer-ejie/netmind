@@ -6,6 +6,7 @@ const analyticsRoutes = require("./routes/analyticsRoutes");
 const workflowRoutes = require("./routes/workflowRoutes");
 const authRoutes = require("./routes/authRoutes");
 const crudRoutes = require("./routes/crudRoutes");
+const profileRoutes = require("./routes/profileRoutes");
 const { errorHandler, notFound } = require("./middleware/errorHandler");
 
 const app = express();
@@ -23,6 +24,7 @@ app.get("/health", (req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api", profileRoutes);
 app.use("/api", analyticsRoutes);
 app.use("/api", workflowRoutes);
 app.use("/api", crudRoutes);

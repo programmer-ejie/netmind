@@ -131,21 +131,21 @@ router.get("/routes", (req, res) => {
 
 router.get("/players", asyncHandler(async (req, res) => {
   const rows = await query(
-    "SELECT id, name, email, role, position, jersey_number, is_active, created_at FROM users WHERE role = 'player' ORDER BY name"
+    "SELECT id, name, email, role, position, jersey_number, age, birthdate, location, profile_picture_url, profile_picture_file_id, is_active, created_at FROM users WHERE role = 'player' ORDER BY name"
   );
   res.json(rows);
 }));
 
 router.get("/coaches", asyncHandler(async (req, res) => {
   const rows = await query(
-    "SELECT id, name, email, role, position, jersey_number, is_active, created_at FROM users WHERE role = 'coach' ORDER BY name"
+    "SELECT id, name, email, role, position, jersey_number, age, birthdate, location, profile_picture_url, profile_picture_file_id, is_active, created_at FROM users WHERE role = 'coach' ORDER BY name"
   );
   res.json(rows);
 }));
 
 router.get("/trainers", asyncHandler(async (req, res) => {
   const rows = await query(
-    "SELECT id, name, email, role, position, jersey_number, is_active, created_at FROM users WHERE role = 'trainer' ORDER BY name"
+    "SELECT id, name, email, role, position, jersey_number, age, birthdate, location, profile_picture_url, profile_picture_file_id, is_active, created_at FROM users WHERE role = 'trainer' ORDER BY name"
   );
   res.json(rows);
 }));

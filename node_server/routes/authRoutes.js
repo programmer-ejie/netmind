@@ -90,7 +90,7 @@ router.post(
         [name, email, passwordHash]
       );
       const [rows] = await connection.execute(
-        "SELECT id, name, email, role, position, jersey_number, is_active, created_at FROM users WHERE id = ?",
+        "SELECT id, name, email, role, position, jersey_number, age, birthdate, location, profile_picture_url, profile_picture_file_id, is_active, created_at FROM users WHERE id = ?",
         [result.insertId]
       );
       user = rows[0];
@@ -168,7 +168,7 @@ router.post(
       [name, email, passwordHash, role, position, jersey_number]
     );
     const rows = await query(
-      "SELECT id, name, email, role, position, jersey_number, is_active, created_at FROM users WHERE id = ?",
+      "SELECT id, name, email, role, position, jersey_number, age, birthdate, location, profile_picture_url, profile_picture_file_id, is_active, created_at FROM users WHERE id = ?",
       [result.insertId]
     );
     const user = rows[0];
@@ -202,7 +202,7 @@ router.post(
     const email = req.body.email.trim().toLowerCase();
     const dbStartedAt = performance.now();
     const rows = await query(
-      `SELECT id, name, email, password_hash, role, position, jersey_number, is_active, created_at
+      `SELECT id, name, email, password_hash, role, position, jersey_number, age, birthdate, location, profile_picture_url, profile_picture_file_id, is_active, created_at
       FROM users
       WHERE email = ? AND is_active = TRUE
       LIMIT 1`,

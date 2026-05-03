@@ -6,6 +6,11 @@ CREATE TABLE IF NOT EXISTS users (
   role ENUM('coach', 'trainer', 'player') NOT NULL,
   position ENUM('OH', 'OPP', 'MB', 'S', 'L') NULL,
   jersey_number INT NULL,
+  age INT NULL,
+  birthdate DATE NULL,
+  location VARCHAR(160) NULL,
+  profile_picture_url VARCHAR(500) NULL,
+  profile_picture_file_id VARCHAR(160) NULL,
   is_active BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

@@ -12,7 +12,7 @@ const protect = asyncHandler(async (req, res, next) => {
 
   const decoded = jwt.verify(token, process.env.JWT_SECRET);
   const users = await query(
-    "SELECT id, name, email, role, position, jersey_number, is_active, created_at FROM users WHERE id = ? AND is_active = TRUE",
+    "SELECT id, name, email, role, position, jersey_number, age, birthdate, location, profile_picture_url, profile_picture_file_id, is_active, created_at FROM users WHERE id = ? AND is_active = TRUE",
     [decoded.id]
   );
 

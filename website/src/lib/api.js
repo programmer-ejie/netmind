@@ -20,7 +20,9 @@ export const unwrapList = (payload) => {
 }
 
 export async function apiRequest(path, options = {}) {
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData
   const body = options.body && typeof options.body !== 'string'
+    && !isFormData
     ? JSON.stringify(options.body)
     : options.body
 
@@ -28,7 +30,7 @@ export async function apiRequest(path, options = {}) {
     ...options,
     body,
     headers: {
-      ...(body ? { 'Content-Type': 'application/json' } : {}),
+      ...(body && !isFormData ? { 'Content-Type': 'application/json' } : {}),
       ...options.headers,
     },
   })

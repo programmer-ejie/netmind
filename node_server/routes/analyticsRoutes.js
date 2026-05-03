@@ -82,7 +82,7 @@ router.get(
     }
 
     const [player] = await query(
-      "SELECT id, name, email, role, position, jersey_number, is_active, created_at FROM users WHERE id = ?",
+      "SELECT id, name, email, role, position, jersey_number, age, birthdate, location, profile_picture_url, profile_picture_file_id, is_active, created_at FROM users WHERE id = ?",
       [req.params.playerId]
     );
     const actions = await query(
