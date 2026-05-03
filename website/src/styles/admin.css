@@ -1420,6 +1420,71 @@
   font-weight: 600;
 }
 
+.admin-skeleton-bars {
+  min-height: 315px;
+  display: flex;
+  align-items: end;
+  justify-content: space-around;
+  gap: 14px;
+  padding: 28px 22px 22px;
+}
+
+.admin-skeleton-bars span,
+.admin-skeleton-line,
+.admin-skeleton-list span {
+  display: block;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--admin-primary) 8%, var(--admin-soft)),
+    color-mix(in oklab, var(--admin-primary) 18%, var(--admin-soft)),
+    color-mix(in oklab, var(--admin-primary) 8%, var(--admin-soft))
+  );
+  background-size: 220% 100%;
+  animation: admin-skeleton 1.2s ease-in-out infinite;
+}
+
+.admin-skeleton-bars span {
+  width: 28px;
+}
+
+.admin-skeleton-line {
+  width: 92px;
+  height: 14px;
+}
+
+.admin-skeleton-line.wide {
+  width: min(180px, 100%);
+}
+
+.admin-skeleton-line.short {
+  width: 48px;
+}
+
+.admin-skeleton-list {
+  display: grid;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.admin-skeleton-list span {
+  height: 16px;
+  width: 100%;
+}
+
+.admin-skeleton-list span:nth-child(2n) {
+  width: 78%;
+}
+
+@keyframes admin-skeleton {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
 .admin-simple-bars {
   height: 315px;
   display: flex;

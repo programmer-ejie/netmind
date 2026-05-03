@@ -1,10 +1,11 @@
 const express = require("express");
-const bcrypt = require("bcryptjs");
+const bcrypt = require("bcrypt");
 const { query } = require("../config/db");
 const asyncHandler = require("../utils/asyncHandler");
 const ApiError = require("../utils/apiError");
 
 const router = express.Router();
+const BCRYPT_ROUNDS = Number(process.env.BCRYPT_ROUNDS || 10);
 
 async function getById(table, id) {
   const rows = await query(`SELECT * FROM \`${table}\` WHERE id = ?`, [id]);
@@ -167,7 +168,7 @@ router.patch("/users/:userId/password", asyncHandler(async (req, res) => {
     throw new ApiError(401, "Current password is incorrect");
   }
 
-  const passwordHash = await bcrypt.hash(newPassword, 12);
+  const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
   await query("UPDATE users SET password_hash = ? WHERE id = ?", [passwordHash, req.params.userId]);
 
   res.json({ message: "Password updated" });

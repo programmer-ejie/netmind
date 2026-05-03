@@ -52,19 +52,15 @@ const AdminDashboard = ({ currentPath = '#admin' }) => {
   }, [])
 
   const chartData = useMemo(() => {
+    if (state.loading) return []
+
     const grouped = state.logs.reduce((acc, log) => {
       const key = log.action_type || 'overall'
       acc[key] = (acc[key] || 0) + (Number(log.value) || 1)
       return acc
     }, {})
 
-    const rows = Object.entries(grouped).map(([label, value]) => ({ label, value }))
-    return rows.length ? rows.slice(0, 8) : [
-      { label: 'serve', value: 42 },
-      { label: 'spike', value: 57 },
-      { label: 'dig', value: 34 },
-      { label: 'block', value: 29 },
-    ]
+    return Object.entries(grouped).map(([label, value]) => ({ label, value })).slice(0, 8)
   }, [state.logs])
 
   const topPlayers = useMemo(() => (
@@ -107,7 +103,17 @@ const AdminDashboard = ({ currentPath = '#admin' }) => {
               <option>This Season</option>
             </select>
           </div>
-          <BarSet data={chartData} />
+          {state.loading ? (
+            <div className="admin-skeleton-bars" aria-label="Loading chart">
+              {Array.from({ length: 8 }).map((_, index) => (
+                <span key={index} style={{ height: `${32 + (index % 4) * 14}%` }} />
+              ))}
+            </div>
+          ) : chartData.length ? (
+            <BarSet data={chartData} />
+          ) : (
+            <EmptyState>No performance logs yet.</EmptyState>
+          )}
         </AdminCard>
 
         <div className="admin-side-stack">
@@ -120,10 +126,10 @@ const AdminDashboard = ({ currentPath = '#admin' }) => {
             </div>
             <div className="admin-progress-row">
               <span>Active accounts</span>
-              <strong>{moneylessNumber(state.players.length)}</strong>
+              <strong>{state.loading ? '...' : moneylessNumber(state.players.length)}</strong>
             </div>
             <div className="admin-progress">
-              <span style={{ width: `${Math.min(100, state.players.length * 28)}%` }} />
+              <span style={{ width: state.loading ? '38%' : `${Math.min(100, state.players.length * 28)}%` }} />
             </div>
           </AdminCard>
 
@@ -135,8 +141,8 @@ const AdminDashboard = ({ currentPath = '#admin' }) => {
               <h2>Performance Logs</h2>
             </div>
             <div className="admin-income">
-              <strong>{moneylessNumber(state.logs.length)}</strong>
-              <span>Live</span>
+              <strong>{state.loading ? '...' : moneylessNumber(state.logs.length)}</strong>
+              <span>{state.loading ? 'Loading' : 'Live'}</span>
             </div>
           </AdminCard>
         </div>
@@ -157,7 +163,15 @@ const AdminDashboard = ({ currentPath = '#admin' }) => {
                 </tr>
               </thead>
               <tbody>
-                {topPlayers.map((player) => (
+                {state.loading && Array.from({ length: 4 }).map((_, index) => (
+                  <tr key={`loading-player-${index}`}>
+                    <td><span className="admin-skeleton-line wide" /></td>
+                    <td><span className="admin-skeleton-line" /></td>
+                    <td><span className="admin-skeleton-line short" /></td>
+                    <td><span className="admin-skeleton-line short" /></td>
+                  </tr>
+                ))}
+                {!state.loading && topPlayers.map((player) => (
                   <tr key={player.id}>
                     <td>
                       <span className="admin-player">
@@ -175,13 +189,19 @@ const AdminDashboard = ({ currentPath = '#admin' }) => {
                 ))}
               </tbody>
             </table>
-            {!topPlayers.length && <EmptyState />}
+            {!state.loading && !topPlayers.length && <EmptyState />}
           </div>
         </AdminCard>
 
         <AdminCard className="admin-activity-card">
           <h2>Daily activities</h2>
-          {recentActivity.length ? (
+          {state.loading ? (
+            <div className="admin-skeleton-list">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <span key={index} />
+              ))}
+            </div>
+          ) : recentActivity.length ? (
             <ul className="admin-timeline">
               {recentActivity.map((item, index) => (
                 <li key={`${item.text}-${index}`}>

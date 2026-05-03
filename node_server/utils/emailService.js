@@ -1,5 +1,7 @@
 const nodemailer = require("nodemailer");
 
+let transporter;
+
 function createTransporter() {
   const user = process.env.EMAIL_USER;
   const pass = process.env.EMAIL_PASS;
@@ -8,13 +10,22 @@ function createTransporter() {
     throw new Error("EMAIL_USER and EMAIL_PASS must be set in .env");
   }
 
-  return nodemailer.createTransport({
+  if (transporter) {
+    return transporter;
+  }
+
+  transporter = nodemailer.createTransport({
     service: "gmail",
+    pool: true,
+    maxConnections: 3,
+    maxMessages: 50,
     auth: {
       user,
       pass,
     },
   });
+
+  return transporter;
 }
 
 function escapeHtml(value) {
