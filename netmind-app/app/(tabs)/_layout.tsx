@@ -4,9 +4,12 @@ import React from 'react';
 import { HapticTab } from '@/components/haptic-tab';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useNetmindTheme } from '@/contexts/netmind-theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
   const { colors } = useNetmindTheme();
+  const insets = useSafeAreaInsets();
+  const bottomInset = Math.max(insets.bottom, 12);
 
   return (
     <Tabs
@@ -20,8 +23,8 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.line,
-          height: 68,
-          paddingBottom: 8,
+          height: 60 + bottomInset,
+          paddingBottom: bottomInset,
           paddingTop: 8,
         },
         headerShown: false,

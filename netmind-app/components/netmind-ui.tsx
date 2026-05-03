@@ -22,7 +22,7 @@ export function Screen({
   const { colors } = useNetmindTheme();
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.wash }]}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={[styles.safeArea, { backgroundColor: colors.wash }]}>
       <ScrollView
         contentContainerStyle={styles.screen}
         showsVerticalScrollIndicator={false}
@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
   screen: {
     paddingHorizontal: 18,
     paddingTop: 14,
-    paddingBottom: 110,
+    paddingBottom: 24,
     gap: 16,
   },
   header: {
