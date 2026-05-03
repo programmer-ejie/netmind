@@ -1,9 +1,9 @@
 const faqs = [
-  { q: 'Is this connected to the database now?', a: 'For now the React app uses static data with the same field names as the MySQL tables.' },
-  { q: 'Can this become API-driven later?', a: 'Yes. The static objects mirror the API resources, so each section can be swapped to fetch from Express routes.' },
+  { q: 'Is this connected to the database now?', a: 'Yes. The admin workspace reads and writes records through the Express API and MySQL database.' },
+  { q: 'Can coaches invite team members?', a: 'Coaches can create trainer and player accounts inside the admin workspace after their account is created.' },
   { q: 'Which roles does NetMind support?', a: 'Coach, trainer, and player roles are represented in the users table and interface copy.' },
   { q: 'What sport is this built around?', a: 'The current schema and content are built for volleyball teams and performance tracking.' },
-  { q: 'Where is the full seed data?', a: 'The backend has database/staticData.js and scripts/seedStaticData.js for repeatable demo records.' },
+  { q: 'Are demo records included?', a: 'No. New environments start empty so real team data can be created from the app.' },
 ]
 
 const FAQSection = () => (

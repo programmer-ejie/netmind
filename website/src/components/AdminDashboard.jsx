@@ -1,5 +1,4 @@
 import { Activity, BarChart3, Bell, ClipboardList, Dumbbell, Home, LogOut, Menu, Users } from 'lucide-react'
-import { players, staticData } from '../data/netmindData'
 
 const sidebarItems = [
   { icon: Home, label: 'Dashboard', active: true },
@@ -11,10 +10,16 @@ const sidebarItems = [
 
 const chartValues = [12, 27, 10, 36, 21, 27, 22, 13, 25]
 const activity = [
-  { time: '08:00', text: '2026 Summer League activated', tone: 'primary' },
-  { time: '08:15', text: 'Transition Attack Read assigned to Ari Lim', tone: 'warning' },
-  { time: '09:30', text: 'Cebu Spikers match finalized as 3-1 win', tone: 'secondary' },
-  { time: '10:05', text: 'Bianca Tan injury note added for ankle soreness', tone: 'error' },
+  { time: '--:--', text: 'Create a team to begin tracking activity', tone: 'primary' },
+  { time: '--:--', text: 'Add players and trainers from the admin workspace', tone: 'warning' },
+  { time: '--:--', text: 'Log matches and training to populate analytics', tone: 'secondary' },
+  { time: '--:--', text: 'Performance notes will appear after sessions', tone: 'error' },
+]
+
+const readinessRows = [
+  { label: 'Players', target: 'Not set', status: 'Pending', focus: 'Roster' },
+  { label: 'Training', target: 'Not set', status: 'Pending', focus: 'Drills' },
+  { label: 'Matches', target: 'Not set', status: 'Pending', focus: 'Schedule' },
 ]
 
 const AdminCard = ({ children, className = '' }) => (
@@ -22,9 +27,6 @@ const AdminCard = ({ children, className = '' }) => (
 )
 
 const AdminDashboard = () => {
-  const ranking = staticData.team_rankings[0]
-  const team = staticData.teams[0]
-
   return (
     <main className="admin-page">
       <aside className="admin-sidebar">
@@ -91,10 +93,10 @@ const AdminDashboard = () => {
                 <h2>Active Players</h2>
               </div>
               <div className="admin-progress-row">
-                <span>{team.team_name}</span>
-                <strong>{players.length}/3</strong>
+                <span>No team selected</span>
+                <strong>0</strong>
               </div>
-              <div className="admin-progress"><span style={{ width: '100%' }} /></div>
+              <div className="admin-progress"><span style={{ width: '0%' }} /></div>
             </AdminCard>
 
             <AdminCard>
@@ -103,8 +105,8 @@ const AdminDashboard = () => {
                 <h2>Point Difference</h2>
               </div>
               <div className="admin-income">
-                <strong>+{ranking.point_difference}</strong>
-                <span>100% win rate</span>
+                <strong>0</strong>
+                <span>No match data yet</span>
               </div>
             </AdminCard>
           </div>
@@ -120,20 +122,20 @@ const AdminDashboard = () => {
                 <span>Status</span>
                 <span>Focus</span>
               </div>
-              {players.map((player, index) => (
-                <div className="admin-table-row" key={player.id}>
+              {readinessRows.map((row, index) => (
+                <div className="admin-table-row" key={row.label}>
                   <span className="admin-player">
-                    <b>{player.name.slice(0, 2).toUpperCase()}</b>
+                    <b>{row.label.slice(0, 2).toUpperCase()}</b>
                     <span>
-                      <strong>{player.name}</strong>
-                      <small>#{player.jersey_number} - {player.position}</small>
+                      <strong>{row.label}</strong>
+                      <small>Waiting for records</small>
                     </span>
                   </span>
-                  <span>{index === 0 ? '60%' : index === 1 ? '72%' : 'Limited'}</span>
+                  <span>{row.target}</span>
                   <span className={index === 2 ? 'admin-badge warning' : 'admin-badge success'}>
-                    {index === 2 ? 'Monitor' : 'Ready'}
+                    {row.status}
                   </span>
-                  <span>{index === 0 ? 'Spiking' : index === 1 ? 'Serving' : 'Recovery'}</span>
+                  <span>{row.focus}</span>
                 </div>
               ))}
             </div>

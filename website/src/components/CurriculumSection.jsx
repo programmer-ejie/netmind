@@ -1,9 +1,9 @@
 const modules = [
-  { title: 'Step 1 - Register coaches, trainers, and players', records: 5, table: 'users' },
-  { title: 'Step 2 - Create teams, seasons, and roster links', records: 5, table: 'teams and team_members' },
-  { title: 'Step 3 - Log matches, attendance, and training', records: 6, table: 'matches and attendance_logs' },
-  { title: 'Step 4 - Track drills, injuries, and performance', records: 5, table: 'drills and performance_logs' },
-  { title: 'Step 5 - Generate rankings and comparisons', records: 2, table: 'team_rankings and player_comparisons' },
+  { title: 'Step 1 - Register coaches, trainers, and players', detail: 'Create accounts in the users table through the API.' },
+  { title: 'Step 2 - Create teams, seasons, and roster links', detail: 'Build the team workspace and connect members to teams.' },
+  { title: 'Step 3 - Log matches, attendance, and training', detail: 'Capture real activity as your team works.' },
+  { title: 'Step 4 - Track drills, injuries, and performance', detail: 'Record volleyball development data from live sessions.' },
+  { title: 'Step 5 - Generate rankings and comparisons', detail: 'Use saved records to compare players and team trends.' },
 ]
 
 const CurriculumSection = () => (
@@ -19,7 +19,7 @@ const CurriculumSection = () => (
               {module.title}
             </summary>
             <div className="text-muted-foreground pb-4">
-              {module.records} static records mapped to {module.table}
+              {module.detail}
             </div>
           </details>
         ))}

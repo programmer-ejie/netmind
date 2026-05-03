@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import websiteLogo from '../assets/website_logo.png'
 
 const FooterSection = () => {
   const [email, setEmail] = useState('')
@@ -7,7 +8,14 @@ const FooterSection = () => {
     <footer className="border-t border-border/50 py-12 px-4">
       <div className="container mx-auto grid md:grid-cols-4 gap-8">
         <div>
-          <span className="text-lg font-bold glow-text">NetMind</span>
+          <div className="flex items-center gap-2">
+            <img
+              src={websiteLogo}
+              alt="NetMind"
+              className="netmind-logo-mark"
+            />
+            <span className="netmind-wordmark footer-wordmark">NetMind</span>
+          </div>
           <p className="text-sm text-muted-foreground mt-2">
             Volleyball intelligence for team performance workflows.
           </p>
@@ -45,7 +53,7 @@ const FooterSection = () => {
         </div>
       </div>
       <div className="container mx-auto mt-8 pt-8 border-t border-border/50 text-center text-sm text-muted-foreground">
-        2026 NetMind. Static demo data is aligned with the NetMind database schema.
+        2026 NetMind. Smart volleyball intelligence for connected teams.
       </div>
     </footer>
   )

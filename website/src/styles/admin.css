@@ -168,18 +168,41 @@
   }
 }
 
+.netmind-wordmark {
+  color: #11a6b4;
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0;
+  text-shadow: 0 0 18px rgba(17, 166, 180, 0.22);
+}
+
+.netmind-logo-mark {
+  width: 40px;
+  height: 40px;
+  border: 2px solid #11a6b4;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #ffffff;
+  box-shadow: 0 0 16px rgba(17, 166, 180, 0.18);
+}
+
+.footer-wordmark {
+  font-size: 18px;
+}
+
 .admin-page {
-  --admin-primary: #635bff;
-  --admin-secondary: #14e9e2;
-  --admin-info: #46caeb;
+  --admin-primary: #11a6b4;
+  --admin-secondary: #0e8fa1;
+  --admin-info: #28b8c7;
   --admin-success: #36c76c;
   --admin-warning: #ffb900;
   --admin-error: #ff6692;
-  --admin-dark: #1f2a3d;
-  --admin-link: #2a3547;
+  --admin-dark: #17313b;
+  --admin-link: #233d48;
   --admin-muted: #98a4ae;
   --admin-border: #e0e6eb;
-  --admin-soft: #f4f7fb;
+  --admin-soft: #f3fafc;
   --admin-card: #ffffff;
   --admin-light-primary: color-mix(in oklab, var(--admin-primary) 12%, transparent);
   --admin-light-secondary: color-mix(in oklab, var(--admin-secondary) 12%, transparent);

@@ -31,9 +31,9 @@ async function sendTemporaryPasswordEmail({ to, name, password }) {
   const safeName = escapeHtml(name);
   const safeEmail = escapeHtml(to);
   const safePassword = escapeHtml(password);
-  const subject = `[NETMIND] Welcome to NetMind Volleyball Intelligent Management, ${name}`;
+  const subject = `[NETMIND] Welcome to NetMind!`;
   const text = [
-    `[NETMIND] Welcome to NetMind Volleyball Intelligent Management, ${name}`,
+    `[NETMIND] Welcome to NetMind!`,
     "",
     "Your account has been successfully created.",
     "",

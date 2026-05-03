@@ -241,7 +241,7 @@ const AdminTeamDetails = ({ teamId, currentPath = '#admin/teams' }) => {
               required
               value={playerForm.name}
               onChange={(event) => setPlayerForm((current) => ({ ...current, name: event.target.value }))}
-              placeholder="Ari Lim"
+              placeholder="Player name"
             />
           </AdminField>
           <AdminField label="Email">
@@ -250,7 +250,7 @@ const AdminTeamDetails = ({ teamId, currentPath = '#admin/teams' }) => {
               type="email"
               value={playerForm.email}
               onChange={(event) => setPlayerForm((current) => ({ ...current, email: event.target.value }))}
-              placeholder="ari@netmind.test"
+              placeholder="player@example.com"
             />
           </AdminField>
           <AdminField label="Password">

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Menu, Moon, Sun, X } from 'lucide-react'
-import { siteContent } from '../data/netmindData'
+import websiteLogo from '../assets/website_logo.png'
 import { useThemeMode } from '../lib/theme'
 
 const navLinks = [
@@ -30,8 +30,13 @@ const Navbar = () => {
       }`}
     >
       <div className="container mx-auto flex items-center justify-between px-4">
-        <a href="#" className="text-xl font-bold glow-text">
-          {siteContent.name}
+        <a href="#" className="flex items-center gap-3" aria-label="NetMind home">
+          <img
+            src={websiteLogo}
+            alt="NetMind"
+            className="netmind-logo-mark"
+          />
+          <span className="netmind-wordmark">NetMind</span>
         </a>
 
         <div className="hidden md:flex items-center gap-6">

@@ -1,5 +1,4 @@
 import { BarChart3, BookOpen, CheckSquare, Home, Play, Settings, Users } from 'lucide-react'
-import { players, staticData } from '../data/netmindData'
 
 const sidebarItems = [
   { icon: Home, label: 'Dashboard' },
@@ -11,9 +10,15 @@ const sidebarItems = [
 ]
 
 const activityItems = [
-  'Serve Target Ladder assigned to Nico Cruz',
-  'Transition Attack Read assigned to Ari Lim',
-  'Cebu Spikers match logged as win',
+  'Training assignments appear here after creation',
+  'Match results sync from your team records',
+  'Player performance updates from logged sessions',
+]
+
+const previewCards = [
+  { label: 'Roster', value: 'Players', detail: 'Positions' },
+  { label: 'Training', value: 'Drills', detail: 'Targets' },
+  { label: 'Matches', value: 'Results', detail: 'Trends' },
 ]
 
 const DashboardPreview = () => (
@@ -42,14 +47,14 @@ const DashboardPreview = () => (
           </div>
 
           <div className="flex-1 p-6">
-            <h3 className="font-semibold mb-4">{staticData.teams[0].team_name}</h3>
+            <h3 className="font-semibold mb-4">Team Workspace</h3>
             <div className="glass-card aspect-video rounded-xl flex items-center justify-center mb-6">
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 w-full p-6">
-                {players.map((player) => (
-                  <div key={player.id} className="glass-card p-6 text-center">
-                    <p className="text-sm text-muted-foreground">#{player.jersey_number}</p>
-                    <h4 className="font-semibold">{player.name}</h4>
-                    <p className="glow-text text-sm">{player.position}</p>
+                {previewCards.map((card) => (
+                  <div key={card.label} className="glass-card p-6 text-center">
+                    <p className="text-sm text-muted-foreground">{card.label}</p>
+                    <h4 className="font-semibold">{card.value}</h4>
+                    <p className="glow-text text-sm">{card.detail}</p>
                   </div>
                 ))}
               </div>
@@ -57,8 +62,8 @@ const DashboardPreview = () => (
 
             <div className="mb-6">
               <div className="flex justify-between text-sm mb-2">
-                <span className="text-muted-foreground">Current Win Rate</span>
-                <span className="font-semibold glow-text">100%</span>
+                <span className="text-muted-foreground">Workspace Readiness</span>
+                <span className="font-semibold glow-text">70%</span>
               </div>
               <div className="h-2 rounded-full bg-secondary">
                 <div className="h-full rounded-full bg-primary w-[70%] transition-all" />
