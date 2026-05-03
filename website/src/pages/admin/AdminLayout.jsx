@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   BarChart3,
   Bell,
@@ -211,6 +211,8 @@ const getHeaderProfileImage = (user, previewUrl) => {
 
 export const AdminLayout = ({ children, title, kicker = 'Volleyball Analytics', currentPath }) => {
   const hash = currentPath || window.location.hash || '#admin'
+  const searchHidden = hash.startsWith('#admin/profile') || hash.startsWith('#admin/settings')
+  const navRef = useRef(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const sidebarVisible = window.innerWidth > 1100 ? !sidebarCollapsed : sidebarOpen
@@ -232,9 +234,33 @@ export const AdminLayout = ({ children, title, kicker = 'Volleyball Analytics', 
       window.removeEventListener('storage', syncProfile)
       window.removeEventListener('netmind:user-updated', syncProfile)
     }
-  })
+  }, [])
+
+  useLayoutEffect(() => {
+    const nav = navRef.current
+    if (!nav) return undefined
+
+    nav.scrollTop = Number(sessionStorage.getItem('netmind_admin_nav_scroll') || 0)
+
+    const saveNavScroll = () => {
+      sessionStorage.setItem('netmind_admin_nav_scroll', String(nav.scrollTop))
+    }
+
+    nav.addEventListener('scroll', saveNavScroll, { passive: true })
+    return () => {
+      saveNavScroll()
+      nav.removeEventListener('scroll', saveNavScroll)
+    }
+  }, [])
 
   const closeSidebar = () => setSidebarOpen(false)
+  const handleNavClick = () => {
+    if (navRef.current) {
+      sessionStorage.setItem('netmind_admin_nav_scroll', String(navRef.current.scrollTop))
+    }
+
+    if (window.innerWidth <= 1100) closeSidebar()
+  }
   const closeNotifications = () => setNotificationsOpen(false)
   const closeProfile = () => setProfileOpen(false)
   const toggleSidebar = () => {
@@ -263,7 +289,7 @@ export const AdminLayout = ({ children, title, kicker = 'Volleyball Analytics', 
           </a>
         </div>
 
-        <nav className="admin-nav" aria-label="Admin navigation">
+        <nav ref={navRef} className="admin-nav" aria-label="Admin navigation">
           {sidebarGroups.map((group) => (
             <div className="admin-nav-group" key={group.label}>
               <p>{group.label}</p>
@@ -277,7 +303,7 @@ export const AdminLayout = ({ children, title, kicker = 'Volleyball Analytics', 
                     key={href}
                     href={href}
                     className={isActive ? 'active' : ''}
-                    onClick={closeSidebar}
+                    onClick={handleNavClick}
                   >
                     <Icon size={18} strokeWidth={1.8} />
                     <span>{label}</span>
@@ -316,10 +342,12 @@ export const AdminLayout = ({ children, title, kicker = 'Volleyball Analytics', 
             </a>
 
             <div className="admin-header-inner">
-              <div className="admin-search-wrap">
-                <Search size={18} />
-                <input className="admin-search" type="search" placeholder="Search..." aria-label="Search admin" />
-            </div>
+              {!searchHidden && (
+                <div className="admin-search-wrap">
+                  <Search size={18} />
+                  <input className="admin-search" type="search" placeholder="Search..." aria-label="Search admin" />
+                </div>
+              )}
             <div className="admin-title">
               <p className="admin-kicker">{kicker}</p>
               <h1>{title}</h1>
