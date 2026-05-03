@@ -41,30 +41,30 @@ export const currentPlayer = {
 };
 
 export const dashboardStats = [
-  { label: 'Kill Rate', value: '46%', delta: '+8%', tone: palette.court },
-  { label: 'Serve Accuracy', value: '88%', delta: '+4%', tone: palette.blue },
-  { label: 'Training Score', value: '92', delta: '+11', tone: palette.gold },
-  { label: 'Tasks Due', value: '3', delta: 'Today', tone: palette.coral },
+  { label: 'Spike logs', value: '24', delta: 'Today', tone: palette.court },
+  { label: 'Jump best', value: '59cm', delta: '+3cm', tone: palette.blue },
+  { label: 'Run load', value: '3.8km', delta: 'AM session', tone: palette.gold },
+  { label: 'Recovery', value: '82%', delta: 'Good', tone: palette.coral },
 ];
 
 export const recentActivity = [
-  { title: 'Jump serve form review', detail: 'Coach Ana left 3 notes', time: '10 min ago' },
-  { title: 'Lower-body power set completed', detail: '4 rounds logged', time: 'Yesterday' },
-  { title: 'Match vs. Hawks added', detail: 'Team won 3-1', time: 'Apr 29' },
-  { title: 'Recovery check submitted', detail: 'No soreness reported', time: 'Apr 28' },
+  { title: 'Spike and jump log saved', detail: '24 spikes, 59cm max jump', time: '10 min ago' },
+  { title: 'Fatigue check submitted', detail: 'RPE 6, sleep 7.5 hours', time: 'Today' },
+  { title: 'Training task completed', detail: 'Lower-body power set', time: 'Yesterday' },
+  { title: 'Injury status checked', detail: 'No pain reported', time: 'Apr 28' },
 ];
 
 export const pendingTasks = [
-  { task: 'Upload 5 attack clips', due: 'Today', status: 'Pending' },
-  { task: 'Complete mobility routine', due: 'Tomorrow', status: 'Pending' },
-  { task: 'Review blocking plan', due: 'May 5', status: 'Pending' },
+  { task: 'Log spike, jump, and run load', due: 'Today', status: 'Pending' },
+  { task: 'Submit fatigue, RPE, and sleep', due: 'Tonight', status: 'Pending' },
+  { task: 'Complete mobility routine', due: 'May 5', status: 'Pending' },
 ];
 
 export const performanceMetrics = [
-  { label: 'Kills', value: 18 },
-  { label: 'Blocks', value: 5 },
-  { label: 'Aces', value: 4 },
-  { label: 'Digs', value: 21 },
+  { label: 'Spikes', value: 24 },
+  { label: 'Max jump', value: 59 },
+  { label: 'Run km', value: 3.8 },
+  { label: 'Sprints', value: 12 },
 ];
 
 export const jumpTrend = [48, 51, 50, 54, 57, 56, 59];
@@ -82,6 +82,19 @@ export const trainingTasks = [
   { title: 'Core stability circuit', due: 'May 5', progress: 0, completed: false },
   { title: 'Film study: line defense', due: 'Done Apr 30', progress: 100, completed: true },
   { title: 'Recovery stretch flow', due: 'Done Apr 29', progress: 100, completed: true },
+];
+
+export const wellnessScores = [
+  { label: 'Fatigue', value: 4, max: 10 },
+  { label: 'RPE', value: 6, max: 10 },
+  { label: 'Sleep', value: 7.5, max: 10 },
+];
+
+export const injuryChecklist = [
+  'Ankle or knee pain',
+  'Shoulder soreness',
+  'Back tightness',
+  'Headache or dizziness',
 ];
 
 export const careerStats = [

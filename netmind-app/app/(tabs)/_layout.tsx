@@ -44,8 +44,14 @@ export default function TabLayout() {
       <Tabs.Screen
         name="stats"
         options={{
-          title: 'Stats',
-          tabBarIcon: ({ color }) => <MaterialIcons name="show-chart" size={24} color={color} />,
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="wellness"
+        options={{
+          title: 'Wellness',
+          tabBarIcon: ({ color }) => <MaterialIcons name="favorite" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
@@ -56,10 +62,16 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="injury"
+        options={{
+          title: 'Injury',
+          tabBarIcon: ({ color }) => <MaterialIcons name="health-and-safety" size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="activity"
         options={{
-          title: 'Activity',
-          tabBarIcon: ({ color }) => <MaterialIcons name="history" size={24} color={color} />,
+          href: null,
         }}
       />
       <Tabs.Screen

@@ -1,4 +1,5 @@
 import { StyleSheet, View } from 'react-native';
+import { router } from 'expo-router';
 
 import { Card, ListRow, MetricCard, PrimaryButton, Screen, SectionTitle } from '@/components/netmind-ui';
 import { currentPlayer, dashboardStats, pendingTasks, recentActivity } from '@/constants/netmind';
@@ -15,8 +16,23 @@ export default function DashboardScreen() {
       </View>
 
       <View style={styles.actions}>
-        <PrimaryButton icon="add-chart" title="Log performance" />
-        <PrimaryButton icon="assignment" title="View tasks" variant="outline" />
+        <PrimaryButton
+          icon="add-chart"
+          onPress={() => router.push('/(tabs)/performance')}
+          title="Log spike, jump, run"
+        />
+        <PrimaryButton
+          icon="favorite"
+          onPress={() => router.push('/(tabs)/wellness')}
+          title="Log fatigue, RPE, sleep"
+          variant="outline"
+        />
+        <PrimaryButton
+          icon="health-and-safety"
+          onPress={() => router.push('/(tabs)/injury')}
+          title="Report injury"
+          variant="outline"
+        />
       </View>
 
       <SectionTitle>Recent activity</SectionTitle>
