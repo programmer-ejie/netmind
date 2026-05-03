@@ -2,6 +2,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import {
+  ImageBackground,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -23,75 +24,89 @@ export default function LoginScreen() {
   const { colors } = useNetmindTheme();
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.courtDark }]}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.container}>
-        <View style={styles.brandBlock}>
-          <View style={styles.logo}>
-            <MaterialIcons name="sports-volleyball" size={34} color="#ffffff" />
-          </View>
-          <Text style={styles.brand}>NetMind</Text>
-          <Text style={[styles.tagline, { color: colors.courtMist }]}>
-            Sign in to your volleyball performance dashboard.
-          </Text>
-        </View>
+    <ImageBackground
+      resizeMode="cover"
+      source={require('@/assets/images/login-bg.png')}
+      style={styles.background}>
+      <View style={styles.overlay}>
+        <SafeAreaView style={styles.safeArea}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.container}>
+            <View style={styles.brandBlock}>
+              <View style={styles.logo}>
+                <MaterialIcons name="sports-volleyball" size={34} color="#ffffff" />
+              </View>
+              <Text style={styles.brand}>NetMind</Text>
+              <Text style={[styles.tagline, { color: colors.courtMist }]}>
+                Sign in to your volleyball performance dashboard.
+              </Text>
+            </View>
 
-        <View style={[styles.formCard, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.formTitle, { color: colors.ink }]}>Login</Text>
+            <View style={[styles.formCard, { backgroundColor: colors.surface }]}>
+              <Text style={[styles.formTitle, { color: colors.ink }]}>Login</Text>
 
-          <Text style={[styles.label, { color: colors.ink }]}>Gmail</Text>
-          <TextInput
-            autoCapitalize="none"
-            keyboardType="email-address"
-            onChangeText={setGmail}
-            placeholder="yourname@gmail.com"
-            placeholderTextColor={colors.muted}
-            style={[
-              styles.input,
-              { backgroundColor: colors.wash, borderColor: colors.line, color: colors.ink },
-            ]}
-            value={gmail}
-          />
-
-          <Text style={[styles.label, { color: colors.ink }]}>Password</Text>
-          <View
-            style={[
-              styles.passwordBox,
-              { backgroundColor: colors.wash, borderColor: colors.line },
-            ]}>
-            <TextInput
-              onChangeText={setPassword}
-              placeholder="Password"
-              placeholderTextColor={colors.muted}
-              secureTextEntry={!passwordVisible}
-              style={[styles.passwordInput, { color: colors.ink }]}
-              value={password}
-            />
-            <Pressable
-              accessibilityLabel={passwordVisible ? 'Hide password' : 'Show password'}
-              onPress={() => setPasswordVisible((current) => !current)}
-              style={styles.eyeButton}>
-              <MaterialIcons
-                name={passwordVisible ? 'visibility-off' : 'visibility'}
-                size={22}
-                color={colors.muted}
+              <Text style={[styles.label, { color: colors.ink }]}>Gmail</Text>
+              <TextInput
+                autoCapitalize="none"
+                keyboardType="email-address"
+                onChangeText={setGmail}
+                placeholder="yourname@gmail.com"
+                placeholderTextColor={colors.muted}
+                style={[
+                  styles.input,
+                  { backgroundColor: colors.wash, borderColor: colors.line, color: colors.ink },
+                ]}
+                value={gmail}
               />
-            </Pressable>
-          </View>
 
-          <PrimaryButton
-            icon="login"
-            onPress={() => router.replace('/(tabs)/dashboard')}
-            title="Login"
-          />
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+              <Text style={[styles.label, { color: colors.ink }]}>Password</Text>
+              <View
+                style={[
+                  styles.passwordBox,
+                  { backgroundColor: colors.wash, borderColor: colors.line },
+                ]}>
+                <TextInput
+                  onChangeText={setPassword}
+                  placeholder="Password"
+                  placeholderTextColor={colors.muted}
+                  secureTextEntry={!passwordVisible}
+                  style={[styles.passwordInput, { color: colors.ink }]}
+                  value={password}
+                />
+                <Pressable
+                  accessibilityLabel={passwordVisible ? 'Hide password' : 'Show password'}
+                  onPress={() => setPasswordVisible((current) => !current)}
+                  style={styles.eyeButton}>
+                  <MaterialIcons
+                    name={passwordVisible ? 'visibility-off' : 'visibility'}
+                    size={22}
+                    color={colors.muted}
+                  />
+                </Pressable>
+              </View>
+
+              <PrimaryButton
+                icon="login"
+                onPress={() => router.replace('/(tabs)/dashboard')}
+                title="Login"
+              />
+            </View>
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+      </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
+  background: {
+    flex: 1,
+  },
+  overlay: {
+    backgroundColor: 'rgba(3, 18, 25, 0.66)',
+    flex: 1,
+  },
   safeArea: {
     flex: 1,
   },
