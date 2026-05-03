@@ -66,7 +66,7 @@ const AuthSection = () => {
             </h3>
             <p className="text-sm text-muted-foreground">
               {isSignup
-                ? 'Set up the coach account that will manage trainers, players, and teams.'
+                ? 'Set up the coach account that will manage roles.'
                 : 'Login to open your NetMind dashboard.'}
             </p>
           </div>
@@ -92,34 +92,23 @@ const AuthSection = () => {
               />
             </Field>
 
-            <Field icon={Lock} label="Password">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                required
-                placeholder="Enter password"
-                className="auth-input auth-input-password"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((value) => !value)}
-                className="auth-password-toggle"
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-              >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            </Field>
-
-            {isSignup && (
-              <>
-                <Field icon={Lock} label="Confirm Password">
-                  <input
-                    type="password"
-                    required
-                    placeholder="Confirm password"
-                    className="auth-input"
-                  />
-                </Field>
-              </>
+            {!isSignup && (
+              <Field icon={Lock} label="Password">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  placeholder="Enter password"
+                  className="auth-input auth-input-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((value) => !value)}
+                  className="auth-password-toggle"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </Field>
             )}
 
             {!isSignup && (

@@ -1,0 +1,5 @@
+for web and node server
+    npm run dev
+
+for application 
+    npx expo start
