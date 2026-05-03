@@ -24,7 +24,15 @@ import AdminLayout, {
   formatDate,
   initials,
 } from './AdminLayout'
-import { API_BASE, apiRequest, listResource, readSavedUser, saveUser, updateResource } from '../../lib/api'
+import {
+  API_BASE,
+  apiRequest,
+  listResource,
+  readSavedUser,
+  saveUser,
+  setProfilePreview,
+  updateResource,
+} from '../../lib/api'
 
 const toDateInput = (value) => {
   if (!value) return ''
@@ -196,13 +204,15 @@ const AdminProfile = ({ currentPath = '#admin/profile' }) => {
     const file = event.target.files?.[0]
     if (!file) return
 
+    const localPreviewUrl = URL.createObjectURL(file)
     setSelectedFile(file)
-    setPreviewUrl(URL.createObjectURL(file))
+    setPreviewUrl(localPreviewUrl)
+    setProfilePreview(localPreviewUrl)
     setMessage('')
-    await uploadProfilePicture(file)
+    await uploadProfilePicture(file, localPreviewUrl)
   }
 
-  const uploadProfilePicture = async (file = selectedFile) => {
+  const uploadProfilePicture = async (file = selectedFile, localPreviewUrl = previewUrl) => {
     if (!file || !profile?.id) return
 
     try {
@@ -217,6 +227,7 @@ const AdminProfile = ({ currentPath = '#admin/profile' }) => {
       })
       refreshProfile(payload.user, { keepPreview: true })
       setSelectedFile(null)
+      setProfilePreview(localPreviewUrl)
       setMessage('Profile picture updated.')
     } catch (error) {
       setState((current) => ({ ...current, error: error.message }))

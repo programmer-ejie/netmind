@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   BarChart3,
   Bell,
@@ -17,6 +17,8 @@ import {
   Users,
 } from 'lucide-react'
 import websiteLogo from '../../assets/website_logo.png'
+import fallbackProfilePhoto from '../../assets/crpt_image.jpg'
+import { API_BASE, readProfilePreview, readSavedUser } from '../../lib/api'
 import { useThemeMode } from '../../lib/theme'
 
 export const positions = ['OH', 'OPP', 'MB', 'S', 'L']
@@ -201,6 +203,12 @@ export const BarSet = ({ data, valueKey = 'value', labelKey = 'label' }) => {
   )
 }
 
+const getHeaderProfileImage = (user, previewUrl) => {
+  if (previewUrl) return previewUrl
+  if (user?.profile_picture_file_id) return `${API_BASE}/profile-pictures/${user.profile_picture_file_id}`
+  return user?.profile_picture_url || fallbackProfilePhoto
+}
+
 export const AdminLayout = ({ children, title, kicker = 'Volleyball Analytics', currentPath }) => {
   const hash = currentPath || window.location.hash || '#admin'
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -208,7 +216,23 @@ export const AdminLayout = ({ children, title, kicker = 'Volleyball Analytics', 
   const sidebarVisible = window.innerWidth > 1100 ? !sidebarCollapsed : sidebarOpen
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [headerProfile, setHeaderProfile] = useState(() => readSavedUser())
+  const [headerPreview, setHeaderPreview] = useState(() => readProfilePreview())
   const { isDark, toggleTheme } = useThemeMode()
+  const headerProfileImage = getHeaderProfileImage(headerProfile, headerPreview)
+
+  useEffect(() => {
+    const syncProfile = () => {
+      setHeaderProfile(readSavedUser())
+      setHeaderPreview(readProfilePreview())
+    }
+    window.addEventListener('storage', syncProfile)
+    window.addEventListener('netmind:user-updated', syncProfile)
+    return () => {
+      window.removeEventListener('storage', syncProfile)
+      window.removeEventListener('netmind:user-updated', syncProfile)
+    }
+  })
 
   const closeSidebar = () => setSidebarOpen(false)
   const closeNotifications = () => setNotificationsOpen(false)
@@ -363,7 +387,18 @@ export const AdminLayout = ({ children, title, kicker = 'Volleyball Analytics', 
                   }}
                   type="button"
                 >
-                  <span className="admin-profile">NM</span>
+                  <span className="admin-profile">
+                    <img
+                      src={headerProfileImage}
+                      alt=""
+                      aria-hidden="true"
+                      onError={(event) => {
+                        if (event.currentTarget.src !== fallbackProfilePhoto) {
+                          event.currentTarget.src = fallbackProfilePhoto
+                        }
+                      }}
+                    />
+                  </span>
                 </button>
 
                 {profileOpen && (

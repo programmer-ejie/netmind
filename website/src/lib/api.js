@@ -85,5 +85,19 @@ export const readSavedUser = () => {
 }
 
 export const saveUser = (user) => {
-  if (user) localStorage.setItem('netmind_user', JSON.stringify(user))
+  if (user) {
+    localStorage.setItem('netmind_user', JSON.stringify(user))
+    window.dispatchEvent(new Event('netmind:user-updated'))
+  }
 }
+
+export const setProfilePreview = (previewUrl) => {
+  if (previewUrl) {
+    window.__netmindProfilePreview = previewUrl
+  } else {
+    delete window.__netmindProfilePreview
+  }
+  window.dispatchEvent(new Event('netmind:user-updated'))
+}
+
+export const readProfilePreview = () => window.__netmindProfilePreview || ''
