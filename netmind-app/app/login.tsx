@@ -21,14 +21,18 @@ export default function LoginScreen() {
   const [gmail, setGmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordVisible, setPasswordVisible] = useState(false);
-  const { colors } = useNetmindTheme();
+  const { colors, isDark } = useNetmindTheme();
+  const backgroundSource = isDark
+    ? require('@/assets/images/login-bg.optimized.jpg')
+    : require('@/assets/images/light-login-bg.optimized.jpg');
+  const brandTextColor = isDark ? '#ffffff' : colors.ink;
 
   return (
     <ImageBackground
       resizeMode="cover"
-      source={require('@/assets/images/login-bg.png')}
+      source={backgroundSource}
       style={styles.background}>
-      <View style={styles.overlay}>
+      <View style={[styles.overlay, isDark ? styles.darkOverlay : styles.lightOverlay]}>
         <SafeAreaView style={styles.safeArea}>
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -37,8 +41,8 @@ export default function LoginScreen() {
               <View style={styles.logo}>
                 <MaterialIcons name="sports-volleyball" size={34} color="#ffffff" />
               </View>
-              <Text style={styles.brand}>NetMind</Text>
-              <Text style={[styles.tagline, { color: colors.courtMist }]}>
+              <Text style={[styles.brand, { color: brandTextColor }]}>NetMind</Text>
+              <Text style={[styles.tagline, { color: isDark ? colors.courtMist : colors.muted }]}>
                 Sign in to your volleyball performance dashboard.
               </Text>
             </View>
@@ -104,8 +108,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   overlay: {
-    backgroundColor: 'rgba(3, 18, 25, 0.66)',
     flex: 1,
+  },
+  darkOverlay: {
+    backgroundColor: 'rgba(3, 18, 25, 0.66)',
+  },
+  lightOverlay: {
+    backgroundColor: 'rgba(255, 255, 255, 0.52)',
   },
   safeArea: {
     flex: 1,
@@ -128,7 +137,6 @@ const styles = StyleSheet.create({
     width: 62,
   },
   brand: {
-    color: '#ffffff',
     fontSize: 42,
     fontWeight: '900',
   },

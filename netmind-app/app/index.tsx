@@ -1,5 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { Asset } from 'expo-asset';
 import { router } from 'expo-router';
+import { useEffect } from 'react';
 import { ImageBackground, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -8,23 +10,35 @@ import { palette } from '@/constants/netmind';
 import { useNetmindTheme } from '@/contexts/netmind-theme';
 
 export default function HomeScreen() {
-  const { colors } = useNetmindTheme();
+  const { colors, isDark } = useNetmindTheme();
+  const backgroundSource = isDark
+    ? require('@/assets/images/explore-us-bg.optimized.jpg')
+    : require('@/assets/images/light-explore-us-bg.optimized.jpg');
+  const heroTextColor = isDark ? '#ffffff' : colors.ink;
+  const logoTextColor = isDark ? '#ffffff' : colors.courtDark;
+
+  useEffect(() => {
+    Asset.loadAsync([
+      require('@/assets/images/login-bg.optimized.jpg'),
+      require('@/assets/images/light-login-bg.optimized.jpg'),
+    ]).catch(() => undefined);
+  }, []);
 
   return (
     <ImageBackground
       resizeMode="cover"
-      source={require('@/assets/images/explore-us-bg.png')}
+      source={backgroundSource}
       style={styles.background}>
-      <View style={styles.overlay}>
+      <View style={[styles.overlay, isDark ? styles.darkOverlay : styles.lightOverlay]}>
         <SafeAreaView style={[styles.safeArea, { backgroundColor: 'transparent' }]}>
           <View style={styles.container}>
             <View style={styles.hero}>
               <View style={styles.logo}>
                 <MaterialIcons name="sports-volleyball" size={34} color="#ffffff" />
               </View>
-              <Text style={styles.brand}>NetMind</Text>
-              <Text style={styles.headline}>Explore Us</Text>
-              <Text style={[styles.tagline, { color: colors.courtMist }]}>
+              <Text style={[styles.brand, { color: logoTextColor }]}>NetMind</Text>
+              <Text style={[styles.headline, { color: heroTextColor }]}>Explore Us</Text>
+              <Text style={[styles.tagline, { color: isDark ? colors.courtMist : colors.muted }]}>
                 Train smarter, track performance, and manage volleyball goals from one mobile app.
               </Text>
             </View>
@@ -65,8 +79,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   overlay: {
-    backgroundColor: 'rgba(3, 18, 25, 0.64)',
     flex: 1,
+  },
+  darkOverlay: {
+    backgroundColor: 'rgba(3, 18, 25, 0.64)',
+  },
+  lightOverlay: {
+    backgroundColor: 'rgba(255, 255, 255, 0.56)',
   },
   safeArea: {
     flex: 1,
@@ -89,12 +108,10 @@ const styles = StyleSheet.create({
     width: 62,
   },
   brand: {
-    color: '#ffffff',
     fontSize: 24,
     fontWeight: '900',
   },
   headline: {
-    color: '#ffffff',
     fontSize: 44,
     fontWeight: '900',
   },

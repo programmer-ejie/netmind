@@ -1,4 +1,13 @@
-import { createContext, PropsWithChildren, useContext, useMemo, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  createContext,
+  PropsWithChildren,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import { useColorScheme } from 'react-native';
 
 import { darkPalette, palette } from '@/constants/netmind';
@@ -13,6 +22,7 @@ type NetmindThemeContextValue = {
 };
 
 const NetmindThemeContext = createContext<NetmindThemeContextValue | null>(null);
+const THEME_STORAGE_KEY = 'netmind_theme_mode';
 
 export function NetmindThemeProvider({ children }: PropsWithChildren) {
   const systemScheme = useColorScheme();
@@ -20,14 +30,32 @@ export function NetmindThemeProvider({ children }: PropsWithChildren) {
   const isDark = mode === 'dark' || (mode === 'system' && systemScheme === 'dark');
   const colors = isDark ? darkPalette : palette;
 
+  useEffect(() => {
+    AsyncStorage.getItem(THEME_STORAGE_KEY)
+      .then((savedMode) => {
+        if (savedMode === 'light' || savedMode === 'dark' || savedMode === 'system') {
+          setMode(savedMode);
+        }
+      })
+      .catch(() => {
+        setMode('system');
+      });
+  }, []);
+
+  const setDarkTheme = useCallback((enabled: boolean) => {
+    const nextMode = enabled ? 'dark' : 'light';
+    setMode(nextMode);
+    AsyncStorage.setItem(THEME_STORAGE_KEY, nextMode).catch(() => undefined);
+  }, []);
+
   const value = useMemo(
     () => ({
       colors,
       isDark,
       mode,
-      setDarkTheme: (enabled: boolean) => setMode(enabled ? 'dark' : 'light'),
+      setDarkTheme,
     }),
-    [colors, isDark, mode]
+    [colors, isDark, mode, setDarkTheme]
   );
 
   return <NetmindThemeContext.Provider value={value}>{children}</NetmindThemeContext.Provider>;
