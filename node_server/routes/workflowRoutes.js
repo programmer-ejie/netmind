@@ -1,11 +1,76 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
+const crypto = require("crypto");
 const { query } = require("../config/db");
 const asyncHandler = require("../utils/asyncHandler");
 const ApiError = require("../utils/apiError");
+const { sendPasswordResetCodeEmail } = require("../utils/emailService");
 
 const router = express.Router();
 const BCRYPT_ROUNDS = Number(process.env.BCRYPT_ROUNDS || 10);
+const passwordCodes = new Map();
+const exportTables = [
+  "users",
+  "teams",
+  "team_members",
+  "team_trainers",
+  "coach_trainers",
+  "seasons",
+  "matches",
+  "team_rankings",
+  "drills",
+  "training_assignments",
+  "drill_performance_logs",
+  "performance_logs",
+  "attendance_logs",
+  "injury_logs",
+  "lineups",
+  "player_comparisons",
+];
+
+function formatPasswordCode(code) {
+  return `${code.slice(0, 3)}-${code.slice(3)}`;
+}
+
+function createPasswordCode() {
+  return String(crypto.randomInt(0, 1000000)).padStart(6, "0");
+}
+
+function getPasswordCodeRecord(userId) {
+  const record = passwordCodes.get(String(userId));
+  if (!record) return null;
+
+  if (record.expiresAt <= Date.now()) {
+    passwordCodes.delete(String(userId));
+    return null;
+  }
+
+  return record;
+}
+
+function sqlValue(value) {
+  if (value === null || value === undefined) return "NULL";
+  if (value instanceof Date) return `'${value.toISOString().slice(0, 19).replace("T", " ")}'`;
+  if (typeof value === "number") return String(value);
+  if (typeof value === "boolean") return value ? "1" : "0";
+
+  return `'${String(value).replace(/\\/g, "\\\\").replace(/'/g, "''")}'`;
+}
+
+function buildInsertSql(table, rows) {
+  if (!rows.length) return `-- No data for ${table}\n`;
+
+  const columns = Object.keys(rows[0]);
+  const values = rows.map((row) => `(${columns.map((column) => sqlValue(row[column])).join(", ")})`);
+
+  return [
+    `LOCK TABLES \`${table}\` WRITE;`,
+    `INSERT INTO \`${table}\` (${columns.map((column) => `\`${column}\``).join(", ")}) VALUES`,
+    `${values.join(",\n")};`,
+    "UNLOCK TABLES;",
+    "",
+  ].join("\n");
+}
 
 async function getById(table, id) {
   const rows = await query(`SELECT * FROM \`${table}\` WHERE id = ?`, [id]);
@@ -129,6 +194,35 @@ router.get("/routes", (req, res) => {
   });
 });
 
+router.get("/database/export", asyncHandler(async (req, res) => {
+  const dbName = process.env.DB_NAME || "netmind";
+  const parts = [
+    `-- NetMind database export`,
+    `-- Generated at ${new Date().toISOString()}`,
+    `CREATE DATABASE IF NOT EXISTS \`${dbName}\`;`,
+    `USE \`${dbName}\`;`,
+    "SET FOREIGN_KEY_CHECKS=0;",
+    "",
+  ];
+
+  for (const table of exportTables) {
+    const createRows = await query(`SHOW CREATE TABLE \`${table}\``);
+    const rows = await query(`SELECT * FROM \`${table}\``);
+    const createSql = createRows[0]["Create Table"];
+
+    parts.push(`DROP TABLE IF EXISTS \`${table}\`;`);
+    parts.push(`${createSql};`);
+    parts.push(buildInsertSql(table, rows));
+  }
+
+  parts.push("SET FOREIGN_KEY_CHECKS=1;");
+
+  const fileDate = new Date().toISOString().replace(/[:.]/g, "-");
+  res.setHeader("Content-Type", "application/sql; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename="netmind-${fileDate}.sql"`);
+  res.send(parts.join("\n"));
+}));
+
 router.get("/players", asyncHandler(async (req, res) => {
   const rows = await query(
     "SELECT id, name, email, role, position, jersey_number, age, birthdate, location, profile_picture_url, profile_picture_file_id, is_active, created_at FROM users WHERE role = 'player' ORDER BY name"
@@ -170,6 +264,95 @@ router.patch("/users/:userId/password", asyncHandler(async (req, res) => {
 
   const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
   await query("UPDATE users SET password_hash = ? WHERE id = ?", [passwordHash, req.params.userId]);
+
+  res.json({ message: "Password updated" });
+}));
+
+router.post("/users/:userId/password-code", asyncHandler(async (req, res) => {
+  const rows = await query("SELECT id, name, email FROM users WHERE id = ?", [req.params.userId]);
+  const user = rows[0];
+
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  const rawCode = createPasswordCode();
+  const code = formatPasswordCode(rawCode);
+  const codeHash = crypto.createHash("sha256").update(rawCode).digest("hex");
+
+  passwordCodes.set(String(user.id), {
+    codeHash,
+    attempts: 0,
+    expiresAt: Date.now() + 10 * 60 * 1000,
+  });
+
+  await sendPasswordResetCodeEmail({
+    to: user.email,
+    name: user.name,
+    code,
+  });
+
+  res.json({
+    message: "Confirmation code sent",
+    email: user.email,
+    expires_in_minutes: 10,
+  });
+}));
+
+router.post("/users/:userId/password-code/verify", asyncHandler(async (req, res) => {
+  const code = String(req.body.code || "").replace(/\D/g, "");
+
+  if (code.length !== 6) {
+    throw new ApiError(400, "Enter the 6-digit confirmation code");
+  }
+
+  const record = getPasswordCodeRecord(req.params.userId);
+  if (!record) {
+    throw new ApiError(400, "Confirmation code expired. Request a new code.");
+  }
+
+  const codeHash = crypto.createHash("sha256").update(code).digest("hex");
+  record.attempts += 1;
+
+  if (record.attempts > 5) {
+    passwordCodes.delete(String(req.params.userId));
+    throw new ApiError(429, "Too many attempts. Request a new code.");
+  }
+
+  if (codeHash !== record.codeHash) {
+    throw new ApiError(400, "Confirmation code is incorrect");
+  }
+
+  record.verified = true;
+  res.json({ message: "Confirmation code verified" });
+}));
+
+router.patch("/users/:userId/password-with-code", asyncHandler(async (req, res) => {
+  const code = String(req.body.code || "").replace(/\D/g, "");
+  const newPassword = String(req.body.new_password || "");
+
+  if (newPassword.length < 6) {
+    throw new ApiError(400, "New password must be at least 6 characters");
+  }
+
+  const record = getPasswordCodeRecord(req.params.userId);
+  if (!record?.verified) {
+    throw new ApiError(400, "Verify the confirmation code before changing password");
+  }
+
+  const codeHash = crypto.createHash("sha256").update(code).digest("hex");
+  if (codeHash !== record.codeHash) {
+    throw new ApiError(400, "Confirmation code is incorrect");
+  }
+
+  const users = await query("SELECT id FROM users WHERE id = ?", [req.params.userId]);
+  if (!users.length) {
+    throw new ApiError(404, "User not found");
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+  await query("UPDATE users SET password_hash = ? WHERE id = ?", [passwordHash, req.params.userId]);
+  passwordCodes.delete(String(req.params.userId));
 
   res.json({ message: "Password updated" });
 }));

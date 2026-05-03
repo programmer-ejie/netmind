@@ -123,6 +123,57 @@ async function sendTemporaryPasswordEmail({ to, name, password }) {
   });
 }
 
+async function sendPasswordResetCodeEmail({ to, name, code }) {
+  const transporter = createTransporter();
+  const safeName = escapeHtml(name || "NetMind user");
+  const safeCode = escapeHtml(code);
+
+  await transporter.sendMail({
+    from: `"NetMind" <${process.env.EMAIL_USER}>`,
+    to,
+    subject: "[NETMIND] Password confirmation code",
+    text: [
+      "NetMind password confirmation",
+      "",
+      `Hello ${name || "NetMind user"},`,
+      "",
+      `Your confirmation code is ${code}.`,
+      "This code expires in 10 minutes.",
+      "",
+      "If you did not request this, you can ignore this email.",
+    ].join("\n"),
+    html: `
+      <!doctype html>
+      <html>
+        <body style="margin:0; padding:0; background:#f4f7fb; font-family:Arial, Helvetica, sans-serif; color:#172033;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f7fb; padding:32px 16px;">
+            <tr>
+              <td align="center">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px; background:#ffffff; border:1px solid #dce5ef; border-radius:12px; overflow:hidden;">
+                  <tr>
+                    <td style="background:#0ea5b7; padding:22px 28px;">
+                      <div style="font-size:22px; line-height:1.2; font-weight:700; color:#ffffff;">NetMind</div>
+                      <div style="margin-top:6px; font-size:14px; color:#e8fbff;">Password confirmation</div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:30px 28px;">
+                      <h1 style="margin:0 0 12px; font-size:22px; color:#101828;">Hello ${safeName}</h1>
+                      <p style="margin:0 0 22px; font-size:15px; line-height:1.6; color:#475467;">Use this code to continue changing your NetMind password.</p>
+                      <div style="padding:18px; border-radius:10px; background:#f0fbfd; border:1px solid #b9eef5; text-align:center; font-family:Consolas, 'Courier New', monospace; font-size:32px; letter-spacing:0.16em; font-weight:800; color:#0e7490;">${safeCode}</div>
+                      <p style="margin:22px 0 0; font-size:14px; color:#667085;">This code expires in 10 minutes. Ignore this email if you did not request a password change.</p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+      </html>`,
+  });
+}
+
 module.exports = {
   sendTemporaryPasswordEmail,
+  sendPasswordResetCodeEmail,
 };
