@@ -74,6 +74,16 @@ export const registerCoachWithTemporaryPassword = async (body) => {
   return payload.user || payload
 }
 
+export const registerTrainerWithTemporaryPassword = async (body) => {
+  const payload = await apiRequest('/auth/register-trainer', { method: 'POST', body })
+  return payload.user || payload
+}
+
+export const registerPlayerWithTemporaryPassword = async (body) => {
+  const payload = await apiRequest('/auth/register-player', { method: 'POST', body })
+  return payload.user || payload
+}
+
 export const loginUser = async (body) => apiRequest('/auth/login', { method: 'POST', body })
 
 export const readSavedUser = () => {

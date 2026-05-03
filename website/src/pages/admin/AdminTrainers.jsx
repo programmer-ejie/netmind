@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Edit3, Plus, ShieldCheck, Trash2 } from 'lucide-react'
+import { Edit3, Info, Plus, TriangleAlert, Trash2 } from 'lucide-react'
 import AdminLayout, {
   AdminButton,
   AdminCard,
@@ -11,9 +11,9 @@ import AdminLayout, {
   formatDate,
   initials,
 } from './AdminLayout'
-import { apiRequest, deleteResource, listResource, registerUser, updateResource } from '../../lib/api'
+import { deleteResource, listResource, registerTrainerWithTemporaryPassword, updateResource } from '../../lib/api'
 
-const blankTrainer = { name: '', email: '', password: '' }
+const blankTrainer = { name: '', email: '' }
 
 const AdminTrainers = ({ currentPath = '#admin/trainers' }) => {
   const [trainers, setTrainers] = useState([])
@@ -21,15 +21,14 @@ const AdminTrainers = ({ currentPath = '#admin/trainers' }) => {
   const [links, setLinks] = useState([])
   const [coaches, setCoaches] = useState([])
   const [createModal, setCreateModal] = useState(false)
+  const [creatingTrainer, setCreatingTrainer] = useState(false)
   const [editModal, setEditModal] = useState(false)
-  const [assignModal, setAssignModal] = useState(false)
+  const [deleteModal, setDeleteModal] = useState(false)
+  const [deletingTrainer, setDeletingTrainer] = useState(false)
   const [createForm, setCreateForm] = useState(blankTrainer)
   const [editForm, setEditForm] = useState(null)
-  const [assignTrainer, setAssignTrainer] = useState(null)
-  const [selectedTeams, setSelectedTeams] = useState(new Set())
+  const [deleteTrainer, setDeleteTrainer] = useState(null)
   const [error, setError] = useState('')
-
-  const assignedBy = coaches[0]?.id || 1
 
   const teamsByTrainer = useMemo(() => {
     const map = new Map()
@@ -62,12 +61,16 @@ const AdminTrainers = ({ currentPath = '#admin/trainers' }) => {
     event.preventDefault()
 
     try {
-      await registerUser({ ...createForm, role: 'trainer' })
+      setError('')
+      setCreatingTrainer(true)
+      await registerTrainerWithTemporaryPassword(createForm)
       setCreateForm(blankTrainer)
       setCreateModal(false)
       await load()
     } catch (err) {
       setError(err.message)
+    } finally {
+      setCreatingTrainer(false)
     }
   }
 
@@ -87,7 +90,6 @@ const AdminTrainers = ({ currentPath = '#admin/trainers' }) => {
     try {
       await updateResource('users', editForm.id, {
         name: editForm.name,
-        email: editForm.email,
         is_active: Boolean(editForm.is_active),
       })
       setEditModal(false)
@@ -97,55 +99,26 @@ const AdminTrainers = ({ currentPath = '#admin/trainers' }) => {
     }
   }
 
-  const removeTrainer = async (trainer) => {
-    if (!window.confirm(`Delete ${trainer.name}?`)) return
-
-    try {
-      await deleteResource('users', trainer.id)
-      await load()
-    } catch (err) {
-      setError(err.message)
-    }
+  const openDelete = (trainer) => {
+    setDeleteTrainer(trainer)
+    setDeleteModal(true)
   }
 
-  const openAssign = (trainer) => {
-    setAssignTrainer(trainer)
-    setSelectedTeams(new Set((teamsByTrainer.get(String(trainer.id)) || []).map(String)))
-    setAssignModal(true)
-  }
-
-  const toggleTeam = (teamId) => {
-    setSelectedTeams((current) => {
-      const next = new Set(current)
-      if (next.has(String(teamId))) next.delete(String(teamId))
-      else next.add(String(teamId))
-      return next
-    })
-  }
-
-  const saveAssignments = async (event) => {
+  const removeTrainer = async (event) => {
     event.preventDefault()
+    if (!deleteTrainer) return
 
     try {
-      const currentLinks = links.filter((link) => String(link.trainer_id) === String(assignTrainer.id))
-      const currentTeamIds = new Set(currentLinks.map((link) => String(link.team_id)))
-
-      await Promise.all([
-        ...teams
-          .filter((team) => selectedTeams.has(String(team.id)) && !currentTeamIds.has(String(team.id)))
-          .map((team) => apiRequest(`/teams/${team.id}/trainers`, {
-            method: 'POST',
-            body: { trainer_id: assignTrainer.id, assigned_by: assignedBy },
-          })),
-        ...currentLinks
-          .filter((link) => !selectedTeams.has(String(link.team_id)))
-          .map((link) => apiRequest(`/teams/${link.team_id}/trainers/${assignTrainer.id}`, { method: 'DELETE' })),
-      ])
-
-      setAssignModal(false)
+      setError('')
+      setDeletingTrainer(true)
+      await deleteResource('users', deleteTrainer.id)
+      setDeleteModal(false)
+      setDeleteTrainer(null)
       await load()
     } catch (err) {
       setError(err.message)
+    } finally {
+      setDeletingTrainer(false)
     }
   }
 
@@ -200,13 +173,10 @@ const AdminTrainers = ({ currentPath = '#admin/trainers' }) => {
                     <td>{formatDate(trainer.created_at)}</td>
                     <td>
                       <div className="admin-actions">
-                        <AdminButton variant="secondary" onClick={() => openAssign(trainer)} aria-label="Assign trainer">
-                          <ShieldCheck size={15} />
-                        </AdminButton>
                         <AdminButton variant="secondary" onClick={() => openEdit(trainer)} aria-label="Edit trainer">
                           <Edit3 size={15} />
                         </AdminButton>
-                        <AdminButton variant="danger" onClick={() => removeTrainer(trainer)} aria-label="Delete trainer">
+                        <AdminButton variant="danger" onClick={() => openDelete(trainer)} aria-label="Delete trainer">
                           <Trash2 size={15} />
                         </AdminButton>
                       </div>
@@ -220,32 +190,65 @@ const AdminTrainers = ({ currentPath = '#admin/trainers' }) => {
         </div>
       </AdminCard>
 
-      <AdminModal open={createModal} title="Create Trainer" onClose={() => setCreateModal(false)}>
+      <AdminModal
+        open={createModal}
+        title="Create Trainer"
+        subtitle="Create a trainer account for your team."
+        className="admin-password-modal admin-create-trainer-modal"
+        onClose={() => {
+          if (!creatingTrainer) setCreateModal(false)
+        }}
+      >
         <form className="admin-form" onSubmit={createTrainer}>
+          <div className="admin-password-tip">
+            <Info size={18} />
+            <p>Enter the trainer's name and Gmail address. NetMind will send a temporary password automatically.</p>
+          </div>
           <AdminField label="Full Name">
             <AdminInput required value={createForm.name} onChange={(event) => setCreateForm((current) => ({ ...current, name: event.target.value }))} />
           </AdminField>
           <AdminField label="Email">
             <AdminInput required type="email" value={createForm.email} onChange={(event) => setCreateForm((current) => ({ ...current, email: event.target.value }))} />
           </AdminField>
-          <AdminField label="Password">
-            <AdminInput required type="password" minLength="6" value={createForm.password} onChange={(event) => setCreateForm((current) => ({ ...current, password: event.target.value }))} />
-          </AdminField>
-          <div className="admin-form-actions">
-            <AdminButton type="button" variant="secondary" onClick={() => setCreateModal(false)}>Cancel</AdminButton>
-            <AdminButton type="submit">Create Trainer</AdminButton>
+          <div className="admin-password-warning">
+            <TriangleAlert size={17} />
+            <p>Ask the trainer to check their inbox or spam folder, then change the temporary password after signing in.</p>
+          </div>
+          <div className="admin-profile-offcanvas-actions">
+            <AdminButton type="button" variant="ghost" onClick={() => setCreateModal(false)} disabled={creatingTrainer}>Cancel</AdminButton>
+            <AdminButton type="submit" disabled={creatingTrainer}>{creatingTrainer ? 'Creating...' : 'Create Trainer'}</AdminButton>
           </div>
         </form>
       </AdminModal>
 
-      <AdminModal open={editModal} title="Edit Trainer" onClose={() => setEditModal(false)}>
+      {creatingTrainer && (
+        <div className="admin-sync-backdrop" role="presentation">
+          <section className="admin-sync-modal" role="status" aria-live="polite">
+            <div className="admin-sync-spinner" />
+            <h2>Creating Trainer</h2>
+            <p>Creating the account and sending the temporary password through Gmail.</p>
+          </section>
+        </div>
+      )}
+
+      <AdminModal
+        open={editModal}
+        title="Edit Trainer"
+        subtitle="Update trainer details and account status."
+        className="admin-password-modal admin-create-trainer-modal"
+        onClose={() => setEditModal(false)}
+      >
         {editForm && (
           <form className="admin-form" onSubmit={saveTrainer}>
+            <div className="admin-password-tip">
+              <Info size={18} />
+              <p>Email is used for login and temporary password delivery, so it cannot be edited here.</p>
+            </div>
             <AdminField label="Full Name">
               <AdminInput required value={editForm.name} onChange={(event) => setEditForm((current) => ({ ...current, name: event.target.value }))} />
             </AdminField>
             <AdminField label="Email">
-              <AdminInput required type="email" value={editForm.email} onChange={(event) => setEditForm((current) => ({ ...current, email: event.target.value }))} />
+              <AdminInput required type="email" value={editForm.email} disabled readOnly />
             </AdminField>
             <label className="admin-check-field">
               <input
@@ -255,38 +258,59 @@ const AdminTrainers = ({ currentPath = '#admin/trainers' }) => {
               />
               Active account
             </label>
-            <div className="admin-form-actions">
-              <AdminButton type="button" variant="secondary" onClick={() => setEditModal(false)}>Cancel</AdminButton>
+            <div className="admin-profile-offcanvas-actions">
+              <AdminButton type="button" variant="ghost" onClick={() => setEditModal(false)}>Cancel</AdminButton>
               <AdminButton type="submit">Save Trainer</AdminButton>
             </div>
           </form>
         )}
       </AdminModal>
 
-      <AdminModal open={assignModal} title={`Assign ${assignTrainer?.name || 'Trainer'}`} onClose={() => setAssignModal(false)}>
-        <form className="admin-form" onSubmit={saveAssignments}>
-          <div className="admin-checkbox-list">
-            {teams.map((team) => (
-              <label className="admin-check-field" key={team.id}>
-                <input
-                  type="checkbox"
-                  checked={selectedTeams.has(String(team.id))}
-                  onChange={() => toggleTeam(team.id)}
-                />
-                <span className="admin-color-pill">
-                  <i style={{ background: team.team_color || '#635bff' }} />
-                  {team.team_name}
+      <AdminModal
+        open={deleteModal}
+        title="Delete Trainer"
+        subtitle="Confirm before removing this trainer account."
+        className="admin-password-modal admin-create-trainer-modal admin-delete-trainer-modal"
+        onClose={() => {
+          if (!deletingTrainer) setDeleteModal(false)
+        }}
+      >
+        {deleteTrainer && (
+          <form className="admin-form" onSubmit={removeTrainer}>
+            <div className="admin-password-warning">
+              <TriangleAlert size={17} />
+              <p>This will delete {deleteTrainer.name}'s trainer account and remove their access to NetMind.</p>
+            </div>
+            <div className="admin-delete-summary">
+              <span className="admin-player">
+                <b>{initials(deleteTrainer.name)}</b>
+                <span>
+                  <strong>{deleteTrainer.name}</strong>
+                  <small>{deleteTrainer.email}</small>
                 </span>
-              </label>
-            ))}
-            {!teams.length && <EmptyState>Create a team before assigning trainers.</EmptyState>}
-          </div>
-          <div className="admin-form-actions">
-            <AdminButton type="button" variant="secondary" onClick={() => setAssignModal(false)}>Cancel</AdminButton>
-            <AdminButton type="submit">Save Assignments</AdminButton>
-          </div>
-        </form>
+              </span>
+            </div>
+            <div className="admin-password-tip">
+              <Info size={18} />
+              <p>Tip: deactivate the account instead if you only want to pause this trainer's access temporarily.</p>
+            </div>
+            <div className="admin-profile-offcanvas-actions">
+              <AdminButton
+                type="button"
+                variant="ghost"
+                onClick={() => setDeleteModal(false)}
+                disabled={deletingTrainer}
+              >
+                Cancel
+              </AdminButton>
+              <AdminButton type="submit" variant="danger" disabled={deletingTrainer}>
+                {deletingTrainer ? 'Deleting...' : 'Delete Trainer'}
+              </AdminButton>
+            </div>
+          </form>
+        )}
       </AdminModal>
+
     </AdminLayout>
   )
 }

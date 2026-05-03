@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Edit3, Plus, Trash2 } from 'lucide-react'
+import { Edit3, Info, Plus, Trash2, TriangleAlert, UserPlus } from 'lucide-react'
 import AdminLayout, {
   AdminButton,
   AdminCard,
@@ -8,11 +8,9 @@ import AdminLayout, {
   AdminModal,
   AdminSelect,
   EmptyState,
-  StatusBadge,
   formatDate,
-  getName,
 } from './AdminLayout'
-import { apiRequest, createResource, deleteResource, listResource, updateResource } from '../../lib/api'
+import { apiRequest, createResource, deleteResource, listResource, readSavedUser, updateResource } from '../../lib/api'
 
 const blankTeam = { team_name: '', team_color: '#635bff', coach_id: '', trainer_id: '' }
 
@@ -20,10 +18,19 @@ const AdminTeams = ({ currentPath = '#admin/teams' }) => {
   const [teams, setTeams] = useState([])
   const [coaches, setCoaches] = useState([])
   const [trainers, setTrainers] = useState([])
+  const [trainerLinks, setTrainerLinks] = useState([])
   const [form, setForm] = useState(blankTeam)
   const [editing, setEditing] = useState(null)
+  const [assigningTeam, setAssigningTeam] = useState(null)
+  const [assignedTrainers, setAssignedTrainers] = useState([])
+  const [selectedTrainer, setSelectedTrainer] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
+  const [assignModal, setAssignModal] = useState(false)
+  const [deleteModal, setDeleteModal] = useState(false)
+  const [deletingTeam, setDeletingTeam] = useState(false)
+  const [deleteTeam, setDeleteTeam] = useState(null)
   const [error, setError] = useState('')
+  const currentUser = readSavedUser()
 
   const availableOwners = useMemo(() => {
     const trainerOnlyRows = trainers.filter((trainer) => (
@@ -33,15 +40,36 @@ const AdminTeams = ({ currentPath = '#admin/teams' }) => {
     return [...coaches, ...trainerOnlyRows]
   }, [coaches, trainers])
 
+  const assignedTrainerIds = useMemo(
+    () => new Set(assignedTrainers.map((trainer) => String(trainer.trainer_id))),
+    [assignedTrainers],
+  )
+  const availableTrainers = trainers.filter((trainer) => !assignedTrainerIds.has(String(trainer.id)))
+  const trainersByTeam = useMemo(() => {
+    const map = new Map()
+
+    trainerLinks.forEach((link) => {
+      const key = String(link.team_id)
+      const trainer = trainers.find((item) => String(item.id) === String(link.trainer_id))
+      if (!trainer) return
+
+      map.set(key, [...(map.get(key) || []), trainer.name])
+    })
+
+    return map
+  }, [trainerLinks, trainers])
+
   const load = async () => {
-    const [teamRows, coachRows, trainerRows] = await Promise.all([
+    const [teamRows, coachRows, trainerRows, trainerLinkRows] = await Promise.all([
       listResource('teams', { limit: 100, sortDir: 'asc' }),
       listResource('coaches'),
       listResource('trainers'),
+      listResource('team-trainers', { limit: 100 }),
     ])
     setTeams(teamRows)
     setCoaches(coachRows)
     setTrainers(trainerRows)
+    setTrainerLinks(trainerLinkRows)
   }
 
   useEffect(() => {
@@ -52,7 +80,7 @@ const AdminTeams = ({ currentPath = '#admin/teams' }) => {
     setEditing(null)
     setForm({
       ...blankTeam,
-      coach_id: coaches[0]?.id || trainers[0]?.id || '',
+      coach_id: currentUser?.id || coaches[0]?.id || trainers[0]?.id || '',
     })
     setModalOpen(true)
   }
@@ -68,6 +96,42 @@ const AdminTeams = ({ currentPath = '#admin/teams' }) => {
     setModalOpen(true)
   }
 
+  const openAssign = async (team) => {
+    setAssigningTeam(team)
+    setSelectedTrainer('')
+    setAssignModal(true)
+    setError('')
+
+    try {
+      setAssignedTrainers(await apiRequest(`/teams/${team.id}/trainers`))
+    } catch (err) {
+      setAssignedTrainers([])
+      setError(err.message)
+    }
+  }
+
+  const assignTrainer = async (event) => {
+    event.preventDefault()
+    if (!assigningTeam || !selectedTrainer) return
+
+    try {
+      setError('')
+      await apiRequest(`/teams/${assigningTeam.id}/trainers`, {
+        method: 'POST',
+        body: {
+          trainer_id: selectedTrainer,
+          assigned_by: currentUser?.id || assigningTeam.coach_id || availableOwners[0]?.id || 1,
+        },
+      })
+      setAssignModal(false)
+      setAssigningTeam(null)
+      setSelectedTrainer('')
+      await load()
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
   const submit = async (event) => {
     event.preventDefault()
     setError('')
@@ -77,10 +141,9 @@ const AdminTeams = ({ currentPath = '#admin/teams' }) => {
         await updateResource('teams', editing.id, {
           team_name: form.team_name,
           team_color: form.team_color,
-          coach_id: form.coach_id || editing.coach_id,
         })
       } else {
-        const coachId = form.coach_id || form.trainer_id || availableOwners[0]?.id || 1
+        const coachId = currentUser?.id || form.coach_id || availableOwners[0]?.id || 1
         const createdTeam = await createResource('teams', {
           team_name: form.team_name,
           team_color: form.team_color,
@@ -104,14 +167,26 @@ const AdminTeams = ({ currentPath = '#admin/teams' }) => {
     }
   }
 
-  const removeTeam = async (team) => {
-    if (!window.confirm(`Delete ${team.team_name}?`)) return
+  const openDelete = (team) => {
+    setDeleteTeam(team)
+    setDeleteModal(true)
+  }
+
+  const removeTeam = async (event) => {
+    event.preventDefault()
+    if (!deleteTeam) return
 
     try {
-      await deleteResource('teams', team.id)
+      setError('')
+      setDeletingTeam(true)
+      await deleteResource('teams', deleteTeam.id)
+      setDeleteModal(false)
+      setDeleteTeam(null)
       await load()
     } catch (err) {
       setError(err.message)
+    } finally {
+      setDeletingTeam(false)
     }
   }
 
@@ -136,7 +211,7 @@ const AdminTeams = ({ currentPath = '#admin/teams' }) => {
             <thead>
               <tr>
                 <th>Team</th>
-                <th>Coach</th>
+                <th>Trainer</th>
                 <th>Color</th>
                 <th>Created</th>
                 <th>Actions</th>
@@ -153,16 +228,19 @@ const AdminTeams = ({ currentPath = '#admin/teams' }) => {
                 >
                   <td>
                     <span className="admin-player">
-                      <b style={{ background: team.team_color || undefined, color: '#fff' }}>
-                        {team.team_name?.slice(0, 2).toUpperCase() || 'TM'}
-                      </b>
+                      {team.logo_url ? (
+                        <img className="admin-team-table-logo" src={team.logo_url} alt={`${team.team_name} logo`} />
+                      ) : (
+                        <b style={{ background: team.team_color || undefined, color: '#fff' }}>
+                          {team.team_name?.slice(0, 2).toUpperCase() || 'TM'}
+                        </b>
+                      )}
                       <span>
                         <strong>{team.team_name}</strong>
-                        <small>ID #{team.id}</small>
                       </span>
                     </span>
                   </td>
-                  <td>{getName(availableOwners, team.coach_id)}</td>
+                  <td>{trainersByTeam.get(String(team.id))?.join(', ') || 'Not Assigned'}</td>
                   <td>
                     <span className="admin-color-pill">
                       <i style={{ background: team.team_color || '#635bff' }} />
@@ -172,10 +250,13 @@ const AdminTeams = ({ currentPath = '#admin/teams' }) => {
                   <td>{formatDate(team.created_at)}</td>
                   <td>
                     <div className="admin-actions" onClick={(event) => event.stopPropagation()}>
+                      <AdminButton variant="secondary" onClick={() => openAssign(team)} aria-label="Assign trainer">
+                        <UserPlus size={15} />
+                      </AdminButton>
                       <AdminButton variant="secondary" onClick={() => openEdit(team)} aria-label="Edit team">
                         <Edit3 size={15} />
                       </AdminButton>
-                      <AdminButton variant="danger" onClick={() => removeTeam(team)} aria-label="Delete team">
+                      <AdminButton variant="danger" onClick={() => openDelete(team)} aria-label="Delete team">
                         <Trash2 size={15} />
                       </AdminButton>
                     </div>
@@ -191,9 +272,16 @@ const AdminTeams = ({ currentPath = '#admin/teams' }) => {
       <AdminModal
         open={modalOpen}
         title={editing ? 'Edit Team' : 'Create Team'}
+        subtitle={editing ? 'Update team details and ownership.' : 'Create a volleyball team workspace.'}
+        className="admin-password-modal admin-team-modal"
         onClose={() => setModalOpen(false)}
       >
         <form className="admin-form" onSubmit={submit}>
+          <div className="admin-password-tip">
+            <Info size={18} />
+            <p>{editing ? 'Keep the team name and color accurate for reports and team dashboards.' : 'Choose a team name, color, and optional trainer assignment before creating the team.'}</p>
+          </div>
+
           <AdminField label="Team Name">
             <AdminInput
               required
@@ -219,22 +307,6 @@ const AdminTeams = ({ currentPath = '#admin/teams' }) => {
             </div>
           </AdminField>
 
-          <AdminField label="Team Coach">
-            <AdminSelect
-              required
-              value={form.coach_id}
-              onChange={(event) => setForm((current) => ({ ...current, coach_id: event.target.value }))}
-            >
-              <option value="">Select coach or owner</option>
-              {coaches.map((coach) => (
-                <option key={`coach-${coach.id}`} value={coach.id}>{coach.name}</option>
-              ))}
-              {!coaches.length && trainers.map((trainer) => (
-                <option key={`trainer-owner-${trainer.id}`} value={trainer.id}>{trainer.name} (trainer)</option>
-              ))}
-            </AdminSelect>
-          </AdminField>
-
           {!editing && (
             <AdminField label="Available Trainer">
               <AdminSelect
@@ -249,21 +321,128 @@ const AdminTeams = ({ currentPath = '#admin/teams' }) => {
             </AdminField>
           )}
 
-          {!coaches.length && !trainers.length && (
-            <StatusBadge tone="warning">No coach or trainer record found. The owner id defaults to 1.</StatusBadge>
-          )}
+          <div className="admin-password-warning">
+            <TriangleAlert size={17} />
+            <p>{editing ? 'Changes will affect the team workspace immediately after saving.' : 'Tip: this team will automatically use the logged-in coach as the team coach.'}</p>
+          </div>
 
-          {!coaches.length && trainers.length > 0 && (
-            <StatusBadge tone="warning">No coach record found. Choose a trainer as the team owner.</StatusBadge>
-          )}
-
-          <div className="admin-form-actions">
-            <AdminButton type="button" variant="secondary" onClick={() => setModalOpen(false)}>
+          <div className="admin-profile-offcanvas-actions">
+            <AdminButton type="button" variant="ghost" onClick={() => setModalOpen(false)}>
               Cancel
             </AdminButton>
             <AdminButton type="submit">{editing ? 'Save Team' : 'Create Team'}</AdminButton>
           </div>
         </form>
+      </AdminModal>
+
+      <AdminModal
+        open={assignModal}
+        title="Assign Trainer"
+        subtitle={`Choose a trainer for ${assigningTeam?.team_name || 'this team'}.`}
+        className="admin-password-modal admin-team-modal"
+        onClose={() => setAssignModal(false)}
+      >
+        {assigningTeam && (
+          <form className="admin-form" onSubmit={assignTrainer}>
+            <div className="admin-password-tip">
+              <Info size={18} />
+              <p>Select one available trainer to assign to this team workspace.</p>
+            </div>
+
+            <div className="admin-delete-summary">
+              <span className="admin-player">
+                {assigningTeam.logo_url ? (
+                  <img className="admin-team-table-logo" src={assigningTeam.logo_url} alt={`${assigningTeam.team_name} logo`} />
+                ) : (
+                  <b style={{ background: assigningTeam.team_color || '#635bff', color: '#fff' }}>
+                    {assigningTeam.team_name?.slice(0, 2).toUpperCase() || 'TM'}
+                  </b>
+                )}
+                <span>
+                  <strong>{assigningTeam.team_name}</strong>
+                </span>
+              </span>
+            </div>
+
+            <AdminField label="Available Trainer">
+              <AdminSelect
+                required
+                value={selectedTrainer}
+                onChange={(event) => setSelectedTrainer(event.target.value)}
+              >
+                <option value="">Select available trainer</option>
+                {availableTrainers.map((trainer) => (
+                  <option key={trainer.id} value={trainer.id}>{trainer.name}</option>
+                ))}
+              </AdminSelect>
+            </AdminField>
+
+            <div className="admin-password-warning">
+              <TriangleAlert size={17} />
+              <p>Tip: assigned trainers can be reviewed or removed later from this team's details page.</p>
+            </div>
+
+            <div className="admin-profile-offcanvas-actions">
+              <AdminButton type="button" variant="ghost" onClick={() => setAssignModal(false)}>
+                Cancel
+              </AdminButton>
+              <AdminButton type="submit" disabled={!selectedTrainer}>Assign Trainer</AdminButton>
+            </div>
+          </form>
+        )}
+      </AdminModal>
+
+      <AdminModal
+        open={deleteModal}
+        title="Delete Team"
+        subtitle="Confirm before removing this team workspace."
+        className="admin-password-modal admin-team-modal"
+        onClose={() => {
+          if (!deletingTeam) setDeleteModal(false)
+        }}
+      >
+        {deleteTeam && (
+          <form className="admin-form" onSubmit={removeTeam}>
+            <div className="admin-password-warning">
+              <TriangleAlert size={17} />
+              <p>This will delete {deleteTeam.team_name} and remove its team workspace from NetMind.</p>
+            </div>
+
+            <div className="admin-delete-summary">
+              <span className="admin-player">
+                {deleteTeam.logo_url ? (
+                  <img className="admin-team-table-logo" src={deleteTeam.logo_url} alt={`${deleteTeam.team_name} logo`} />
+                ) : (
+                  <b style={{ background: deleteTeam.team_color || '#635bff', color: '#fff' }}>
+                    {deleteTeam.team_name?.slice(0, 2).toUpperCase() || 'TM'}
+                  </b>
+                )}
+                <span>
+                  <strong>{deleteTeam.team_name}</strong>
+                </span>
+              </span>
+            </div>
+
+            <div className="admin-password-tip">
+              <Info size={18} />
+              <p>Tip: make sure player records, assignments, and reports are no longer needed before deleting this team.</p>
+            </div>
+
+            <div className="admin-profile-offcanvas-actions">
+              <AdminButton
+                type="button"
+                variant="ghost"
+                onClick={() => setDeleteModal(false)}
+                disabled={deletingTeam}
+              >
+                Cancel
+              </AdminButton>
+              <AdminButton type="submit" variant="danger" disabled={deletingTeam}>
+                {deletingTeam ? 'Deleting...' : 'Delete Team'}
+              </AdminButton>
+            </div>
+          </form>
+        )}
       </AdminModal>
     </AdminLayout>
   )

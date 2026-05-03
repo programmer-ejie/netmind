@@ -135,6 +135,181 @@ router.post(
 );
 
 router.post(
+  "/register-trainer",
+  [
+    body("name").trim().notEmpty().withMessage("Name is required"),
+    body("email").isEmail().withMessage("Valid email is required"),
+  ],
+  asyncHandler(async (req, res) => {
+    const startedAt = performance.now();
+    let dbCheckMs = 0;
+    let hashMs = 0;
+    let dbInsertMs = 0;
+    let emailMs = 0;
+
+    assertValid(req);
+
+    const name = req.body.name.trim();
+    const email = req.body.email.trim().toLowerCase();
+    const dbCheckStartedAt = performance.now();
+    const existing = await query("SELECT id FROM users WHERE email = ?", [email]);
+    dbCheckMs = Math.round(performance.now() - dbCheckStartedAt);
+
+    if (existing.length) {
+      authTiming("register-trainer:duplicate", startedAt, { db_check_ms: dbCheckMs });
+      throw new ApiError(409, "Email is already registered");
+    }
+
+    const temporaryPassword = generateTemporaryPassword();
+    const hashStartedAt = performance.now();
+    const passwordHash = await bcrypt.hash(temporaryPassword, BCRYPT_ROUNDS);
+    hashMs = Math.round(performance.now() - hashStartedAt);
+    const connection = await pool.getConnection();
+    let user;
+
+    try {
+      const dbInsertStartedAt = performance.now();
+      await connection.beginTransaction();
+
+      const [result] = await connection.execute(
+        "INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, 'trainer')",
+        [name, email, passwordHash]
+      );
+      const [rows] = await connection.execute(
+        "SELECT id, name, email, role, position, jersey_number, age, birthdate, location, profile_picture_url, profile_picture_file_id, is_active, created_at FROM users WHERE id = ?",
+        [result.insertId]
+      );
+      user = rows[0];
+
+      await connection.commit();
+      dbInsertMs = Math.round(performance.now() - dbInsertStartedAt);
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+
+    try {
+      const emailStartedAt = performance.now();
+      await sendTemporaryPasswordEmail({
+        to: email,
+        name,
+        password: temporaryPassword,
+      });
+      emailMs = Math.round(performance.now() - emailStartedAt);
+    } catch {
+      if (user?.id) {
+        await query("DELETE FROM users WHERE id = ? AND role = 'trainer'", [user.id]);
+      }
+
+      throw new ApiError(502, "Unable to send the temporary password email. Check Gmail sender settings.");
+    }
+
+    authTiming("register-trainer", startedAt, {
+      db_check_ms: dbCheckMs,
+      hash_ms: hashMs,
+      db_insert_ms: dbInsertMs,
+      email_ms: emailMs,
+    });
+
+    res.status(201).json({
+      message: "Trainer account created. Temporary password sent to email.",
+      user,
+    });
+  })
+);
+
+router.post(
+  "/register-player",
+  [
+    body("name").trim().notEmpty().withMessage("Name is required"),
+    body("email").isEmail().withMessage("Valid email is required"),
+    body("position").optional({ nullable: true }).isIn(["OH", "OPP", "MB", "S", "L"]),
+  ],
+  asyncHandler(async (req, res) => {
+    const startedAt = performance.now();
+    let dbCheckMs = 0;
+    let hashMs = 0;
+    let dbInsertMs = 0;
+    let emailMs = 0;
+
+    assertValid(req);
+
+    const name = req.body.name.trim();
+    const email = req.body.email.trim().toLowerCase();
+    const position = req.body.position || null;
+    const jerseyNumber = req.body.jersey_number || null;
+    const dbCheckStartedAt = performance.now();
+    const existing = await query("SELECT id FROM users WHERE email = ?", [email]);
+    dbCheckMs = Math.round(performance.now() - dbCheckStartedAt);
+
+    if (existing.length) {
+      authTiming("register-player:duplicate", startedAt, { db_check_ms: dbCheckMs });
+      throw new ApiError(409, "Email is already registered");
+    }
+
+    const temporaryPassword = generateTemporaryPassword();
+    const hashStartedAt = performance.now();
+    const passwordHash = await bcrypt.hash(temporaryPassword, BCRYPT_ROUNDS);
+    hashMs = Math.round(performance.now() - hashStartedAt);
+    const connection = await pool.getConnection();
+    let user;
+
+    try {
+      const dbInsertStartedAt = performance.now();
+      await connection.beginTransaction();
+
+      const [result] = await connection.execute(
+        "INSERT INTO users (name, email, password_hash, role, position, jersey_number) VALUES (?, ?, ?, 'player', ?, ?)",
+        [name, email, passwordHash, position, jerseyNumber]
+      );
+      const [rows] = await connection.execute(
+        "SELECT id, name, email, role, position, jersey_number, age, birthdate, location, profile_picture_url, profile_picture_file_id, is_active, created_at FROM users WHERE id = ?",
+        [result.insertId]
+      );
+      user = rows[0];
+
+      await connection.commit();
+      dbInsertMs = Math.round(performance.now() - dbInsertStartedAt);
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+
+    try {
+      const emailStartedAt = performance.now();
+      await sendTemporaryPasswordEmail({
+        to: email,
+        name,
+        password: temporaryPassword,
+      });
+      emailMs = Math.round(performance.now() - emailStartedAt);
+    } catch {
+      if (user?.id) {
+        await query("DELETE FROM users WHERE id = ? AND role = 'player'", [user.id]);
+      }
+
+      throw new ApiError(502, "Unable to send the temporary password email. Check Gmail sender settings.");
+    }
+
+    authTiming("register-player", startedAt, {
+      db_check_ms: dbCheckMs,
+      hash_ms: hashMs,
+      db_insert_ms: dbInsertMs,
+      email_ms: emailMs,
+    });
+
+    res.status(201).json({
+      message: "Player account created. Temporary password sent to email.",
+      user,
+    });
+  })
+);
+
+router.post(
   "/register",
   [
     body("name").trim().notEmpty().withMessage("Name is required"),

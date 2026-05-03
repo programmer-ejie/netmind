@@ -1619,7 +1619,76 @@
 .admin-team-hero {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 18px;
+}
+
+.admin-team-hero-main {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.admin-team-back {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  background: var(--admin-light-primary);
+  color: var(--admin-primary);
+}
+
+.admin-team-back:hover {
+  background: var(--admin-primary);
+  color: #ffffff;
+}
+
+.admin-team-logo {
+  width: 58px;
+  height: 58px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  object-fit: cover;
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.admin-team-table-logo {
+  width: 42px;
+  height: 42px;
+  border-radius: 6px;
+  flex: 0 0 auto;
+  object-fit: cover;
+}
+
+.admin-team-logo-upload {
+  min-height: 40px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  background: var(--admin-light-primary);
+  color: var(--admin-primary);
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-team-logo-upload:hover {
+  background: var(--admin-primary);
+  color: #ffffff;
+}
+
+.admin-team-logo-upload input {
+  display: none;
 }
 
 .admin-team-hero h2 {
@@ -1641,6 +1710,49 @@
   border: 1px solid var(--admin-border);
   border-radius: 10px;
   padding: 12px;
+}
+
+.admin-roster-list {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-roster-item {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(76px, 0.32fr) minmax(64px, 0.26fr) minmax(112px, 0.42fr) auto;
+  align-items: center;
+  gap: 14px;
+  border-top: 1px solid var(--admin-border);
+  padding: 14px 0;
+}
+
+.admin-roster-item:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.admin-roster-item > span:not(.admin-player) {
+  min-width: 0;
+}
+
+.admin-roster-item small {
+  display: block;
+  color: var(--admin-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.admin-roster-item strong {
+  display: block;
+  color: var(--admin-link);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.admin-roster-item .admin-button {
+  width: 40px;
+  min-height: 40px;
+  padding: 0;
 }
 
 .admin-dark .admin-list-item,
@@ -2143,6 +2255,25 @@
   letter-spacing: 0.16em;
 }
 
+.admin-create-trainer-modal {
+  width: min(410px, 100%);
+}
+
+.admin-team-modal {
+  width: min(430px, 100%);
+}
+
+.admin-delete-summary {
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--admin-soft) 64%, #ffffff);
+  padding: 14px;
+}
+
+.admin-dark .admin-delete-summary {
+  background: color-mix(in oklab, var(--admin-soft) 76%, var(--admin-card));
+}
+
 .admin-password-tip,
 .admin-password-warning {
   width: 100%;
@@ -2484,15 +2615,28 @@
     grid-template-columns: 1fr;
   }
 
+  .admin-roster-item {
+    grid-template-columns: 1fr auto;
+  }
+
+  .admin-roster-item > span:not(.admin-player) {
+    grid-column: 1 / -1;
+  }
+
   .admin-profile-card,
   .admin-profile-team {
     align-items: flex-start;
   }
 
   .admin-profile-modern-card,
-  .admin-profile-intro {
+  .admin-profile-intro,
+  .admin-team-hero {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .admin-team-logo-upload {
+    width: 100%;
   }
 
   .admin-profile-photo-panel {

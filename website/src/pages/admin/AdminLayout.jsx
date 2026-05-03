@@ -14,7 +14,6 @@ import {
   Sun,
   UserCircle,
   UserRound,
-  Users,
 } from 'lucide-react'
 import websiteLogo from '../../assets/website_logo.png'
 import fallbackProfilePhoto from '../../assets/crpt_image.jpg'
@@ -38,7 +37,13 @@ export const assignmentStatuses = ['pending', 'in_progress', 'completed', 'overd
 export const formatDate = (value) => {
   if (!value) return '-'
   const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString()
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    })
 }
 
 export const initials = (name = 'NetMind') => (
@@ -84,7 +89,6 @@ const sidebarGroups = [
     label: 'Management',
     items: [
       { href: '#admin/teams', icon: Shield, label: 'Teams' },
-      { href: '#admin/players', icon: Users, label: 'Players' },
       { href: '#admin/trainers', icon: UserRound, label: 'Trainers' },
     ],
   },
@@ -149,20 +153,23 @@ export const EmptyState = ({ children = 'No records yet.' }) => (
   <div className="admin-empty">{children}</div>
 )
 
-export const AdminModal = ({ open, title, children, onClose }) => {
+export const AdminModal = ({ open, title, subtitle, children, onClose, className = '' }) => {
   if (!open) return null
 
   return (
     <div className="admin-modal-backdrop" role="presentation" onMouseDown={onClose}>
       <section
-        className="admin-modal"
+        className={`admin-modal ${className}`}
         role="dialog"
         aria-modal="true"
         aria-label={title}
         onMouseDown={(event) => event.stopPropagation()}
       >
         <div className="admin-modal-header">
-          <h2>{title}</h2>
+          <div>
+            <h2>{title}</h2>
+            {subtitle && <p className="admin-muted">{subtitle}</p>}
+          </div>
           <button type="button" className="admin-modal-close" onClick={onClose} aria-label="Close modal">
             x
           </button>

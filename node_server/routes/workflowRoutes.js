@@ -1,7 +1,7 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
-const { query } = require("../config/db");
+const { pool, query } = require("../config/db");
 const asyncHandler = require("../utils/asyncHandler");
 const ApiError = require("../utils/apiError");
 const { sendPasswordResetCodeEmail } = require("../utils/emailService");
@@ -417,6 +417,49 @@ router.delete("/teams/:teamId/members/:playerId", asyncHandler(async (req, res) 
   }
 
   res.status(204).send();
+}));
+
+router.delete("/players/:playerId", asyncHandler(async (req, res) => {
+  const rows = await query("SELECT id FROM users WHERE id = ? AND role = 'player'", [req.params.playerId]);
+  const player = rows[0];
+
+  if (!player) {
+    throw new ApiError(404, "Player not found");
+  }
+
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    await connection.execute(
+      `DELETE FROM drill_performance_logs
+      WHERE player_id = ?
+        OR training_assignment_id IN (
+          SELECT id FROM training_assignments WHERE player_id = ?
+        )`,
+      [player.id, player.id]
+    );
+    await connection.execute("DELETE FROM training_assignments WHERE player_id = ?", [player.id]);
+    await connection.execute("DELETE FROM performance_logs WHERE user_id = ?", [player.id]);
+    await connection.execute("DELETE FROM attendance_logs WHERE player_id = ?", [player.id]);
+    await connection.execute("DELETE FROM injury_logs WHERE player_id = ?", [player.id]);
+    await connection.execute("DELETE FROM team_members WHERE player_id = ?", [player.id]);
+
+    const [result] = await connection.execute("DELETE FROM users WHERE id = ? AND role = 'player'", [player.id]);
+
+    if (!result.affectedRows) {
+      throw new ApiError(404, "Player not found");
+    }
+
+    await connection.commit();
+    res.status(204).send();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 }));
 
 router.get("/teams/:teamId/trainers", asyncHandler(async (req, res) => {

@@ -17,7 +17,6 @@ import AuthSection from './components/AuthSection'
 import AdminAnalytics from './pages/admin/AdminAnalytics'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminMatches from './pages/admin/AdminMatches'
-import AdminPlayers from './pages/admin/AdminPlayers'
 import AdminProfile from './pages/admin/AdminProfile'
 import AdminSettings from './pages/admin/AdminSettings'
 import AdminTeamDetails from './pages/admin/AdminTeamDetails'
@@ -61,6 +60,11 @@ function App() {
   }, [])
 
   if (route.area === 'admin') {
+    if (route.page === 'players') {
+      window.location.hash = 'admin/teams'
+      return null
+    }
+
     if (route.page === 'teams' && route.id) {
       return <AdminTeamDetails teamId={route.id} currentPath={route.hash} />
     }
@@ -69,7 +73,6 @@ function App() {
       dashboard: AdminDashboard,
       profile: AdminProfile,
       teams: AdminTeams,
-      players: AdminPlayers,
       trainers: AdminTrainers,
       matches: AdminMatches,
       training: AdminTraining,

@@ -13,7 +13,7 @@ const upload = multer({
   },
   fileFilter(req, file, callback) {
     if (!file.mimetype.startsWith("image/")) {
-      callback(new ApiError(400, "Profile picture must be an image"));
+      callback(new ApiError(400, "Uploaded file must be an image"));
       return;
     }
 
@@ -55,6 +55,39 @@ router.post(
 
     res.json({
       user: rows[0],
+      file: uploaded,
+    });
+  })
+);
+
+router.post(
+  "/teams/:id/logo",
+  upload.single("team_logo"),
+  asyncHandler(async (req, res) => {
+    if (!req.file) {
+      throw new ApiError(400, "Team logo file is required");
+    }
+
+    const teams = await query("SELECT id, team_name FROM teams WHERE id = ?", [req.params.id]);
+    if (!teams.length) {
+      throw new ApiError(404, "Team not found");
+    }
+
+    const extension = req.file.originalname.split(".").pop() || "jpg";
+    const safeName = teams[0].team_name.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase() || "team-logo";
+    const uploaded = await uploadBufferToDrive({
+      buffer: req.file.buffer,
+      fileName: `${safeName}-logo-${Date.now()}.${extension}`,
+      mimeType: req.file.mimetype,
+      folderId: process.env.GOOGLE_DRIVE_TEAMLOGO_FOLDER_ID || process.env.GOOGLE_DRIVE_FOLDER_ID,
+    });
+
+    await query("UPDATE teams SET logo_url = ? WHERE id = ?", [uploaded.directUrl, req.params.id]);
+
+    const rows = await query("SELECT * FROM teams WHERE id = ?", [req.params.id]);
+
+    res.json({
+      team: rows[0],
       file: uploaded,
     });
   })
