@@ -16,6 +16,7 @@ import LeadCaptureModal from './components/LeadCaptureModal'
 import AuthSection from './components/AuthSection'
 import AdminAnalytics from './pages/admin/AdminAnalytics'
 import AdminDashboard from './pages/admin/AdminDashboard'
+import AdminMatchInputs from './pages/admin/AdminMatchInputs'
 import AdminMatches from './pages/admin/AdminMatches'
 import AdminProfile from './pages/admin/AdminProfile'
 import AdminSettings from './pages/admin/AdminSettings'
@@ -67,6 +68,10 @@ function App() {
 
     if (route.page === 'teams' && route.id) {
       return <AdminTeamDetails teamId={route.id} currentPath={route.hash} />
+    }
+
+    if (route.page === 'matches' && route.id) {
+      return <AdminMatchInputs matchId={route.id} currentPath={route.hash} />
     }
 
     const pages = {

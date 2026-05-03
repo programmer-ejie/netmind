@@ -265,7 +265,13 @@ const AdminMatches = ({ currentPath = '#admin/matches' }) => {
             </thead>
             <tbody>
               {visibleMatches.map((match) => (
-                <tr key={match.id}>
+                <tr
+                  key={match.id}
+                  className="admin-match-click-row"
+                  onClick={() => {
+                    window.location.hash = `admin/matches/${match.id}/inputs`
+                  }}
+                >
                   <td>
                     <strong className="admin-match-versus">
                       <span>{getName(teams, match.team_id)}</span>
@@ -278,7 +284,7 @@ const AdminMatches = ({ currentPath = '#admin/matches' }) => {
                   <td>{formatScore(match)}</td>
                   <td>{match.result ? <StatusBadge tone={match.result === 'win' ? 'success' : match.result === 'loss' ? 'error' : 'warning'}>{match.result}</StatusBadge> : '----'}</td>
                   <td>
-                    <div className="admin-actions">
+                    <div className="admin-actions" onClick={(event) => event.stopPropagation()}>
                       <AdminButton variant="secondary" onClick={() => openEdit(match)} aria-label="Edit match">
                         <Edit3 size={15} />
                       </AdminButton>
@@ -422,6 +428,7 @@ const AdminMatches = ({ currentPath = '#admin/matches' }) => {
           </div>
         </form>
       </AdminModal>
+
     </AdminLayout>
   )
 }

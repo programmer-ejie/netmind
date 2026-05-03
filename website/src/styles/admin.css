@@ -1620,6 +1620,14 @@
   flex-wrap: wrap;
 }
 
+.admin-match-click-row {
+  cursor: pointer;
+}
+
+.admin-match-click-row:hover .admin-match-versus span {
+  color: var(--admin-primary);
+}
+
 .admin-match-versus b {
   min-width: 34px;
   min-height: 24px;
@@ -1648,6 +1656,356 @@
 .admin-matches-table-centered .admin-native-table td:nth-child(3) .admin-badge,
 .admin-matches-table-centered .admin-native-table td:nth-child(5) .admin-badge {
   margin-inline: auto;
+}
+
+.admin-stat-input-modal {
+  width: min(720px, calc(100vw - 32px));
+}
+
+.admin-stat-input-list {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-stat-input-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 38px 58px 38px;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.admin-stat-input-row strong {
+  display: block;
+  color: var(--admin-link);
+  font-size: 14px;
+}
+
+.admin-stat-input-row p {
+  margin-top: 2px;
+  color: var(--admin-muted);
+  font-size: 12px;
+  line-height: 1.35;
+  font-weight: 600;
+}
+
+.admin-stat-input-row .admin-input {
+  min-width: 0;
+  text-align: center;
+  font-weight: 800;
+}
+
+.admin-stat-input-row .admin-button {
+  width: 38px;
+  min-height: 38px;
+  padding: 0;
+}
+
+.admin-match-input-hero {
+  overflow: hidden;
+  position: relative;
+  border: 1px solid color-mix(in oklab, var(--admin-primary) 10%, transparent);
+}
+
+.admin-match-input-hero::after {
+  content: '';
+  width: 190px;
+  height: 190px;
+  border-radius: 999px;
+  position: absolute;
+  right: -72px;
+  top: -96px;
+  background: color-mix(in oklab, var(--admin-primary) 10%, transparent);
+}
+
+.admin-match-input-hero-inner {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  position: relative;
+  z-index: 1;
+}
+
+.admin-match-input-main {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.admin-match-input-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  background: var(--admin-light-primary);
+  color: var(--admin-primary);
+}
+
+.admin-match-input-main h2 {
+  color: var(--admin-dark);
+  font-size: 28px;
+  line-height: 1.18;
+  font-weight: 900;
+}
+
+.admin-match-input-main small {
+  display: block;
+  margin-top: 5px;
+  color: var(--admin-muted);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.admin-match-input-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.admin-match-input-summary > span {
+  min-height: 40px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--admin-light-primary);
+  color: var(--admin-primary);
+  padding: 0 13px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.admin-dark .admin-match-input-main h2 {
+  color: #ffffff;
+}
+
+.admin-match-roster-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 18px;
+  margin-bottom: 18px;
+}
+
+.admin-match-roster-grid.has-versus {
+  grid-template-columns: minmax(0, 1fr) 72px minmax(0, 1fr);
+  align-items: stretch;
+}
+
+.admin-match-roster-grid.has-versus .admin-match-roster-card:first-child {
+  grid-column: 1;
+}
+
+.admin-match-roster-grid.has-versus .admin-match-roster-card:nth-child(2) {
+  grid-column: 3;
+}
+
+.admin-roster-versus {
+  width: 58px;
+  height: 58px;
+  border: 6px solid var(--admin-bg);
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  align-self: center;
+  justify-self: center;
+  grid-column: 2;
+  grid-row: 1;
+  margin: 0;
+  z-index: 2;
+  background: var(--admin-primary);
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 950;
+  transform: rotate(-8deg);
+  box-shadow: 0 18px 34px rgba(18, 170, 189, 0.22);
+}
+
+.admin-match-roster-card {
+  min-height: 100%;
+}
+
+.admin-match-roster-header {
+  align-items: flex-start;
+  border-bottom: 1px solid var(--admin-border);
+  margin: -4px -4px 16px;
+  padding: 4px 4px 16px;
+}
+
+.admin-match-roster-logo {
+  width: 54px;
+  height: 54px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  object-fit: cover;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 900;
+  box-shadow: 0 0 0 5px color-mix(in oklab, var(--admin-primary) 8%, transparent);
+}
+
+.admin-match-roster-logo.fallback {
+  text-shadow: 0 1px 8px rgba(31, 42, 61, 0.18);
+}
+
+.admin-match-player-list {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-match-player {
+  width: 100%;
+  border: 1px solid var(--admin-border);
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border-radius: 10px;
+  background: transparent;
+  padding: 12px;
+  text-align: left;
+}
+
+.admin-match-player:hover {
+  border-color: color-mix(in oklab, var(--admin-primary) 34%, var(--admin-border));
+  background: color-mix(in oklab, var(--admin-primary) 7%, transparent);
+}
+
+.admin-match-player:focus-visible {
+  outline: 3px solid color-mix(in oklab, var(--admin-primary) 24%, transparent);
+  outline-offset: 2px;
+}
+
+.admin-match-player b {
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: var(--admin-light-primary);
+  color: var(--admin-primary);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.admin-match-player strong,
+.admin-match-player small {
+  display: block;
+}
+
+.admin-match-player strong {
+  color: var(--admin-link);
+  font-size: 14px;
+}
+
+.admin-match-player small {
+  margin-top: 2px;
+  color: var(--admin-muted);
+  font-size: 12px;
+  line-height: 1.35;
+  font-weight: 600;
+}
+
+.admin-match-player i {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: color-mix(in oklab, var(--admin-primary) 9%, transparent);
+  color: var(--admin-primary);
+  opacity: 0;
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.admin-match-player:hover i,
+.admin-match-player:focus-visible i {
+  opacity: 1;
+  transform: translateX(1px);
+}
+
+.admin-offcanvas-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(31, 42, 61, 0.32);
+}
+
+.admin-offcanvas {
+  width: min(360px, 100%);
+  height: 100%;
+  overflow-y: auto;
+  background: var(--admin-card);
+  box-shadow: -18px 0 42px rgba(31, 42, 61, 0.18);
+  padding: 28px;
+}
+
+.admin-offcanvas-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.admin-offcanvas-header h2 {
+  color: var(--admin-dark);
+  font-size: 24px;
+  line-height: 1.2;
+  font-weight: 800;
+}
+
+.admin-offcanvas-header small {
+  display: block;
+  margin-top: 4px;
+  color: var(--admin-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.admin-dark .admin-offcanvas-header h2 {
+  color: #ffffff;
+}
+
+.admin-player-input-offcanvas .admin-stat-input-list {
+  margin-top: 14px;
+}
+
+.admin-score-form {
+  display: grid;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.admin-score-form .admin-input {
+  min-height: 48px;
+  font-size: 18px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.admin-score-form .admin-input:disabled {
+  background: color-mix(in oklab, var(--admin-soft) 72%, #ffffff);
+  color: var(--admin-muted);
+  cursor: not-allowed;
+}
+
+.admin-score-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
 }
 
 .admin-native-table {
@@ -2800,6 +3158,51 @@
 
   .admin-matches-table {
     padding: 12px 18px 22px;
+  }
+
+  .admin-stat-input-row {
+    grid-template-columns: minmax(0, 1fr) 36px 52px 36px;
+    gap: 10px;
+    padding: 10px;
+  }
+
+  .admin-match-roster-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-match-roster-grid.has-versus {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-match-roster-grid.has-versus .admin-match-roster-card:first-child,
+  .admin-match-roster-grid.has-versus .admin-match-roster-card:nth-child(2),
+  .admin-roster-versus {
+    grid-column: auto;
+  }
+
+  .admin-roster-versus {
+    margin: -2px auto;
+    transform: rotate(-8deg);
+  }
+
+  .admin-match-input-hero-inner,
+  .admin-match-input-summary {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-match-input-main {
+    align-items: flex-start;
+  }
+
+  .admin-match-input-main h2 {
+    font-size: 22px;
+  }
+
+  .admin-match-input-summary .admin-button,
+  .admin-match-input-summary > span {
+    width: 100%;
+    justify-content: center;
   }
 
   .admin-card-header {
