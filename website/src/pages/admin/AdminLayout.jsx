@@ -16,6 +16,7 @@ import {
   UserRound,
   Users,
 } from 'lucide-react'
+import websiteLogo from '../../assets/website_logo.png'
 import { useThemeMode } from '../../lib/theme'
 
 export const positions = ['OH', 'OPP', 'MB', 'S', 'L']
@@ -233,7 +234,7 @@ export const AdminLayout = ({ children, title, kicker = 'Volleyball Analytics', 
       <aside className="admin-sidebar" aria-label="Admin sidebar">
         <div className="admin-brand-wrap">
           <a href="#admin" className="admin-logo" onClick={closeSidebar}>
-            <b aria-hidden="true">NM</b>
+            <img src={websiteLogo} alt="" aria-hidden="true" />
             <span>NetMind</span>
           </a>
         </div>
@@ -286,7 +287,7 @@ export const AdminLayout = ({ children, title, kicker = 'Volleyball Analytics', 
             </button>
 
             <a href="#admin" className="admin-mobile-logo" aria-label="NetMind admin home">
-              <b aria-hidden="true">NM</b>
+              <img src={websiteLogo} alt="" aria-hidden="true" />
               <span>NetMind</span>
             </a>
 
