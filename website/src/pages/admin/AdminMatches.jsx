@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Edit3, Plus, Trash2 } from 'lucide-react'
+import { CalendarCheck2, ClipboardList, Edit3, Info, Plus, Swords, Trash2, Trophy } from 'lucide-react'
 import AdminLayout, {
   AdminButton,
   AdminCard,
@@ -13,10 +13,9 @@ import AdminLayout, {
   formatDate,
   getName,
 } from './AdminLayout'
-import { createResource, deleteResource, listResource, updateResource } from '../../lib/api'
+import { createResource, deleteResource, listResource, readSavedUser, updateResource } from '../../lib/api'
 
 const actualMatchTypes = ['league', 'tournament', 'playoff']
-const matchTypes = ['friendly', ...actualMatchTypes]
 const results = ['win', 'loss', 'draw']
 
 const blankMatch = {
@@ -33,6 +32,7 @@ const blankMatch = {
 }
 
 const AdminMatches = ({ currentPath = '#admin/matches' }) => {
+  const currentUser = readSavedUser()
   const [matches, setMatches] = useState([])
   const [teams, setTeams] = useState([])
   const [seasons, setSeasons] = useState([])
@@ -53,6 +53,55 @@ const AdminMatches = ({ currentPath = '#admin/matches' }) => {
   )
 
   const visibleMatches = activeView === 'practice' ? practiceMatches : actualMatches
+  const isActualMatchForm = actualMatchTypes.includes(form.match_type)
+  const teamOneOptions = useMemo(
+    () => (
+      isActualMatchForm
+        ? teams
+        : teams.filter((team) => team.team_name !== form.opponent_name)
+    ),
+    [form.opponent_name, isActualMatchForm, teams],
+  )
+  const getOpponentTeamsForMatchType = (matchType) => (
+    actualMatchTypes.includes(matchType)
+      ? teams.filter((team) => String(team.coach_id) !== String(currentUser?.id))
+      : teams.filter((team) => String(team.id) !== String(form.team_id))
+  )
+  const opponentTeams = useMemo(
+    () => getOpponentTeamsForMatchType(form.match_type),
+    [currentUser?.id, form.match_type, form.team_id, teams],
+  )
+
+  const updateMatchType = (matchType) => {
+    const nextOpponentTeams = getOpponentTeamsForMatchType(matchType)
+
+    setForm((current) => ({
+      ...current,
+      match_type: matchType,
+      opponent_name: nextOpponentTeams.some((team) => team.team_name === current.opponent_name)
+        ? current.opponent_name
+        : '',
+    }))
+  }
+
+  const updateTeam = (teamId) => {
+    const selectedTeam = teams.find((team) => String(team.id) === String(teamId))
+
+    setForm((current) => ({
+      ...current,
+      team_id: teamId,
+      opponent_name: !isActualMatchForm && selectedTeam?.team_name === current.opponent_name
+        ? ''
+        : current.opponent_name,
+    }))
+  }
+
+  const formatScore = (match) => (
+    match.team_score !== null && match.team_score !== undefined
+      && match.opponent_score !== null && match.opponent_score !== undefined
+      ? `${match.team_score} - ${match.opponent_score}`
+      : '----'
+  )
 
   const load = async () => {
     const [matchRows, teamRows, seasonRows] = await Promise.all([
@@ -141,26 +190,42 @@ const AdminMatches = ({ currentPath = '#admin/matches' }) => {
     <AdminLayout title="Matches" currentPath={currentPath}>
       {error && <div className="admin-alert">{error}</div>}
 
-      <div className="admin-stat-grid compact">
-        <AdminCard>
-          <span className="admin-muted">Practice Matches</span>
-          <strong>{practiceMatches.length}</strong>
+      <div className="admin-match-stats">
+        <AdminCard className="admin-match-stat practice">
+          <span><ClipboardList size={19} /></span>
+          <div>
+            <p>Practice Matches</p>
+            <strong>{practiceMatches.length}</strong>
+          </div>
         </AdminCard>
-        <AdminCard>
-          <span className="admin-muted">Actual Matches</span>
-          <strong>{actualMatches.length}</strong>
+        <AdminCard className="admin-match-stat actual">
+          <span><Trophy size={19} /></span>
+          <div>
+            <p>Actual Matches</p>
+            <strong>{actualMatches.length}</strong>
+          </div>
         </AdminCard>
-        <AdminCard>
-          <span className="admin-muted">Total Scheduled</span>
-          <strong>{matches.length}</strong>
+        <AdminCard className="admin-match-stat scheduled">
+          <span><CalendarCheck2 size={19} /></span>
+          <div>
+            <p>Total Scheduled</p>
+            <strong>{matches.length}</strong>
+          </div>
         </AdminCard>
       </div>
 
-      <AdminCard>
-        <div className="admin-card-header">
-          <div>
-            <h2>{activeView === 'practice' ? 'Practice Matches' : 'Actual Matches'}</h2>
-            <p className="admin-muted">Separate friendly practice sessions from official competition matches.</p>
+      <AdminCard className="admin-matches-card">
+        <div className="admin-card-header admin-match-header">
+          <div className="admin-match-title">
+            <span><Swords size={21} /></span>
+            <div>
+              <h2>{activeView === 'practice' ? 'Practice Matches' : 'Actual Matches'}</h2>
+              <p className="admin-muted">
+                {activeView === 'practice'
+                  ? 'Friendly sessions for testing lineups, rotations, and player readiness.'
+                  : 'Official competition records for league, tournament, and playoff tracking.'}
+              </p>
+            </div>
           </div>
           <div className="admin-card-actions">
             <div className="admin-segmented" role="tablist" aria-label="Match view">
@@ -186,12 +251,11 @@ const AdminMatches = ({ currentPath = '#admin/matches' }) => {
           </div>
         </div>
 
-        <div className="admin-table">
+        <div className="admin-table admin-matches-table admin-matches-table-centered">
           <table className="admin-native-table">
             <thead>
               <tr>
                 <th>Match</th>
-                <th>Team</th>
                 <th>Date</th>
                 <th>Type</th>
                 <th>Score</th>
@@ -203,14 +267,16 @@ const AdminMatches = ({ currentPath = '#admin/matches' }) => {
               {visibleMatches.map((match) => (
                 <tr key={match.id}>
                   <td>
-                    <strong>{match.is_home ? 'vs' : '@'} {match.opponent_name}</strong>
-                    <small className="admin-block-muted">{match.notes || 'No notes'}</small>
+                    <strong className="admin-match-versus">
+                      <span>{getName(teams, match.team_id)}</span>
+                      <b>VS</b>
+                      <span>{match.opponent_name}</span>
+                    </strong>
                   </td>
-                  <td>{getName(teams, match.team_id)}</td>
                   <td>{formatDate(match.match_date)}</td>
                   <td><StatusBadge tone={match.match_type === 'friendly' ? 'secondary' : 'primary'}>{match.match_type}</StatusBadge></td>
-                  <td>{match.team_score ?? '-'} - {match.opponent_score ?? '-'}</td>
-                  <td>{match.result ? <StatusBadge tone={match.result === 'win' ? 'success' : match.result === 'loss' ? 'error' : 'warning'}>{match.result}</StatusBadge> : '-'}</td>
+                  <td>{formatScore(match)}</td>
+                  <td>{match.result ? <StatusBadge tone={match.result === 'win' ? 'success' : match.result === 'loss' ? 'error' : 'warning'}>{match.result}</StatusBadge> : '----'}</td>
                   <td>
                     <div className="admin-actions">
                       <AdminButton variant="secondary" onClick={() => openEdit(match)} aria-label="Edit match">
@@ -227,7 +293,17 @@ const AdminMatches = ({ currentPath = '#admin/matches' }) => {
           </table>
           {!visibleMatches.length && (
             <EmptyState>
-              No {activeView === 'practice' ? 'practice' : 'actual'} matches yet.
+              <div className="admin-match-empty">
+                <span><Swords size={24} /></span>
+                <strong>No {activeView === 'practice' ? 'practice' : 'actual'} matches yet</strong>
+                <p>
+                  Add a match to start tracking opponents, scores, results, and post-game notes.
+                </p>
+                <AdminButton type="button" onClick={() => openCreate(activeView)}>
+                  <Plus size={16} />
+                  Add Match
+                </AdminButton>
+              </div>
             </EmptyState>
           )}
         </div>
@@ -240,10 +316,9 @@ const AdminMatches = ({ currentPath = '#admin/matches' }) => {
               value={form.match_type === 'friendly' ? 'practice' : 'actual'}
               onChange={(event) => {
                 const nextView = event.target.value
-                setForm((current) => ({
-                  ...current,
-                  match_type: nextView === 'practice' ? 'friendly' : 'league',
-                }))
+                const nextMatchType = nextView === 'practice' ? 'friendly' : 'league'
+
+                updateMatchType(nextMatchType)
               }}
             >
               <option value="practice">Practice</option>
@@ -251,33 +326,62 @@ const AdminMatches = ({ currentPath = '#admin/matches' }) => {
             </AdminSelect>
           </AdminField>
 
-          <AdminField label="Team">
-            <AdminSelect required value={form.team_id} onChange={(event) => setForm((current) => ({ ...current, team_id: event.target.value }))}>
+          <div className="admin-password-tip">
+            <Info size={18} />
+            <p>
+              {isActualMatchForm
+                ? 'Actual matches include official match type, season, scores, result, and notes for analytics.'
+                : 'Practice matches only need the team, opponent, date, and home/away status for quick scheduling.'}
+            </p>
+          </div>
+
+          <AdminField label={isActualMatchForm ? 'Team' : 'Team 1'}>
+            <AdminSelect required value={form.team_id} onChange={(event) => updateTeam(event.target.value)}>
               <option value="">Select team</option>
-              {teams.map((team) => <option key={team.id} value={team.id}>{team.team_name}</option>)}
+              {teamOneOptions.map((team) => <option key={team.id} value={team.id}>{team.team_name}</option>)}
             </AdminSelect>
           </AdminField>
 
-          <AdminField label="Opponent">
-            <AdminInput required value={form.opponent_name} onChange={(event) => setForm((current) => ({ ...current, opponent_name: event.target.value }))} placeholder="Cebu Spikers" />
+          <AdminField label={isActualMatchForm ? 'Opponent' : 'Team 2'}>
+            <AdminSelect
+              required
+              value={form.opponent_name}
+              onChange={(event) => setForm((current) => ({ ...current, opponent_name: event.target.value }))}
+            >
+              <option value="">
+                {isActualMatchForm ? 'Select opponent team' : 'Select practice opponent'}
+              </option>
+              {opponentTeams.map((team) => (
+                <option key={team.id} value={team.team_name}>
+                  {team.team_name}
+                </option>
+              ))}
+            </AdminSelect>
+            {isActualMatchForm && !opponentTeams.length && (
+              <small className="admin-field-hint">No teams from other coaches are available yet.</small>
+            )}
           </AdminField>
 
           <AdminField label="Date">
             <AdminInput required type="date" value={form.match_date} onChange={(event) => setForm((current) => ({ ...current, match_date: event.target.value }))} />
           </AdminField>
 
-          <AdminField label="Match Type">
-            <AdminSelect value={form.match_type} onChange={(event) => setForm((current) => ({ ...current, match_type: event.target.value }))}>
-              {matchTypes.map((type) => <option key={type}>{type}</option>)}
-            </AdminSelect>
-          </AdminField>
+          {isActualMatchForm && (
+            <>
+              <AdminField label="Match Type">
+                <AdminSelect value={form.match_type} onChange={(event) => updateMatchType(event.target.value)}>
+                  {actualMatchTypes.map((type) => <option key={type}>{type}</option>)}
+                </AdminSelect>
+              </AdminField>
 
-          <AdminField label="Season">
-            <AdminSelect value={form.season_id} onChange={(event) => setForm((current) => ({ ...current, season_id: event.target.value }))}>
-              <option value="">No season</option>
-              {seasons.map((season) => <option key={season.id} value={season.id}>{season.season_name}</option>)}
-            </AdminSelect>
-          </AdminField>
+              <AdminField label="Season">
+                <AdminSelect value={form.season_id} onChange={(event) => setForm((current) => ({ ...current, season_id: event.target.value }))}>
+                  <option value="">No season</option>
+                  {seasons.map((season) => <option key={season.id} value={season.id}>{season.season_name}</option>)}
+                </AdminSelect>
+              </AdminField>
+            </>
+          )}
 
           <label className="admin-check-field">
             <input
@@ -288,25 +392,29 @@ const AdminMatches = ({ currentPath = '#admin/matches' }) => {
             Home match
           </label>
 
-          <div className="admin-form-grid">
-            <AdminField label="Team Score">
-              <AdminInput type="number" min="0" value={form.team_score} onChange={(event) => setForm((current) => ({ ...current, team_score: event.target.value }))} />
-            </AdminField>
-            <AdminField label="Opponent Score">
-              <AdminInput type="number" min="0" value={form.opponent_score} onChange={(event) => setForm((current) => ({ ...current, opponent_score: event.target.value }))} />
-            </AdminField>
-          </div>
+          {isActualMatchForm && (
+            <>
+              <div className="admin-form-grid">
+                <AdminField label="Team Score">
+                  <AdminInput type="number" min="0" value={form.team_score} onChange={(event) => setForm((current) => ({ ...current, team_score: event.target.value }))} />
+                </AdminField>
+                <AdminField label="Opponent Score">
+                  <AdminInput type="number" min="0" value={form.opponent_score} onChange={(event) => setForm((current) => ({ ...current, opponent_score: event.target.value }))} />
+                </AdminField>
+              </div>
 
-          <AdminField label="Result">
-            <AdminSelect value={form.result} onChange={(event) => setForm((current) => ({ ...current, result: event.target.value }))}>
-              <option value="">Not played</option>
-              {results.map((result) => <option key={result}>{result}</option>)}
-            </AdminSelect>
-          </AdminField>
+              <AdminField label="Result">
+                <AdminSelect value={form.result} onChange={(event) => setForm((current) => ({ ...current, result: event.target.value }))}>
+                  <option value="">Not played</option>
+                  {results.map((result) => <option key={result}>{result}</option>)}
+                </AdminSelect>
+              </AdminField>
 
-          <AdminField label="Notes">
-            <AdminTextarea value={form.notes} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} />
-          </AdminField>
+              <AdminField label="Notes">
+                <AdminTextarea value={form.notes} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} />
+              </AdminField>
+            </>
+          )}
 
           <div className="admin-form-actions">
             <AdminButton type="button" variant="secondary" onClick={() => setModalOpen(false)}>Cancel</AdminButton>

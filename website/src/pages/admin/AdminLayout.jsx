@@ -106,6 +106,19 @@ const sidebarGroups = [
   },
 ]
 
+const hiddenCoachNavigationHrefs = new Set(['#admin/training'])
+
+const getUserRole = (user) => (user?.role || 'coach').toLowerCase()
+
+const getSidebarGroupsForUser = (user) => {
+  if (getUserRole(user) !== 'coach') return sidebarGroups
+
+  return sidebarGroups.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => !hiddenCoachNavigationHrefs.has(item.href)),
+  }))
+}
+
 const notifications = [
   {
     title: 'Training plan due',
@@ -229,6 +242,7 @@ export const AdminLayout = ({ children, title, kicker = 'Volleyball Analytics', 
   const [headerPreview, setHeaderPreview] = useState(() => readProfilePreview())
   const { isDark, toggleTheme } = useThemeMode()
   const headerProfileImage = getHeaderProfileImage(headerProfile, headerPreview)
+  const sidebarGroupsForUser = getSidebarGroupsForUser(headerProfile)
 
   useEffect(() => {
     const syncProfile = () => {
@@ -297,7 +311,7 @@ export const AdminLayout = ({ children, title, kicker = 'Volleyball Analytics', 
         </div>
 
         <nav ref={navRef} className="admin-nav" aria-label="Admin navigation">
-          {sidebarGroups.map((group) => (
+          {sidebarGroupsForUser.map((group) => (
             <div className="admin-nav-group" key={group.label}>
               <p>{group.label}</p>
               {group.items.map(({ href, icon: Icon, label }) => {
