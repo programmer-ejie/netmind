@@ -13,7 +13,6 @@ import FAQSection from './components/FAQSection'
 import CTASection from './components/CTASection'
 import FooterSection from './components/FooterSection'
 import LeadCaptureModal from './components/LeadCaptureModal'
-import DownloadButton from './components/DownloadButton'
 import AuthSection from './components/AuthSection'
 import AdminAnalytics from './pages/admin/AdminAnalytics'
 import AdminDashboard from './pages/admin/AdminDashboard'
@@ -97,7 +96,6 @@ function App() {
       <BlogSection />
       <FAQSection />
       <CTASection />
-      <DownloadButton />
       <FooterSection />
       <LeadCaptureModal open={modalOpen} onClose={() => setModalOpen(false)} />
 
