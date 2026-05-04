@@ -16,7 +16,7 @@ import AdminLayout, {
   formatDate,
   getName,
 } from './AdminLayout'
-import { apiRequest, createResource, deleteResource, listResource, updateResource } from '../../lib/api'
+import { apiRequest, createResource, deleteResource, listResource, readSavedUser, updateResource } from '../../lib/api'
 
 const blankDrill = {
   drill_name: '',
@@ -41,6 +41,8 @@ const blankAssignment = {
 }
 
 const AdminTraining = ({ currentPath = '#coach/training' }) => {
+  const currentUser = readSavedUser()
+  const isTrainerView = currentUser?.role === 'trainer'
   const [drills, setDrills] = useState([])
   const [assignments, setAssignments] = useState([])
   const [players, setPlayers] = useState([])
@@ -53,21 +55,41 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
   const [assignmentForm, setAssignmentForm] = useState(blankAssignment)
   const [error, setError] = useState('')
 
-  const coachId = coaches[0]?.id || 1
+  const assignedBy = currentUser?.id || coaches[0]?.id || 1
   const drillMap = useMemo(() => new Map(drills.map((drill) => [String(drill.id), drill])), [drills])
 
   const load = async () => {
-    const [drillRows, assignmentRows, playerRows, coachRows] = await Promise.all([
+    const [drillRows, assignmentRows, playerRows, coachRows, memberRows, trainerLinkRows] = await Promise.all([
       listResource('drills', { limit: 100 }),
       listResource('training-assignments', { limit: 100 }),
       listResource('players'),
       listResource('coaches'),
+      isTrainerView ? listResource('team-members', { limit: 100 }) : Promise.resolve([]),
+      isTrainerView ? listResource('team-trainers', { limit: 100 }) : Promise.resolve([]),
     ])
 
     setDrills(drillRows)
+    setCoaches(coachRows)
+
+    if (isTrainerView) {
+      const trainerTeamIds = new Set(
+        trainerLinkRows
+          .filter((link) => String(link.trainer_id) === String(currentUser?.id))
+          .map((link) => String(link.team_id)),
+      )
+      const playerIds = new Set(
+        memberRows
+          .filter((membership) => trainerTeamIds.has(String(membership.team_id)))
+          .map((membership) => String(membership.player_id)),
+      )
+
+      setPlayers(playerRows.filter((player) => playerIds.has(String(player.id))))
+      setAssignments(assignmentRows.filter((assignment) => playerIds.has(String(assignment.player_id))))
+      return
+    }
+
     setAssignments(assignmentRows)
     setPlayers(playerRows)
-    setCoaches(coachRows)
   }
 
   useEffect(() => {
@@ -104,7 +126,7 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
       ...drillForm,
       duration_minutes: Number(drillForm.duration_minutes) || 30,
       ideal_score: drillForm.ideal_score ? Number(drillForm.ideal_score) : null,
-      created_by: coachId,
+      created_by: assignedBy,
       is_public: Boolean(drillForm.is_public),
     }
 
@@ -138,7 +160,7 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
         method: 'POST',
         body: {
           player_id: assignmentForm.player_id,
-          assigned_by: coachId,
+          assigned_by: assignedBy,
           focus_area: assignmentForm.focus_area || drill?.category,
           drill_description: drill?.description,
           target_reps: assignmentForm.target_reps ? Number(assignmentForm.target_reps) : null,
@@ -167,7 +189,7 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
   }
 
   return (
-    <AdminLayout title="Training" currentPath={currentPath}>
+    <AdminLayout title={isTrainerView ? 'Training Hub' : 'Training'} currentPath={currentPath}>
       {error && <div className="admin-alert">{error}</div>}
 
       <AdminCard>

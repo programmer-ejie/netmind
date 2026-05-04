@@ -204,7 +204,6 @@ const AdminProfile = ({ currentPath = '#coach/profile' }) => {
   const scopedAssignments = useMemo(() => (
     state.assignments.filter((item) => scopedPlayerIds.has(String(item.player_id)))
   ), [scopedPlayerIds, state.assignments])
-  const activeTeam = scopedTeams[0]
   const completedAssignments = scopedAssignments.filter((item) => item.status === 'completed').length
   const profileImage = getProfileImageUrl(profile, previewUrl)
 
@@ -412,20 +411,28 @@ const AdminProfile = ({ currentPath = '#coach/profile' }) => {
             </div>
           </div>
 
-          {activeTeam ? (
-            <div className="admin-profile-team">
-              <span className="admin-avatar large">{initials(activeTeam.team_name)}</span>
-              <div>
-                <h3>{activeTeam.team_name}</h3>
-                <p className="admin-muted">
-                  <CalendarDays size={15} />
-                  Created {formatDate(activeTeam.created_at)}
-                </p>
-                <span className="admin-color-pill">
-                  <i style={{ background: activeTeam.team_color || '#635bff' }} />
-                  {activeTeam.team_color || 'Default color'}
-                </span>
-              </div>
+          {scopedTeams.length ? (
+            <div className="admin-profile-team-list">
+              {scopedTeams.map((team) => (
+                <div className="admin-profile-team" key={team.id}>
+                  {team.logo_url ? (
+                    <img className="admin-profile-team-logo" src={team.logo_url} alt={`${team.team_name} logo`} />
+                  ) : (
+                    <span className="admin-avatar large">{initials(team.team_name)}</span>
+                  )}
+                  <div>
+                    <h3>{team.team_name}</h3>
+                    <p className="admin-muted">
+                      <CalendarDays size={15} />
+                      Created {formatDate(team.created_at)}
+                    </p>
+                    <span className="admin-color-pill">
+                      <i style={{ background: team.team_color || '#635bff' }} />
+                      {team.team_color || 'Default color'}
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
           ) : (
             <EmptyState>No team linked yet.</EmptyState>

@@ -1072,6 +1072,31 @@
   gap: 18px;
 }
 
+.admin-profile-team-list {
+  display: grid;
+  gap: 18px;
+}
+
+.admin-profile-team-list .admin-profile-team {
+  border-bottom: 1px solid var(--admin-border);
+  padding-bottom: 18px;
+}
+
+.admin-profile-team-list .admin-profile-team:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.admin-profile-team-logo {
+  width: 88px;
+  height: 88px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-light);
+  flex: 0 0 auto;
+}
+
 .admin-profile-team h3 {
   margin-bottom: 8px;
   color: var(--admin-dark);

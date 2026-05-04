@@ -14,7 +14,7 @@ import AdminLayout, {
   initials,
   positions,
 } from './AdminLayout'
-import { apiRequest, deleteResource, listResource, registerUser, updateResource } from '../../lib/api'
+import { apiRequest, deleteResource, listResource, readSavedUser, registerUser, updateResource } from '../../lib/api'
 
 const blankCreate = {
   name: '',
@@ -26,6 +26,10 @@ const blankCreate = {
 }
 
 const AdminPlayers = ({ currentPath = '#coach/players' }) => {
+  const currentUser = readSavedUser()
+  const isTrainerView = currentUser?.role === 'trainer'
+  const isPlayerDetails = currentPath.includes('player-details')
+  const pageTitle = isPlayerDetails ? 'Player Details' : isTrainerView ? 'My Players' : 'Players'
   const [players, setPlayers] = useState([])
   const [teams, setTeams] = useState([])
   const [memberships, setMemberships] = useState([])
@@ -44,11 +48,27 @@ const AdminPlayers = ({ currentPath = '#coach/players' }) => {
   }, [memberships])
 
   const load = async () => {
-    const [playerRows, teamRows, memberRows] = await Promise.all([
+    const [playerRows, teamRows, memberRows, trainerLinkRows] = await Promise.all([
       listResource('players'),
       listResource('teams', { limit: 100 }),
       listResource('team-members', { limit: 100 }),
+      isTrainerView ? listResource('team-trainers', { limit: 100 }) : Promise.resolve([]),
     ])
+
+    if (isTrainerView) {
+      const trainerTeamIds = new Set(
+        trainerLinkRows
+          .filter((link) => String(link.trainer_id) === String(currentUser?.id))
+          .map((link) => String(link.team_id)),
+      )
+      const scopedMemberships = memberRows.filter((membership) => trainerTeamIds.has(String(membership.team_id)))
+      const scopedPlayerIds = new Set(scopedMemberships.map((membership) => String(membership.player_id)))
+
+      setPlayers(playerRows.filter((player) => scopedPlayerIds.has(String(player.id))))
+      setTeams(teamRows.filter((team) => trainerTeamIds.has(String(team.id))))
+      setMemberships(scopedMemberships)
+      return
+    }
 
     setPlayers(playerRows)
     setTeams(teamRows)
@@ -144,19 +164,23 @@ const AdminPlayers = ({ currentPath = '#coach/players' }) => {
   }
 
   return (
-    <AdminLayout title="Players" currentPath={currentPath}>
+    <AdminLayout title={pageTitle} currentPath={currentPath}>
       {error && <div className="admin-alert">{error}</div>}
 
       <AdminCard>
         <div className="admin-card-header">
           <div>
             <h2>All Players</h2>
-            <p className="admin-muted">Create, edit, delete, and inspect player stats.</p>
+            <p className="admin-muted">
+              {isTrainerView ? 'Review players assigned to your teams.' : 'Create, edit, delete, and inspect player stats.'}
+            </p>
           </div>
-          <AdminButton onClick={() => setCreateModal(true)}>
-            <Plus size={17} />
-            Create Player
-          </AdminButton>
+          {!isTrainerView && (
+            <AdminButton onClick={() => setCreateModal(true)}>
+              <Plus size={17} />
+              Create Player
+            </AdminButton>
+          )}
         </div>
 
         <div className="admin-table">
@@ -196,12 +220,16 @@ const AdminPlayers = ({ currentPath = '#coach/players' }) => {
                       <AdminButton variant="secondary" onClick={() => openStats(player)} aria-label="View stats">
                         <BarChart3 size={15} />
                       </AdminButton>
-                      <AdminButton variant="secondary" onClick={() => openEdit(player)} aria-label="Edit player">
-                        <Edit3 size={15} />
-                      </AdminButton>
-                      <AdminButton variant="danger" onClick={() => removePlayer(player)} aria-label="Delete player">
-                        <Trash2 size={15} />
-                      </AdminButton>
+                      {!isTrainerView && (
+                        <>
+                          <AdminButton variant="secondary" onClick={() => openEdit(player)} aria-label="Edit player">
+                            <Edit3 size={15} />
+                          </AdminButton>
+                          <AdminButton variant="danger" onClick={() => removePlayer(player)} aria-label="Delete player">
+                            <Trash2 size={15} />
+                          </AdminButton>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>

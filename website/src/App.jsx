@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useState } from 'react'
 import Navbar from './components/Navbar'
 import HeroSection from './components/HeroSection'
 import AboutSection from './components/AboutSection'
@@ -18,12 +18,15 @@ import AdminAnalytics from './pages/admin/AdminAnalytics'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminMatchInputs from './pages/admin/AdminMatchInputs'
 import AdminMatches from './pages/admin/AdminMatches'
+import AdminAttendance from './pages/admin/AdminAttendance'
+import AdminPlayers from './pages/admin/AdminPlayers'
 import AdminProfile from './pages/admin/AdminProfile'
 import AdminSettings from './pages/admin/AdminSettings'
 import AdminTeamDetails from './pages/admin/AdminTeamDetails'
 import AdminTeams from './pages/admin/AdminTeams'
 import AdminTrainers from './pages/admin/AdminTrainers'
 import AdminTraining from './pages/admin/AdminTraining'
+import AdminWellness from './pages/admin/AdminWellness'
 import { readSavedUser } from './lib/api'
 
 const getRoute = () => {
@@ -51,6 +54,12 @@ const getRoute = () => {
   }
 }
 
+const scrollToPageTop = () => {
+  window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+  document.documentElement.scrollTop = 0
+  document.body.scrollTop = 0
+}
+
 function App() {
   const [modalOpen, setModalOpen] = useState(false)
   const [route, setRoute] = useState(getRoute)
@@ -60,8 +69,8 @@ function App() {
     const handleHashChange = () => {
       const nextRoute = getRoute()
       setRoute((currentRoute) => {
-        if (currentRoute.area !== 'coach' && nextRoute.area === 'coach') {
-          window.scrollTo(0, 0)
+        if (nextRoute.area === 'coach' || (currentRoute.area === 'coach' && nextRoute.area === 'home')) {
+          scrollToPageTop()
         }
 
         return nextRoute
@@ -71,6 +80,19 @@ function App() {
     window.addEventListener('hashchange', handleHashChange)
     return () => window.removeEventListener('hashchange', handleHashChange)
   }, [])
+
+  useLayoutEffect(() => {
+    if (route.area !== 'home') return
+
+    scrollToPageTop()
+    const frame = window.requestAnimationFrame(scrollToPageTop)
+    const timer = window.setTimeout(scrollToPageTop, 0)
+
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.clearTimeout(timer)
+    }
+  }, [route.area])
 
   useEffect(() => {
     const syncUser = () => setAuthVersion((version) => version + 1)
@@ -92,12 +114,22 @@ function App() {
       return null
     }
 
-    if (currentUser?.role === 'trainer' && !['dashboard', 'profile', 'analytics', 'settings'].includes(route.page)) {
+    if (currentUser?.role === 'trainer' && ![
+      'dashboard',
+      'profile',
+      'players',
+      'player-details',
+      'training',
+      'attendance',
+      'wellness',
+      'analytics',
+      'settings',
+    ].includes(route.page)) {
       window.location.hash = 'trainer'
       return null
     }
 
-    if (route.page === 'players') {
+    if (route.page === 'players' && currentUser?.role !== 'trainer') {
       window.location.hash = 'coach/teams'
       return null
     }
@@ -113,10 +145,14 @@ function App() {
     const pages = {
       dashboard: AdminDashboard,
       profile: AdminProfile,
+      players: AdminPlayers,
+      'player-details': AdminPlayers,
       teams: AdminTeams,
       trainers: AdminTrainers,
       matches: AdminMatches,
       training: AdminTraining,
+      attendance: AdminAttendance,
+      wellness: AdminWellness,
       analytics: AdminAnalytics,
       settings: AdminSettings,
     }

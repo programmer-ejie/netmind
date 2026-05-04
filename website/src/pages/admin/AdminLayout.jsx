@@ -2,11 +2,14 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   BarChart3,
   Bell,
+  ClipboardCheck,
   Dumbbell,
   Home,
+  ListChecks,
   LogOut,
   Menu,
   Moon,
+  HeartPulse,
   Swords,
   Search,
   Settings,
@@ -14,6 +17,7 @@ import {
   Sun,
   UserCircle,
   UserRound,
+  UsersRound,
 } from 'lucide-react'
 import websiteLogo from '../../assets/website_logo.png'
 import fallbackProfilePhoto from '../../assets/crpt_image.jpg'
@@ -107,23 +111,41 @@ const sidebarGroups = [
 ]
 
 const hiddenCoachNavigationHrefs = new Set(['#coach/training'])
-const trainerNavigationHrefs = new Set(['#coach', '#coach/profile', '#coach/analytics', '#coach/settings'])
+const trainerSidebarGroups = [
+  {
+    label: 'Dashboards',
+    items: [
+      { href: '#trainer', icon: Home, label: 'Dashboard' },
+      { href: '#trainer/profile', icon: UserCircle, label: 'Profile' },
+    ],
+  },
+  {
+    label: 'Trainer',
+    items: [
+      { href: '#trainer/players', icon: UsersRound, label: 'My Players' },
+      { href: '#trainer/player-details', icon: ListChecks, label: 'Player Details' },
+      { href: '#trainer/training', icon: Dumbbell, label: 'Training Hub' },
+      { href: '#trainer/attendance', icon: ClipboardCheck, label: 'Attendance' },
+      { href: '#trainer/wellness', icon: HeartPulse, label: 'Wellness Log' },
+    ],
+  },
+  {
+    label: 'Performance',
+    items: [{ href: '#trainer/analytics', icon: BarChart3, label: 'Analytics' }],
+  },
+  {
+    label: 'Utilities',
+    items: [{ href: '#trainer/settings', icon: Settings, label: 'Settings' }],
+  },
+]
 
 const getUserRole = (user) => (user?.role || 'coach').toLowerCase()
-const hrefForRole = (href, role) => (role === 'trainer' ? href.replace(/^#coach/, '#trainer') : href)
 
 const getSidebarGroupsForUser = (user) => {
   const role = getUserRole(user)
 
   if (role === 'trainer') {
-    return sidebarGroups
-      .map((group) => ({
-        ...group,
-        items: group.items
-          .filter((item) => trainerNavigationHrefs.has(item.href))
-          .map((item) => ({ ...item, href: hrefForRole(item.href, role) })),
-      }))
-      .filter((group) => group.items.length)
+    return trainerSidebarGroups
   }
 
   return sidebarGroups.map((group) => ({
