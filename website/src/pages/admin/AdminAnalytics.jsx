@@ -473,6 +473,20 @@ const AdminAnalytics = ({ currentPath = '#admin/analytics' }) => {
     }, {}),
   ), [resolvedMatches])
 
+  const resultNote = useMemo(() => {
+    const wins = resultStats.segments.find((item) => item.label === 'win')?.value || 0
+    const losses = resultStats.segments.find((item) => item.label === 'loss')?.value || 0
+    const draws = resultStats.segments.find((item) => item.label === 'draw')?.value || 0
+    const pending = resultStats.segments.find((item) => item.label === 'scheduled')?.value || 0
+
+    if (wins > losses) return `Positive record so far: ${wins} win${wins === 1 ? '' : 's'} against ${losses} loss${losses === 1 ? '' : 'es'}.`
+    if (losses > wins) return `Needs review: ${losses} loss${losses === 1 ? '' : 'es'} against ${wins} win${wins === 1 ? '' : 's'}.`
+    if (wins || losses) return `Balanced record: ${wins} win${wins === 1 ? '' : 's'} and ${losses} loss${losses === 1 ? '' : 'es'}.`
+    if (draws) return `${draws} draw${draws === 1 ? '' : 's'} recorded for this view.`
+    if (pending) return `${pending} match${pending === 1 ? '' : 'es'} waiting for final scores.`
+    return 'No result trend available yet.'
+  }, [resultStats.segments])
+
   const teamPerformance = useMemo(() => selectedTeams.map((team) => {
     const matches = resolvedMatches.filter((match) => String(match.team_id) === String(team.id))
     const wins = matches.filter((match) => match.resolved_result === 'win').length
@@ -571,7 +585,7 @@ const AdminAnalytics = ({ currentPath = '#admin/analytics' }) => {
     <AdminLayout title="Analytics" currentPath={currentPath}>
       {state.error && <div className="admin-alert">{state.error}</div>}
 
-      <div className="admin-analytics-toolbar">
+      <div className="admin-analytics-toolbar admin-analytics-hero">
         <div>
           <h2>{activeView === 'practice' ? 'Practice Analytics' : 'Actual Match Analytics'}</h2>
           <p className="admin-muted">
@@ -614,7 +628,7 @@ const AdminAnalytics = ({ currentPath = '#admin/analytics' }) => {
       </div>
 
       <div className="admin-grid admin-page-grid">
-        <AdminCard className="admin-chart-card">
+        <AdminCard className="admin-chart-card admin-analytics-card admin-analytics-primary-card">
           <div className="admin-card-header">
             <div>
               <h2>Player Comparison</h2>
@@ -631,7 +645,7 @@ const AdminAnalytics = ({ currentPath = '#admin/analytics' }) => {
           {comparisonData.length ? <RadarChart data={comparisonData} /> : <EmptyState>No comparison data yet.</EmptyState>}
         </AdminCard>
 
-        <AdminCard className="admin-activity-card">
+        <AdminCard className="admin-activity-card admin-analytics-card admin-analytics-side-card">
           <div className="admin-card-header">
             <h2>Match Results</h2>
             <StatusBadge tone="secondary">{resultStats.total} matches</StatusBadge>
@@ -651,13 +665,17 @@ const AdminAnalytics = ({ currentPath = '#admin/analytics' }) => {
                   </span>
                 ))}
               </div>
+              <div className="admin-chart-note">
+                <strong>Result note</strong>
+                <p>{resultNote}</p>
+              </div>
             </div>
           ) : (
             <EmptyState>No match results yet.</EmptyState>
           )}
         </AdminCard>
 
-        <AdminCard className="admin-chart-card">
+        <AdminCard className="admin-chart-card admin-analytics-card admin-analytics-primary-card">
           <div className="admin-card-header">
             <div>
               <h2>Team Performance</h2>
@@ -675,7 +693,7 @@ const AdminAnalytics = ({ currentPath = '#admin/analytics' }) => {
           )}
         </AdminCard>
 
-        <AdminCard className="admin-activity-card">
+        <AdminCard className="admin-activity-card admin-analytics-card admin-analytics-side-card">
           <div className="admin-card-header">
             <h2>Attendance Report</h2>
             <StatusBadge tone="secondary">{attendanceStats.total} logs</StatusBadge>
@@ -701,7 +719,7 @@ const AdminAnalytics = ({ currentPath = '#admin/analytics' }) => {
           )}
         </AdminCard>
 
-        <AdminCard className="admin-table-card">
+        <AdminCard className="admin-table-card admin-analytics-card admin-analytics-table-card">
           <div className="admin-card-header">
             <div>
               <h2>Coach Team Performance</h2>
@@ -740,7 +758,7 @@ const AdminAnalytics = ({ currentPath = '#admin/analytics' }) => {
           </div>
         </AdminCard>
 
-        <AdminCard className="admin-table-card">
+        <AdminCard className="admin-table-card admin-analytics-card admin-analytics-table-card">
           <div className="admin-card-header">
             <div>
               <h2>Latest Winners</h2>
@@ -777,7 +795,7 @@ const AdminAnalytics = ({ currentPath = '#admin/analytics' }) => {
           </div>
         </AdminCard>
 
-        <AdminCard className="admin-table-card">
+        <AdminCard className="admin-table-card admin-analytics-card admin-analytics-table-card admin-rankings-card">
           <div className="admin-card-header">
             <div>
               <h2>Team Rankings</h2>
