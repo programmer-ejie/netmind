@@ -36,7 +36,7 @@ const AdminDashboard = () => {
         </a>
         <nav className="admin-nav">
           {sidebarItems.map(({ icon: Icon, label, active }) => (
-            <a key={label} href="#admin" className={active ? 'active' : ''}>
+            <a key={label} href="#coach" className={active ? 'active' : ''}>
               <Icon size={20} />
               {label}
             </a>
@@ -55,7 +55,7 @@ const AdminDashboard = () => {
           </button>
           <div>
             <p className="admin-kicker">Volleyball Analytics</p>
-            <h1>NetMind Dashboard</h1>
+            <h1>Coach Dashboard</h1>
           </div>
           <div className="admin-header-actions">
             <button className="admin-icon-button" aria-label="Notifications">

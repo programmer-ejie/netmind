@@ -25,7 +25,7 @@ const blankCreate = {
   team_id: '',
 }
 
-const AdminPlayers = ({ currentPath = '#admin/players' }) => {
+const AdminPlayers = ({ currentPath = '#coach/players' }) => {
   const [players, setPlayers] = useState([])
   const [teams, setTeams] = useState([])
   const [memberships, setMemberships] = useState([])

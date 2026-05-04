@@ -14,7 +14,7 @@ import { apiRequest, createResource, deleteResource, listResource, readSavedUser
 
 const blankTeam = { team_name: '', team_color: '#635bff', coach_id: '', trainer_id: '' }
 
-const AdminTeams = ({ currentPath = '#admin/teams' }) => {
+const AdminTeams = ({ currentPath = '#coach/teams' }) => {
   const [teams, setTeams] = useState([])
   const [coaches, setCoaches] = useState([])
   const [trainers, setTrainers] = useState([])
@@ -223,7 +223,7 @@ const AdminTeams = ({ currentPath = '#admin/teams' }) => {
                   key={team.id}
                   className="admin-click-row"
                   onClick={() => {
-                    window.location.hash = `admin/teams/${team.id}`
+                    window.location.hash = `coach/teams/${team.id}`
                   }}
                 >
                   <td>

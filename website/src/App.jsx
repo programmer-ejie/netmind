@@ -27,13 +27,18 @@ import AdminTraining from './pages/admin/AdminTraining'
 
 const getRoute = () => {
   const hash = window.location.hash || ''
-  if (!hash.startsWith('#admin')) return { area: 'home', hash }
+  if (hash.startsWith('#admin')) {
+    const coachHash = hash.replace(/^#admin/, '#coach')
+    window.history.replaceState(null, '', coachHash)
+    return getRoute()
+  }
+  if (!hash.startsWith('#coach')) return { area: 'home', hash }
 
   const parts = hash.replace(/^#/, '').split('/')
   const page = parts[1] || 'dashboard'
 
   return {
-    area: 'admin',
+    area: 'coach',
     hash,
     page,
     id: parts[2],
@@ -50,7 +55,7 @@ function App() {
     const handleHashChange = () => {
       const nextRoute = getRoute()
       setRoute((currentRoute) => {
-        if (currentRoute.area !== 'admin' && nextRoute.area === 'admin') {
+        if (currentRoute.area !== 'coach' && nextRoute.area === 'coach') {
           window.scrollTo(0, 0)
         }
 
@@ -62,9 +67,9 @@ function App() {
     return () => window.removeEventListener('hashchange', handleHashChange)
   }, [])
 
-  if (route.area === 'admin') {
+  if (route.area === 'coach') {
     if (route.page === 'players') {
-      window.location.hash = 'admin/teams'
+      window.location.hash = 'coach/teams'
       return null
     }
 

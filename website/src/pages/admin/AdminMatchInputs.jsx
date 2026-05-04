@@ -65,7 +65,7 @@ const getScoreWinner = (score) => {
   return 'draw'
 }
 
-const AdminMatchInputs = ({ matchId, matchNumber, currentPath = `#admin/matches/${matchId}/inputs` }) => {
+const AdminMatchInputs = ({ matchId, matchNumber, currentPath = `#coach/matches/${matchId}/inputs` }) => {
   const currentUser = readSavedUser()
   const selectedMatchNumber = Number(matchNumber) || 0
   const [match, setMatch] = useState(null)
@@ -357,7 +357,7 @@ const AdminMatchInputs = ({ matchId, matchNumber, currentPath = `#admin/matches/
               type="button"
               className="admin-team-back"
               onClick={() => {
-                window.location.hash = bestOf > 1 && hasValidMatchNumber ? `admin/matches/${matchId}/sets` : 'admin/matches'
+                window.location.hash = bestOf > 1 && hasValidMatchNumber ? `coach/matches/${matchId}/sets` : 'coach/matches'
               }}
               aria-label="Back to matches"
             >
@@ -406,7 +406,7 @@ const AdminMatchInputs = ({ matchId, matchNumber, currentPath = `#admin/matches/
                 title={state === 'locked' ? 'Need to score the first match first.' : state === 'waiting' ? 'Waiting for decision.' : ''}
                 onClick={() => {
                   if (state !== 'open' && state !== 'scored') return
-                  window.location.hash = `admin/matches/${matchId}/inputs/${number}`
+                  window.location.hash = `coach/matches/${matchId}/inputs/${number}`
                 }}
               >
                 <span className="admin-match-number-status">

@@ -25,12 +25,12 @@ const DashboardPreview = () => (
   <section className="section-padding">
     <div className="container mx-auto">
       <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
-        Admin <span className="glow-text">Dashboard Preview</span>
+        Coach <span className="glow-text">Dashboard Preview</span>
       </h2>
       <div className="glass-card overflow-hidden rounded-2xl max-w-5xl mx-auto">
         <div className="flex min-h-[400px]">
           <div className="hidden md:flex flex-col w-56 border-r border-border/50 p-4 gap-1">
-            <span className="text-sm font-bold glow-text mb-4 px-3">NetMind Admin</span>
+            <span className="text-sm font-bold glow-text mb-4 px-3">NetMind Coach</span>
             {sidebarItems.map(({ icon: Icon, label }) => (
               <div
                 key={label}

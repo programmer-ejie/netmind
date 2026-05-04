@@ -22,7 +22,7 @@ const blankPlayer = {
   jersey_number: '',
 }
 
-const AdminTeamDetails = ({ teamId, currentPath = '#admin/teams' }) => {
+const AdminTeamDetails = ({ teamId, currentPath = '#coach/teams' }) => {
   const [team, setTeam] = useState(null)
   const [players, setPlayers] = useState([])
   const [assignedTrainers, setAssignedTrainers] = useState([])
@@ -190,7 +190,7 @@ const AdminTeamDetails = ({ teamId, currentPath = '#admin/teams' }) => {
                 type="button"
                 className="admin-team-back"
                 onClick={() => {
-                  window.location.hash = 'admin/teams'
+                  window.location.hash = 'coach/teams'
                 }}
                 aria-label="Back to teams"
               >

@@ -114,7 +114,7 @@ const AuthSection = () => {
       saveUser(payload.user)
       localStorage.setItem('netmind_token', payload.token)
       setStatusModal(null)
-      window.location.hash = 'admin'
+      window.location.hash = 'coach'
     } catch (error) {
       setStatusModal({
         status: 'error',

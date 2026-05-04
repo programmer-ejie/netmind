@@ -81,32 +81,32 @@ const sidebarGroups = [
   {
     label: 'Dashboards',
     items: [
-      { href: '#admin', icon: Home, label: 'Dashboard' },
-      { href: '#admin/profile', icon: UserCircle, label: 'Profile' },
+      { href: '#coach', icon: Home, label: 'Dashboard' },
+      { href: '#coach/profile', icon: UserCircle, label: 'Profile' },
     ],
   },
   {
     label: 'Management',
     items: [
-      { href: '#admin/teams', icon: Shield, label: 'Teams' },
-      { href: '#admin/trainers', icon: UserRound, label: 'Trainers' },
+      { href: '#coach/teams', icon: Shield, label: 'Teams' },
+      { href: '#coach/trainers', icon: UserRound, label: 'Trainers' },
     ],
   },
   {
     label: 'Performance',
     items: [
-      { href: '#admin/matches', icon: Swords, label: 'Matches' },
-      { href: '#admin/training', icon: Dumbbell, label: 'Training' },
-      { href: '#admin/analytics', icon: BarChart3, label: 'Analytics' },
+      { href: '#coach/matches', icon: Swords, label: 'Matches' },
+      { href: '#coach/training', icon: Dumbbell, label: 'Training' },
+      { href: '#coach/analytics', icon: BarChart3, label: 'Analytics' },
     ],
   },
   {
     label: 'Utilities',
-    items: [{ href: '#admin/settings', icon: Settings, label: 'Settings' }],
+    items: [{ href: '#coach/settings', icon: Settings, label: 'Settings' }],
   },
 ]
 
-const hiddenCoachNavigationHrefs = new Set(['#admin/training'])
+const hiddenCoachNavigationHrefs = new Set(['#coach/training'])
 
 const getUserRole = (user) => (user?.role || 'coach').toLowerCase()
 
@@ -229,9 +229,9 @@ const getHeaderProfileImage = (user, previewUrl) => {
   return user?.profile_picture_url || fallbackProfilePhoto
 }
 
-export const AdminLayout = ({ children, title, kicker = 'Volleyball Analytics', currentPath }) => {
-  const hash = currentPath || window.location.hash || '#admin'
-  const searchHidden = hash.startsWith('#admin/profile') || hash.startsWith('#admin/settings')
+export const AdminLayout = ({ children, title, kicker = 'Coach Workspace', currentPath }) => {
+  const hash = currentPath || window.location.hash || '#coach'
+  const searchHidden = hash.startsWith('#coach/profile') || hash.startsWith('#coach/settings')
   const navRef = useRef(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -302,21 +302,21 @@ export const AdminLayout = ({ children, title, kicker = 'Volleyball Analytics', 
         onClick={closeSidebar}
       />
 
-      <aside className="admin-sidebar" aria-label="Admin sidebar">
+      <aside className="admin-sidebar" aria-label="Coach sidebar">
         <div className="admin-brand-wrap">
-          <a href="#admin" className="admin-logo" onClick={closeSidebar}>
+          <a href="#coach" className="admin-logo" onClick={closeSidebar}>
             <img src={websiteLogo} alt="" aria-hidden="true" />
             <span>NetMind</span>
           </a>
         </div>
 
-        <nav ref={navRef} className="admin-nav" aria-label="Admin navigation">
+        <nav ref={navRef} className="admin-nav" aria-label="Coach navigation">
           {sidebarGroupsForUser.map((group) => (
             <div className="admin-nav-group" key={group.label}>
               <p>{group.label}</p>
               {group.items.map(({ href, icon: Icon, label }) => {
-                const isActive = href === '#admin'
-                  ? hash === '#admin'
+                const isActive = href === '#coach'
+                  ? hash === '#coach'
                   : hash === href || hash.startsWith(`${href}/`)
 
                 return (
@@ -357,7 +357,7 @@ export const AdminLayout = ({ children, title, kicker = 'Volleyball Analytics', 
               <Menu size={21} />
             </button>
 
-            <a href="#admin" className="admin-mobile-logo" aria-label="NetMind admin home">
+            <a href="#coach" className="admin-mobile-logo" aria-label="NetMind coach home">
               <img src={websiteLogo} alt="" aria-hidden="true" />
               <span>NetMind</span>
             </a>
@@ -366,7 +366,7 @@ export const AdminLayout = ({ children, title, kicker = 'Volleyball Analytics', 
               {!searchHidden && (
                 <div className="admin-search-wrap">
                   <Search size={18} />
-                  <input className="admin-search" type="search" placeholder="Search..." aria-label="Search admin" />
+                  <input className="admin-search" type="search" placeholder="Search..." aria-label="Search coach workspace" />
                 </div>
               )}
             <div className="admin-title">
@@ -427,7 +427,7 @@ export const AdminLayout = ({ children, title, kicker = 'Volleyball Analytics', 
               <div className="admin-profile-menu-wrap">
                 <button
                   className="admin-profile-trigger"
-                  aria-label="Admin profile menu"
+                  aria-label="Coach profile menu"
                   aria-expanded={profileOpen}
                   aria-haspopup="menu"
                   onClick={() => {
@@ -452,11 +452,11 @@ export const AdminLayout = ({ children, title, kicker = 'Volleyball Analytics', 
 
                 {profileOpen && (
                   <div className="admin-profile-menu" role="menu">
-                    <a href="#admin/profile" role="menuitem" onClick={closeProfile}>
+                    <a href="#coach/profile" role="menuitem" onClick={closeProfile}>
                       <UserCircle size={16} />
                       Profile
                     </a>
-                    <a href="#admin/settings" role="menuitem" onClick={closeProfile}>
+                    <a href="#coach/settings" role="menuitem" onClick={closeProfile}>
                       <Settings size={16} />
                       Settings
                     </a>

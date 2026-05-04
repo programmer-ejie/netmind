@@ -15,7 +15,7 @@ import { deleteResource, listResource, registerTrainerWithTemporaryPassword, upd
 
 const blankTrainer = { name: '', email: '' }
 
-const AdminTrainers = ({ currentPath = '#admin/trainers' }) => {
+const AdminTrainers = ({ currentPath = '#coach/trainers' }) => {
   const [trainers, setTrainers] = useState([])
   const [teams, setTeams] = useState([])
   const [links, setLinks] = useState([])

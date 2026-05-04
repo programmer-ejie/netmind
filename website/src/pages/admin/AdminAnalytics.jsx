@@ -258,7 +258,7 @@ const RadarChart = ({ data }) => {
   )
 }
 
-const AdminAnalytics = ({ currentPath = '#admin/analytics' }) => {
+const AdminAnalytics = ({ currentPath = '#coach/analytics' }) => {
   const currentUser = readSavedUser()
   const [activeView, setActiveView] = useState('practice')
   const [selectedTeamId, setSelectedTeamId] = useState('')

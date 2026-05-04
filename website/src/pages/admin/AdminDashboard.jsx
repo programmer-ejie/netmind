@@ -120,7 +120,7 @@ const BoxChart = ({ stats }) => {
   )
 }
 
-const AdminDashboard = ({ currentPath = '#admin' }) => {
+const AdminDashboard = ({ currentPath = '#coach' }) => {
   const [state, setState] = useState({
     teams: [],
     players: [],
@@ -255,7 +255,7 @@ const AdminDashboard = ({ currentPath = '#admin' }) => {
     : 'Add match inputs to populate this forecast with live team activity.'
 
   return (
-    <AdminLayout title="NetMind Dashboard" currentPath={currentPath}>
+    <AdminLayout title="Coach Dashboard" currentPath={currentPath}>
       {state.error && <div className="admin-alert">{state.error}</div>}
 
       <div className="admin-dashboard-hero">

@@ -8,7 +8,7 @@ import AdminLayout, {
 } from './AdminLayout'
 import { API_BASE, apiRequest, listResource, readSavedUser } from '../../lib/api'
 
-const AdminSettings = ({ currentPath = '#admin/settings' }) => {
+const AdminSettings = ({ currentPath = '#coach/settings' }) => {
   const savedUser = useMemo(() => readSavedUser(), [])
   const [coaches, setCoaches] = useState([])
   const [profile, setProfile] = useState(savedUser || null)

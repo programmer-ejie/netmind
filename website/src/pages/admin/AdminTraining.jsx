@@ -40,7 +40,7 @@ const blankAssignment = {
   target_success_rate: '',
 }
 
-const AdminTraining = ({ currentPath = '#admin/training' }) => {
+const AdminTraining = ({ currentPath = '#coach/training' }) => {
   const [drills, setDrills] = useState([])
   const [assignments, setAssignments] = useState([])
   const [players, setPlayers] = useState([])

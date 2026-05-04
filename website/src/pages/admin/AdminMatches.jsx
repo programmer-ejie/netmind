@@ -42,7 +42,7 @@ const blankMatch = {
   notes: '',
 }
 
-const AdminMatches = ({ currentPath = '#admin/matches' }) => {
+const AdminMatches = ({ currentPath = '#coach/matches' }) => {
   const currentUser = readSavedUser()
   const [matches, setMatches] = useState([])
   const [matchScores, setMatchScores] = useState([])
@@ -316,8 +316,8 @@ const AdminMatches = ({ currentPath = '#admin/matches' }) => {
                   className="admin-match-click-row"
                   onClick={() => {
                     window.location.hash = Number(match.best_of || 1) > 1
-                      ? `admin/matches/${match.id}/sets`
-                      : `admin/matches/${match.id}/inputs`
+                      ? `coach/matches/${match.id}/sets`
+                      : `coach/matches/${match.id}/inputs`
                   }}
                 >
                   <td>

@@ -69,7 +69,7 @@ const getProfileImageUrl = (profile, previewUrl) => {
   return profile?.profile_picture_url || fallbackProfilePhoto
 }
 
-const AdminProfile = ({ currentPath = '#admin/profile' }) => {
+const AdminProfile = ({ currentPath = '#coach/profile' }) => {
   const savedUser = useMemo(() => readSavedUser(), [])
   const fileInputRef = useRef(null)
   const [form, setForm] = useState(savedUser || null)
@@ -271,7 +271,7 @@ const AdminProfile = ({ currentPath = '#admin/profile' }) => {
           <div className="admin-profile-intro">
             <div>
               <p className="admin-kicker">{profile?.role || 'coach'}</p>
-              <h2>{profile?.name || 'NetMind Admin'}</h2>
+              <h2>{profile?.name || 'NetMind Coach'}</h2>
               <span className="admin-profile-email">
                 <Mail size={16} />
                 {profile?.email || 'No Gmail linked'}
