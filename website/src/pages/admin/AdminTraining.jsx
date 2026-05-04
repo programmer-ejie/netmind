@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Edit3, ExternalLink, Info, Plus, Trash2 } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { AlertTriangle, Edit3, ExternalLink, Info, Plus, Trash2, X } from 'lucide-react'
 import AdminLayout, {
   AdminButton,
   AdminCard,
@@ -68,6 +68,8 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
   const [assignModal, setAssignModal] = useState(false)
   const [activeView, setActiveView] = useState('drills')
   const [editingDrill, setEditingDrill] = useState(null)
+  const [deleteDrill, setDeleteDrill] = useState(null)
+  const [deletingDrill, setDeletingDrill] = useState(false)
   const [drillForm, setDrillForm] = useState(blankDrill)
   const [assignmentForm, setAssignmentForm] = useState(blankAssignment)
   const [error, setError] = useState('')
@@ -80,7 +82,7 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
     completed: assignments.filter((assignment) => assignment.status === 'completed').length,
   }), [assignments])
 
-  const load = async () => {
+  const load = useCallback(async () => {
     const [drillRows, assignmentRows, playerRows, coachRows, memberRows, trainerLinkRows] = await Promise.all([
       listResource('drills', { limit: 100 }),
       listResource('training-assignments', { limit: 100 }),
@@ -112,11 +114,12 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
 
     setAssignments(assignmentRows)
     setPlayers(playerRows)
-  }
+  }, [currentUser?.id, isTrainerView])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     load().catch((err) => setError(err.message))
-  }, [])
+  }, [load])
 
   const openCreateDrill = () => {
     setEditingDrill(null)
@@ -167,14 +170,27 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
     }
   }
 
-  const removeDrill = async (drill) => {
-    if (!window.confirm(`Delete ${drill.drill_name}?`)) return
+  const openDeleteDrill = (drill) => {
+    setDeleteDrill(drill)
+  }
+
+  const closeDeleteDrill = () => {
+    if (deletingDrill) return
+    setDeleteDrill(null)
+  }
+
+  const removeDrill = async () => {
+    if (!deleteDrill) return
 
     try {
-      await deleteResource('drills', drill.id)
+      setDeletingDrill(true)
+      await deleteResource('drills', deleteDrill.id)
+      setDeleteDrill(null)
       await load()
     } catch (err) {
       setError(err.message)
+    } finally {
+      setDeletingDrill(false)
     }
   }
 
@@ -291,7 +307,7 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
                         <AdminButton variant="secondary" onClick={() => openEditDrill(drill)} aria-label="Edit drill">
                           <Edit3 size={15} />
                         </AdminButton>
-                        <AdminButton variant="danger" onClick={() => removeDrill(drill)} aria-label="Delete drill">
+                        <AdminButton variant="danger" onClick={() => openDeleteDrill(drill)} aria-label="Delete drill">
                           <Trash2 size={15} />
                         </AdminButton>
                       </div>
@@ -524,6 +540,69 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
           </div>
         </form>
       </AdminModal>
+
+      {deleteDrill && (
+        <div className="admin-offcanvas-backdrop" role="presentation" onMouseDown={closeDeleteDrill}>
+          <aside
+            className="admin-offcanvas admin-delete-drill-offcanvas"
+            aria-label="Delete drill"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="admin-offcanvas-header">
+              <div>
+                <p className="admin-kicker">Delete Drill</p>
+                <h2>Delete {deleteDrill.drill_name}?</h2>
+                <small>This action cannot be undone.</small>
+              </div>
+              <button
+                type="button"
+                className="admin-modal-close admin-danger-close"
+                onClick={closeDeleteDrill}
+                aria-label="Close delete drill"
+                disabled={deletingDrill}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="admin-password-warning admin-delete-warning-tip">
+              <AlertTriangle size={18} />
+              <p>Deleting this drill removes it from the drill library. Keep it if players still need it for training assignments.</p>
+            </div>
+
+            <div className="admin-delete-summary">
+              <span className="admin-player">
+                <b>{deleteDrill.drill_name?.slice(0, 2).toUpperCase() || 'DR'}</b>
+                <span>
+                  <strong>{deleteDrill.drill_name}</strong>
+                  <small>{deleteDrill.category || 'training'} - {deleteDrill.difficulty || 'drill'} - {deleteDrill.duration_minutes || 30} min</small>
+                </span>
+              </span>
+            </div>
+
+            <div className="admin-delete-drill-details">
+              <span>
+                <small>Target metric</small>
+                <strong>{deleteDrill.target_metric || 'General skill'}</strong>
+              </span>
+              <span>
+                <small>Visibility</small>
+                <strong>{deleteDrill.is_public ? 'Public' : 'Private'}</strong>
+              </span>
+            </div>
+
+            <div className="admin-profile-offcanvas-actions">
+              <AdminButton type="button" variant="ghost" onClick={closeDeleteDrill} disabled={deletingDrill}>
+                Cancel
+              </AdminButton>
+              <AdminButton type="button" variant="danger" onClick={removeDrill} disabled={deletingDrill}>
+                <Trash2 size={16} />
+                {deletingDrill ? 'Deleting...' : 'Delete Drill'}
+              </AdminButton>
+            </div>
+          </aside>
+        </div>
+      )}
     </AdminLayout>
   )
 }

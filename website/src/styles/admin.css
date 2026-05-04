@@ -3154,6 +3154,83 @@
   color: #ffffff;
 }
 
+.admin-dark .admin-offcanvas {
+  border-left: 1px solid color-mix(in oklab, var(--admin-error) 18%, var(--admin-border));
+  box-shadow:
+    -36px 0 110px rgba(0, 0, 0, 0.68),
+    -1px 0 0 rgba(255, 255, 255, 0.05),
+    -18px 0 52px color-mix(in oklab, var(--admin-error) 14%, transparent);
+}
+
+.admin-delete-drill-offcanvas {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.admin-delete-warning-tip {
+  border-color: color-mix(in oklab, var(--admin-error) 18%, var(--admin-border));
+  background: color-mix(in oklab, var(--admin-error) 8%, #ffffff);
+}
+
+.admin-delete-warning-tip svg {
+  color: var(--admin-error);
+}
+
+.admin-delete-drill-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-delete-drill-details span {
+  min-height: 78px;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--admin-soft) 62%, #ffffff);
+  padding: 14px;
+}
+
+.admin-delete-drill-details small {
+  display: block;
+  color: var(--admin-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.admin-delete-drill-details strong {
+  display: block;
+  margin-top: 7px;
+  color: var(--admin-dark);
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+.admin-delete-drill-offcanvas .admin-profile-offcanvas-actions {
+  margin-top: auto;
+}
+
+.admin-dark .admin-delete-warning-tip,
+.admin-dark .admin-delete-drill-details span {
+  background: color-mix(in oklab, var(--admin-card) 86%, var(--admin-soft));
+}
+
+.admin-dark .admin-delete-warning-tip,
+.admin-dark .admin-delete-summary,
+.admin-dark .admin-delete-drill-details span {
+  box-shadow:
+    0 18px 42px rgba(0, 0, 0, 0.34),
+    0 0 0 1px rgba(255, 255, 255, 0.035);
+}
+
+.admin-dark .admin-delete-warning-tip {
+  border-color: color-mix(in oklab, var(--admin-error) 30%, var(--admin-border));
+}
+
+.admin-dark .admin-delete-drill-details strong {
+  color: #ffffff;
+}
+
 .admin-player-input-offcanvas .admin-stat-input-list {
   margin-top: 14px;
 }
@@ -5322,6 +5399,14 @@
 
 .admin-dark .admin-delete-summary {
   background: color-mix(in oklab, var(--admin-soft) 76%, var(--admin-card));
+}
+
+.admin-dark .admin-modal:has(.admin-delete-summary) {
+  border-color: color-mix(in oklab, var(--admin-error) 18%, var(--admin-border));
+  box-shadow:
+    0 34px 110px rgba(0, 0, 0, 0.64),
+    0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 0 38px color-mix(in oklab, var(--admin-error) 16%, transparent);
 }
 
 .admin-password-tip,
