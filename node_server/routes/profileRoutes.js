@@ -82,7 +82,10 @@ router.post(
       folderId: process.env.GOOGLE_DRIVE_TEAMLOGO_FOLDER_ID || process.env.GOOGLE_DRIVE_FOLDER_ID,
     });
 
-    await query("UPDATE teams SET logo_url = ? WHERE id = ?", [uploaded.directUrl, req.params.id]);
+    await query(
+      "UPDATE teams SET logo_url = ?, team_logo_file_id = ? WHERE id = ?",
+      [uploaded.directUrl, uploaded.fileId, req.params.id]
+    );
 
     const rows = await query("SELECT * FROM teams WHERE id = ?", [req.params.id]);
 
@@ -95,6 +98,30 @@ router.post(
 
 router.get(
   "/profile-pictures/:fileId",
+  asyncHandler(async (req, res) => {
+    const drive = getDriveClient();
+    const metadata = await drive.files.get({
+      fileId: req.params.fileId,
+      fields: "name,mimeType",
+      supportsAllDrives: true,
+    });
+    const file = await drive.files.get(
+      {
+        fileId: req.params.fileId,
+        alt: "media",
+        supportsAllDrives: true,
+      },
+      { responseType: "stream" }
+    );
+
+    res.setHeader("Content-Type", metadata.data.mimeType || "image/jpeg");
+    res.setHeader("Cache-Control", "public, max-age=300");
+    file.data.pipe(res);
+  })
+);
+
+router.get(
+  "/team-logos/:fileId",
   asyncHandler(async (req, res) => {
     const drive = getDriveClient();
     const metadata = await drive.files.get({

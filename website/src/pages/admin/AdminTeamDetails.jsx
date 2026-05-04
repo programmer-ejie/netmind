@@ -13,7 +13,7 @@ import AdminLayout, {
   initials,
   positions,
 } from './AdminLayout'
-import { apiRequest, getResource, listResource, registerPlayerWithTemporaryPassword } from '../../lib/api'
+import { API_BASE, apiRequest, getResource, listResource, registerPlayerWithTemporaryPassword } from '../../lib/api'
 
 const blankPlayer = {
   name: '',
@@ -21,6 +21,10 @@ const blankPlayer = {
   position: 'OH',
   jersey_number: '',
 }
+
+const getTeamLogoSrc = (team) => (
+  team?.team_logo_file_id ? `${API_BASE}/team-logos/${team.team_logo_file_id}` : team?.logo_url
+)
 
 const AdminTeamDetails = ({ teamId, currentPath = '#coach/teams' }) => {
   const [team, setTeam] = useState(null)
@@ -196,8 +200,8 @@ const AdminTeamDetails = ({ teamId, currentPath = '#coach/teams' }) => {
               >
                 <ArrowLeft size={18} />
               </button>
-              {team?.logo_url ? (
-                <img className="admin-team-logo" src={team.logo_url} alt={`${team.team_name} logo`} />
+              {getTeamLogoSrc(team) ? (
+                <img className="admin-team-logo" src={getTeamLogoSrc(team)} alt={`${team.team_name} logo`} />
               ) : (
                 <span className="admin-team-logo" style={{ background: team?.team_color || '#635bff' }}>{initials(team?.team_name)}</span>
               )}

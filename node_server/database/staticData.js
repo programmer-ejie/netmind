@@ -9,6 +9,8 @@ const staticData = {
   team_rankings: [],
   drills: [],
   training_assignments: [],
+  training_schedules: [],
+  training_schedule_qr_tokens: [],
   drill_performance_logs: [],
   performance_logs: [],
   attendance_logs: [],

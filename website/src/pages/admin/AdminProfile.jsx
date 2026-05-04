@@ -70,6 +70,10 @@ const getProfileImageUrl = (profile, previewUrl) => {
   return profile?.profile_picture_url || fallbackProfilePhoto
 }
 
+const getTeamLogoSrc = (team) => (
+  team?.team_logo_file_id ? `${API_BASE}/team-logos/${team.team_logo_file_id}` : team?.logo_url
+)
+
 const ProfileSkeleton = () => (
   <>
     <div className="admin-profile-hero">
@@ -270,15 +274,13 @@ const AdminProfile = ({ currentPath = '#coach/profile' }) => {
     const file = event.target.files?.[0]
     if (!file) return
 
-    const localPreviewUrl = URL.createObjectURL(file)
     setSelectedFile(file)
-    setPreviewUrl(localPreviewUrl)
-    setProfilePreview(localPreviewUrl)
     setMessage('')
-    await uploadProfilePicture(file, localPreviewUrl)
+    await uploadProfilePicture(file)
+    event.target.value = ''
   }
 
-  const uploadProfilePicture = async (file = selectedFile, localPreviewUrl = previewUrl) => {
+  const uploadProfilePicture = async (file = selectedFile) => {
     if (!file || !profile?.id) return
 
     try {
@@ -291,9 +293,9 @@ const AdminProfile = ({ currentPath = '#coach/profile' }) => {
         method: 'POST',
         body,
       })
-      refreshProfile(payload.user, { keepPreview: true })
+      refreshProfile(payload.user)
       setSelectedFile(null)
-      setProfilePreview(localPreviewUrl)
+      setProfilePreview('')
       setMessage('Profile picture updated.')
     } catch (error) {
       setState((current) => ({ ...current, error: error.message }))
@@ -415,8 +417,8 @@ const AdminProfile = ({ currentPath = '#coach/profile' }) => {
             <div className="admin-profile-team-list">
               {scopedTeams.map((team) => (
                 <div className="admin-profile-team" key={team.id}>
-                  {team.logo_url ? (
-                    <img className="admin-profile-team-logo" src={team.logo_url} alt={`${team.team_name} logo`} />
+                  {getTeamLogoSrc(team) ? (
+                    <img className="admin-profile-team-logo" src={getTeamLogoSrc(team)} alt={`${team.team_name} logo`} />
                   ) : (
                     <span className="admin-avatar large">{initials(team.team_name)}</span>
                   )}

@@ -35,7 +35,7 @@ const tables = {
   },
   teams: {
     table: "teams",
-    fields: ["team_name", "coach_id", "team_color", "logo_url"],
+    fields: ["team_name", "coach_id", "team_color", "logo_url", "team_logo_file_id"],
     filterFields: ["coach_id"],
     searchFields: ["team_name"],
   },
@@ -132,6 +132,26 @@ const tables = {
     ],
     filterFields: ["player_id", "assigned_by", "drill_id", "status"],
     searchFields: ["focus_area", "drill_description"],
+  },
+  "training-schedules": {
+    table: "training_schedules",
+    fields: [
+      "team_id",
+      "session_type",
+      "session_date",
+      "created_by",
+    ],
+    filterFields: ["team_id", "session_type", "session_date", "created_by"],
+  },
+  "training-schedule-qr-tokens": {
+    table: "training_schedule_qr_tokens",
+    fields: [
+      "training_schedule_id",
+      "token",
+      "expires_at",
+      "created_by",
+    ],
+    filterFields: ["training_schedule_id", "token", "created_by"],
   },
   "drill-performance-logs": {
     table: "drill_performance_logs",

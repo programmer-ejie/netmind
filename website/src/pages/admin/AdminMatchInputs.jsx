@@ -8,7 +8,7 @@ import AdminLayout, {
   getName,
   initials,
 } from './AdminLayout'
-import { apiRequest, createResource, deleteResource, getResource, listResource, readSavedUser, updateResource } from '../../lib/api'
+import { API_BASE, apiRequest, createResource, deleteResource, getResource, listResource, readSavedUser, updateResource } from '../../lib/api'
 
 const matchStatInputs = [
   { id: 1, label: 'Kill', description: 'Spike Score', action_type: 'spike', result: 'kill' },
@@ -27,6 +27,10 @@ const bestOfLabels = {
   3: 'Best of Three',
   5: 'Best of Five',
 }
+
+const getTeamLogoSrc = (team) => (
+  team?.team_logo_file_id ? `${API_BASE}/team-logos/${team.team_logo_file_id}` : team?.logo_url
+)
 
 const buildStatsFromLogs = (logs, currentMatchId) => {
   const nextStats = {}
@@ -443,8 +447,8 @@ const AdminMatchInputs = ({ matchId, matchNumber, currentPath = `#coach/matches/
                     <h2>{team.team_name}</h2>
                     <p className="admin-muted">{players.length} players available for input tracking.</p>
                   </div>
-                  {team.logo_url ? (
-                    <img className="admin-match-roster-logo" src={team.logo_url} alt="" aria-hidden="true" />
+                  {getTeamLogoSrc(team) ? (
+                    <img className="admin-match-roster-logo" src={getTeamLogoSrc(team)} alt="" aria-hidden="true" />
                   ) : (
                     <span className="admin-match-roster-logo fallback" style={{ background: team.team_color || '#12aabd' }}>
                       {initials(team.team_name)}

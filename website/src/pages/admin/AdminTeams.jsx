@@ -10,9 +10,12 @@ import AdminLayout, {
   EmptyState,
   formatDate,
 } from './AdminLayout'
-import { apiRequest, createResource, deleteResource, listResource, readSavedUser, updateResource } from '../../lib/api'
+import { API_BASE, apiRequest, createResource, deleteResource, listResource, readSavedUser, updateResource } from '../../lib/api'
 
 const blankTeam = { team_name: '', team_color: '#635bff', coach_id: '', trainer_id: '' }
+const getTeamLogoSrc = (team) => (
+  team?.team_logo_file_id ? `${API_BASE}/team-logos/${team.team_logo_file_id}` : team?.logo_url
+)
 
 const AdminTeams = ({ currentPath = '#coach/teams' }) => {
   const [teams, setTeams] = useState([])
@@ -228,8 +231,8 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
                 >
                   <td>
                     <span className="admin-player">
-                      {team.logo_url ? (
-                        <img className="admin-team-table-logo" src={team.logo_url} alt={`${team.team_name} logo`} />
+                      {getTeamLogoSrc(team) ? (
+                        <img className="admin-team-table-logo" src={getTeamLogoSrc(team)} alt={`${team.team_name} logo`} />
                       ) : (
                         <b style={{ background: team.team_color || undefined, color: '#fff' }}>
                           {team.team_name?.slice(0, 2).toUpperCase() || 'TM'}
@@ -351,8 +354,8 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
 
             <div className="admin-delete-summary">
               <span className="admin-player">
-                {assigningTeam.logo_url ? (
-                  <img className="admin-team-table-logo" src={assigningTeam.logo_url} alt={`${assigningTeam.team_name} logo`} />
+                {getTeamLogoSrc(assigningTeam) ? (
+                  <img className="admin-team-table-logo" src={getTeamLogoSrc(assigningTeam)} alt={`${assigningTeam.team_name} logo`} />
                 ) : (
                   <b style={{ background: assigningTeam.team_color || '#635bff', color: '#fff' }}>
                     {assigningTeam.team_name?.slice(0, 2).toUpperCase() || 'TM'}
@@ -410,8 +413,8 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
 
             <div className="admin-delete-summary">
               <span className="admin-player">
-                {deleteTeam.logo_url ? (
-                  <img className="admin-team-table-logo" src={deleteTeam.logo_url} alt={`${deleteTeam.team_name} logo`} />
+                {getTeamLogoSrc(deleteTeam) ? (
+                  <img className="admin-team-table-logo" src={getTeamLogoSrc(deleteTeam)} alt={`${deleteTeam.team_name} logo`} />
                 ) : (
                   <b style={{ background: deleteTeam.team_color || '#635bff', color: '#fff' }}>
                     {deleteTeam.team_name?.slice(0, 2).toUpperCase() || 'TM'}

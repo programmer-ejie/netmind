@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Plus } from 'lucide-react'
+import QRCode from 'qrcode'
+import { CalendarDays, ClipboardCheck, Clock3, Info, Plus, QrCode } from 'lucide-react'
 import AdminLayout, {
   AdminButton,
   AdminCard,
@@ -8,48 +9,49 @@ import AdminLayout, {
   AdminModal,
   AdminSelect,
   EmptyState,
-  StatusBadge,
   formatDate,
   getName,
+  initials,
 } from './AdminLayout'
-import { createResource, listResource, readSavedUser } from '../../lib/api'
+import { API_BASE, apiRequest, createResource, listResource, readSavedUser } from '../../lib/api'
 
-const attendanceStatuses = ['present', 'late', 'absent', 'excused']
-const sessionTypes = ['practice', 'training', 'match', 'drill']
+const sessionTypes = ['training', 'conditioning', 'match']
 
-const blankLog = {
-  player_id: '',
+const blankSchedule = {
   team_id: '',
   session_type: 'training',
   session_date: new Date().toISOString().slice(0, 10),
-  status: 'present',
-  late_minutes: '',
-  reason: '',
+}
+
+const getTeamLogoSrc = (team) => {
+  if (team?.team_logo_file_id) return `${API_BASE}/team-logos/${team.team_logo_file_id}`
+  return team?.logo_url || ''
 }
 
 const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
   const currentUser = readSavedUser()
   const isTrainerView = currentUser?.role === 'trainer'
-  const [logs, setLogs] = useState([])
-  const [players, setPlayers] = useState([])
+  const [schedules, setSchedules] = useState([])
   const [teams, setTeams] = useState([])
-  const [memberships, setMemberships] = useState([])
   const [modalOpen, setModalOpen] = useState(false)
-  const [form, setForm] = useState(blankLog)
+  const [qrModalOpen, setQrModalOpen] = useState(false)
+  const [activeSchedule, setActiveSchedule] = useState(null)
+  const [form, setForm] = useState(blankSchedule)
+  const [qrState, setQrState] = useState({ loading: false, image: '', token: '', expiresAt: '', error: '' })
+  const [remainingSeconds, setRemainingSeconds] = useState(0)
+  const [failedLogoIds, setFailedLogoIds] = useState(() => new Set())
   const [error, setError] = useState('')
 
-  const teamByPlayer = useMemo(() => {
+  const teamById = useMemo(() => {
     const map = new Map()
-    memberships.forEach((membership) => map.set(String(membership.player_id), membership.team_id))
+    teams.forEach((team) => map.set(String(team.id), team))
     return map
-  }, [memberships])
+  }, [teams])
 
   const load = async () => {
-    const [logRows, playerRows, teamRows, memberRows, trainerLinkRows] = await Promise.all([
-      listResource('attendance-logs', { limit: 100 }),
-      listResource('players'),
+    const [scheduleRows, teamRows, trainerLinkRows] = await Promise.all([
+      listResource('training-schedules', { limit: 100 }),
       listResource('teams', { limit: 100 }),
-      listResource('team-members', { limit: 100 }),
       isTrainerView ? listResource('team-trainers', { limit: 100 }) : Promise.resolve([]),
     ])
 
@@ -59,22 +61,14 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
           .filter((link) => String(link.trainer_id) === String(currentUser?.id))
           .map((link) => String(link.team_id)),
       )
-      const scopedMemberships = memberRows.filter((membership) => trainerTeamIds.has(String(membership.team_id)))
-      const scopedPlayerIds = new Set(scopedMemberships.map((membership) => String(membership.player_id)))
 
-      setLogs(logRows.filter((log) => (
-        trainerTeamIds.has(String(log.team_id)) || scopedPlayerIds.has(String(log.player_id))
-      )))
-      setPlayers(playerRows.filter((player) => scopedPlayerIds.has(String(player.id))))
+      setSchedules(scheduleRows.filter((schedule) => trainerTeamIds.has(String(schedule.team_id))))
       setTeams(teamRows.filter((team) => trainerTeamIds.has(String(team.id))))
-      setMemberships(scopedMemberships)
       return
     }
 
-    setLogs(logRows)
-    setPlayers(playerRows)
+    setSchedules(scheduleRows)
     setTeams(teamRows)
-    setMemberships(memberRows)
   }
 
   useEffect(() => {
@@ -82,27 +76,17 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
   }, [])
 
   const openCreate = () => {
-    setForm(blankLog)
+    setForm(blankSchedule)
     setModalOpen(true)
   }
 
-  const updatePlayer = (playerId) => {
-    setForm((current) => ({
-      ...current,
-      player_id: playerId,
-      team_id: teamByPlayer.get(String(playerId)) || current.team_id,
-    }))
-  }
-
-  const createLog = async (event) => {
+  const createSchedule = async (event) => {
     event.preventDefault()
 
     try {
-      await createResource('attendance-logs', {
+      await createResource('training-schedules', {
         ...form,
-        late_minutes: form.late_minutes ? Number(form.late_minutes) : 0,
-        reason: form.reason || null,
-        marked_by: currentUser?.id || null,
+        created_by: currentUser?.id || null,
       })
       setModalOpen(false)
       await load()
@@ -111,61 +95,145 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
     }
   }
 
+  useEffect(() => {
+    if (!qrState.expiresAt) return undefined
+
+    const tick = () => {
+      setRemainingSeconds(Math.max(0, Math.ceil((new Date(qrState.expiresAt).getTime() - Date.now()) / 1000)))
+    }
+
+    tick()
+    const timer = window.setInterval(tick, 1000)
+    return () => window.clearInterval(timer)
+  }, [qrState.expiresAt])
+
+  const generateQr = async (schedule) => {
+    setQrState({ loading: true, image: '', token: '', expiresAt: '', error: '' })
+    setRemainingSeconds(0)
+
+    try {
+      const payload = await apiRequest(`/training-schedules/${schedule.id}/qr-token`, {
+        method: 'POST',
+        body: { created_by: currentUser?.id || null },
+      })
+      const image = await QRCode.toDataURL(payload.check_in_url, {
+        width: 260,
+        margin: 2,
+        color: {
+          dark: '#193746',
+          light: '#ffffff',
+        },
+      })
+
+      setQrState({
+        loading: false,
+        image,
+        token: payload.token,
+        expiresAt: payload.expires_at,
+        error: '',
+      })
+    } catch (err) {
+      setQrState({ loading: false, image: '', token: '', expiresAt: '', error: err.message })
+    }
+  }
+
+  const openQr = (schedule) => {
+    setActiveSchedule(schedule)
+    setQrModalOpen(true)
+    generateQr(schedule)
+  }
+
+  const activeTeam = activeSchedule ? teamById.get(String(activeSchedule.team_id)) : null
+  const qrExpired = Boolean(qrState.expiresAt) && remainingSeconds <= 0
+
   return (
-    <AdminLayout title="Attendance" currentPath={currentPath}>
+    <AdminLayout title="Training Schedule" currentPath={currentPath}>
       {error && <div className="admin-alert">{error}</div>}
 
-      <AdminCard>
+      <AdminCard className="admin-dashboard-card admin-schedule-header-card">
         <div className="admin-card-header">
           <div>
-            <h2>Attendance Logs</h2>
-            <p className="admin-muted">Track player availability for training, drills, and matches.</p>
+            <h2>Training Schedule</h2>
+            <p className="admin-muted">Plan team sessions by date.</p>
           </div>
           <AdminButton onClick={openCreate}>
             <Plus size={17} />
-            Mark Attendance
+            Add Schedule
           </AdminButton>
-        </div>
-
-        <div className="admin-table">
-          <table className="admin-native-table">
-            <thead>
-              <tr>
-                <th>Player</th>
-                <th>Team</th>
-                <th>Session</th>
-                <th>Date</th>
-                <th>Status</th>
-                <th>Late</th>
-                <th>Reason</th>
-              </tr>
-            </thead>
-            <tbody>
-              {logs.map((log) => (
-                <tr key={log.id}>
-                  <td>{log.name || getName(players, log.player_id)}</td>
-                  <td>{getName(teams, log.team_id)}</td>
-                  <td>{log.session_type || '-'}</td>
-                  <td>{formatDate(log.session_date)}</td>
-                  <td><StatusBadge tone={log.status === 'present' ? 'success' : 'warning'}>{log.status}</StatusBadge></td>
-                  <td>{log.late_minutes ? `${log.late_minutes} min` : '-'}</td>
-                  <td>{log.reason || '-'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {!logs.length && <EmptyState>No attendance logs yet.</EmptyState>}
         </div>
       </AdminCard>
 
-      <AdminModal open={modalOpen} title="Mark Attendance" onClose={() => setModalOpen(false)}>
-        <form className="admin-form admin-form-grid" onSubmit={createLog}>
-          <AdminField label="Player">
-            <AdminSelect required value={form.player_id} onChange={(event) => updatePlayer(event.target.value)}>
-              <option value="">Select player</option>
-              {players.map((player) => <option key={player.id} value={player.id}>{player.name}</option>)}
-            </AdminSelect>
-          </AdminField>
+      <AdminCard className="admin-dashboard-card admin-schedule-list-card">
+        <div className="admin-schedule-grid">
+          {schedules.map((schedule) => {
+            const team = teamById.get(String(schedule.team_id))
+            const teamName = team?.team_name || getName(teams, schedule.team_id, 'Team')
+            const logoSrc = getTeamLogoSrc(team)
+            const showLogo = logoSrc && !failedLogoIds.has(String(team.id))
+
+            return (
+              <article className="admin-schedule-card" key={schedule.id}>
+                <div className="admin-schedule-card-top">
+                  <span className="admin-schedule-session">
+                    <Clock3 size={14} />
+                    {schedule.session_type || 'training'}
+                  </span>
+                  <span className="admin-schedule-date">
+                    <CalendarDays size={15} />
+                    {formatDate(schedule.session_date)}
+                  </span>
+                </div>
+                <div className="admin-schedule-team">
+                  {showLogo ? (
+                    <img
+                      className="admin-schedule-logo"
+                      src={logoSrc}
+                      alt={`${teamName} logo`}
+                      referrerPolicy="no-referrer"
+                      onError={() => {
+                        setFailedLogoIds((current) => {
+                          const next = new Set(current)
+                          next.add(String(team.id))
+                          return next
+                        })
+                      }}
+                    />
+                  ) : (
+                    <span className="admin-schedule-logo fallback" style={{ background: team?.team_color || '#12aabd' }}>
+                      {initials(teamName)}
+                    </span>
+                  )}
+                  <div>
+                    <small>Team</small>
+                    <h3>{teamName}</h3>
+                  </div>
+                </div>
+                <div className="admin-schedule-actions">
+                  <AdminButton variant="secondary" onClick={() => openQr(schedule)} aria-label={`Generate QR for ${teamName}`}>
+                    <QrCode size={17} />
+                  </AdminButton>
+                  <AdminButton
+                    variant="secondary"
+                    onClick={() => { window.location.hash = `trainer/attendance/${schedule.id}/check` }}
+                    aria-label={`Check attendance for ${teamName}`}
+                  >
+                    <ClipboardCheck size={17} />
+                  </AdminButton>
+                </div>
+              </article>
+            )
+          })}
+        </div>
+        {!schedules.length && <EmptyState>No training schedules yet.</EmptyState>}
+      </AdminCard>
+
+      <AdminModal open={modalOpen} title="Training Schedule" onClose={() => setModalOpen(false)}>
+        <form className="admin-form admin-form-grid" onSubmit={createSchedule}>
+          <div className="admin-password-tip admin-form-span">
+            <Info size={18} />
+            <p>Select the team, choose the session type, then set the training date before saving the schedule.</p>
+          </div>
+
           <AdminField label="Team">
             <AdminSelect required value={form.team_id} onChange={(event) => setForm((current) => ({ ...current, team_id: event.target.value }))}>
               <option value="">Select team</option>
@@ -180,23 +248,44 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
           <AdminField label="Date">
             <AdminInput required type="date" value={form.session_date} onChange={(event) => setForm((current) => ({ ...current, session_date: event.target.value }))} />
           </AdminField>
-          <AdminField label="Status">
-            <AdminSelect value={form.status} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value }))}>
-              {attendanceStatuses.map((status) => <option key={status}>{status}</option>)}
-            </AdminSelect>
-          </AdminField>
-          <AdminField label="Late Minutes">
-            <AdminInput type="number" min="0" value={form.late_minutes} onChange={(event) => setForm((current) => ({ ...current, late_minutes: event.target.value }))} />
-          </AdminField>
-          <AdminField label="Reason" className="admin-form-span">
-            <AdminInput value={form.reason} onChange={(event) => setForm((current) => ({ ...current, reason: event.target.value }))} />
-          </AdminField>
           <div className="admin-form-actions admin-form-span">
             <AdminButton type="button" variant="secondary" onClick={() => setModalOpen(false)}>Cancel</AdminButton>
-            <AdminButton type="submit">Save Attendance</AdminButton>
+            <AdminButton type="submit">Save</AdminButton>
           </div>
         </form>
       </AdminModal>
+
+      <AdminModal
+        open={qrModalOpen}
+        title="Training QR"
+        subtitle={activeTeam ? `${activeTeam.team_name} - ${formatDate(activeSchedule?.session_date)}` : ''}
+        className="admin-qr-modal"
+        onClose={() => setQrModalOpen(false)}
+      >
+        <div className="admin-qr-panel">
+          <div className="admin-password-tip">
+            <Info size={18} />
+            <p>This QR expires after 1 minute. Players can scan it in the app to check in for attendance.</p>
+          </div>
+
+          <div className={`admin-qr-code ${qrExpired ? 'expired' : ''}`}>
+            {qrState.loading && <span>Generating QR...</span>}
+            {qrState.image && <img src={qrState.image} alt="Training attendance QR code" />}
+            {qrExpired && (
+              <div className="admin-qr-expired">
+                <strong>QR expired</strong>
+                <AdminButton type="button" onClick={() => generateQr(activeSchedule)}>Generate Again</AdminButton>
+              </div>
+            )}
+          </div>
+
+          {qrState.error && <div className="admin-alert">{qrState.error}</div>}
+          {!qrExpired && qrState.expiresAt && (
+            <p className="admin-qr-countdown">Expires in {remainingSeconds}s</p>
+          )}
+        </div>
+      </AdminModal>
+
     </AdminLayout>
   )
 }

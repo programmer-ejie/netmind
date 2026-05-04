@@ -20,6 +20,8 @@ const exportTables = [
   "team_rankings",
   "drills",
   "training_assignments",
+  "training_schedules",
+  "training_schedule_qr_tokens",
   "drill_performance_logs",
   "performance_logs",
   "attendance_logs",
@@ -160,6 +162,10 @@ router.get("/routes", (req, res) => {
       "GET /api/attendance-logs",
       "POST /api/attendance-logs",
       "POST /api/attendance-logs/bulk",
+      "POST /api/training-schedules/:scheduleId/qr-token",
+      "GET /api/training-schedules/:scheduleId/attendance-check",
+      "GET /api/attendance-qr/:token",
+      "POST /api/attendance-qr/:token/check-in",
       "GET /api/teams/:teamId/attendance",
       "GET /api/players/:playerId/attendance",
     ],
@@ -778,6 +784,152 @@ router.post("/attendance-logs/bulk", asyncHandler(async (req, res) => {
   );
 
   res.status(201).json({ inserted: result.affectedRows });
+}));
+
+router.post("/training-schedules/:scheduleId/qr-token", asyncHandler(async (req, res) => {
+  const schedule = await ensureRecord("training_schedules", req.params.scheduleId, "Training schedule");
+  const token = crypto.randomBytes(24).toString("hex");
+  const expiresAt = new Date(Date.now() + 60 * 1000);
+
+  await query(
+    `INSERT INTO training_schedule_qr_tokens
+      (training_schedule_id, token, expires_at, created_by)
+    VALUES (?, ?, ?, ?)`,
+    [
+      schedule.id,
+      token,
+      expiresAt.toISOString().slice(0, 19).replace("T", " "),
+      req.body.created_by || null,
+    ]
+  );
+
+  res.status(201).json({
+    token,
+    training_schedule_id: schedule.id,
+    team_id: schedule.team_id,
+    session_type: schedule.session_type,
+    session_date: schedule.session_date,
+    expires_at: expiresAt.toISOString(),
+    check_in_url: `netmind://attendance-check-in?token=${token}`,
+  });
+}));
+
+router.get("/training-schedules/:scheduleId/attendance-check", asyncHandler(async (req, res) => {
+  const schedule = await ensureRecord("training_schedules", req.params.scheduleId, "Training schedule");
+  const team = await ensureRecord("teams", schedule.team_id, "Team");
+  const players = await query(
+    `SELECT tm.player_id, tm.is_active, u.name, u.email, u.position, u.jersey_number
+    FROM team_members tm
+    JOIN users u ON u.id = tm.player_id
+    WHERE tm.team_id = ? AND tm.is_active = TRUE
+    ORDER BY u.jersey_number IS NULL, u.jersey_number, u.name`,
+    [schedule.team_id]
+  );
+  const logs = await query(
+    `SELECT al.*, u.name, u.position, u.jersey_number
+    FROM attendance_logs al
+    JOIN users u ON u.id = al.player_id
+    WHERE al.team_id = ? AND al.session_type = ? AND al.session_date = ?
+    ORDER BY u.name`,
+    [schedule.team_id, schedule.session_type, schedule.session_date]
+  );
+  const logsByPlayerId = new Map(logs.map((log) => [String(log.player_id), log]));
+  const roster = players.map((player) => ({
+    ...player,
+    checked_in: logsByPlayerId.has(String(player.player_id)),
+    attendance_log: logsByPlayerId.get(String(player.player_id)) || null,
+  }));
+
+  res.json({
+    schedule,
+    team,
+    players: roster,
+    logs,
+    summary: {
+      total: roster.length,
+      checked_in: roster.filter((player) => player.checked_in).length,
+      not_checked_in: roster.filter((player) => !player.checked_in).length,
+    },
+  });
+}));
+
+router.get("/attendance-qr/:token", asyncHandler(async (req, res) => {
+  const rows = await query(
+    `SELECT qr.*, ts.team_id, ts.session_type, ts.session_date
+    FROM training_schedule_qr_tokens qr
+    JOIN training_schedules ts ON ts.id = qr.training_schedule_id
+    WHERE qr.token = ?
+    LIMIT 1`,
+    [req.params.token]
+  );
+  const record = rows[0];
+
+  if (!record) {
+    throw new ApiError(404, "QR token not found");
+  }
+
+  const expired = new Date(record.expires_at).getTime() <= Date.now();
+
+  res.json({
+    training_schedule_id: record.training_schedule_id,
+    team_id: record.team_id,
+    session_type: record.session_type,
+    session_date: record.session_date,
+    expires_at: record.expires_at,
+    expired,
+  });
+}));
+
+router.post("/attendance-qr/:token/check-in", asyncHandler(async (req, res) => {
+  if (!req.body.player_id) {
+    throw new ApiError(400, "player_id is required");
+  }
+
+  const rows = await query(
+    `SELECT qr.*, ts.team_id, ts.session_type, ts.session_date
+    FROM training_schedule_qr_tokens qr
+    JOIN training_schedules ts ON ts.id = qr.training_schedule_id
+    WHERE qr.token = ?
+    LIMIT 1`,
+    [req.params.token]
+  );
+  const record = rows[0];
+
+  if (!record) {
+    throw new ApiError(404, "QR token not found");
+  }
+
+  if (new Date(record.expires_at).getTime() <= Date.now()) {
+    throw new ApiError(410, "QR token has expired");
+  }
+
+  const existing = await query(
+    `SELECT id FROM attendance_logs
+    WHERE player_id = ? AND team_id = ? AND session_type = ? AND session_date = ?
+    LIMIT 1`,
+    [req.body.player_id, record.team_id, record.session_type, record.session_date]
+  );
+
+  if (existing.length) {
+    res.json(await getById("attendance_logs", existing[0].id));
+    return;
+  }
+
+  const result = await query(
+    `INSERT INTO attendance_logs
+      (player_id, team_id, session_type, match_id, session_date, status, late_minutes, reason, marked_by)
+    VALUES (?, ?, ?, NULL, ?, 'present', 0, ?, ?)`,
+    [
+      req.body.player_id,
+      record.team_id,
+      record.session_type,
+      record.session_date,
+      "QR check-in",
+      req.body.marked_by || req.body.player_id,
+    ]
+  );
+
+  res.status(201).json(await getById("attendance_logs", result.insertId));
 }));
 
 router.get("/teams/:teamId/attendance", asyncHandler(async (req, res) => {

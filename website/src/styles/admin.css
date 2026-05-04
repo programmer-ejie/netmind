@@ -2110,6 +2110,437 @@
   overflow-x: auto;
 }
 
+.admin-schedule-header-card {
+  margin-bottom: 18px;
+}
+
+.admin-schedule-list-card {
+  padding-top: 24px;
+}
+
+.admin-schedule-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.admin-schedule-card {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  gap: 16px;
+  min-height: 220px;
+  padding: 20px;
+  border: 1px solid color-mix(in oklab, var(--admin-border) 84%, transparent);
+  border-radius: 8px;
+  background: var(--admin-card);
+  box-shadow: 0 14px 30px rgba(47, 64, 80, 0.07);
+}
+
+.admin-schedule-card::after {
+  content: '';
+  position: absolute;
+  top: -54px;
+  right: -42px;
+  width: 190px;
+  height: 122px;
+  border-bottom-left-radius: 60px;
+  background: color-mix(in oklab, var(--admin-primary) 8%, #ffffff);
+  pointer-events: none;
+}
+
+.admin-schedule-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.admin-schedule-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-schedule-session,
+.admin-schedule-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.admin-schedule-session {
+  background: var(--admin-light-primary);
+  color: var(--admin-primary);
+  text-transform: capitalize;
+}
+
+.admin-schedule-date {
+  background: color-mix(in oklab, var(--admin-soft) 74%, #ffffff);
+  color: var(--admin-muted);
+  white-space: nowrap;
+}
+
+.admin-schedule-team {
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.admin-schedule-team > div {
+  min-width: 0;
+}
+
+.admin-schedule-team small {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--admin-muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.admin-schedule-logo {
+  width: 70px;
+  height: 70px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid color-mix(in oklab, var(--admin-primary) 14%, var(--admin-border));
+  box-shadow: 0 10px 20px rgba(47, 64, 80, 0.07);
+}
+
+.admin-schedule-logo.fallback {
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.admin-schedule-card h3 {
+  max-width: 100%;
+  margin: 0;
+  overflow: hidden;
+  color: var(--admin-link);
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-schedule-actions {
+  display: flex;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--admin-border);
+}
+
+.admin-schedule-actions .admin-button {
+  width: 40px;
+  min-height: 38px;
+  padding: 0;
+}
+
+.admin-qr-modal {
+  width: min(460px, calc(100vw - 32px));
+}
+
+.admin-qr-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.admin-qr-code {
+  position: relative;
+  min-height: 292px;
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: color-mix(in oklab, var(--admin-soft) 58%, #ffffff);
+  overflow: hidden;
+}
+
+.admin-qr-code img {
+  width: 260px;
+  height: 260px;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 10px;
+  box-shadow: 0 12px 24px rgba(47, 64, 80, 0.08);
+}
+
+.admin-qr-code.expired img {
+  opacity: 0.18;
+  filter: grayscale(1);
+}
+
+.admin-qr-code > span {
+  color: var(--admin-muted);
+  font-weight: 800;
+}
+
+.admin-qr-expired {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  gap: 14px;
+  padding: 20px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.admin-qr-expired strong {
+  color: var(--admin-link);
+  font-size: 20px;
+}
+
+.admin-qr-countdown {
+  color: var(--admin-primary);
+  font-size: 14px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.admin-attendance-check-list {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-attendance-check-page {
+  display: grid;
+  gap: 20px;
+}
+
+.admin-attendance-overview {
+  display: block;
+}
+
+.admin-attendance-visual-card {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  align-items: center;
+  gap: 24px;
+  min-height: 132px;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--admin-soft) 34%, #ffffff);
+  padding: 22px;
+}
+
+.admin-attendance-visual-card h3 {
+  margin: 0 0 4px;
+  color: var(--admin-link);
+  font-size: 20px;
+}
+
+.admin-attendance-ring {
+  width: 84px;
+  height: 84px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  position: relative;
+}
+
+.admin-attendance-ring::after {
+  content: '';
+  position: absolute;
+  inset: 10px;
+  border-radius: inherit;
+  background: var(--admin-card);
+}
+
+.admin-attendance-ring span {
+  position: relative;
+  z-index: 1;
+  color: var(--admin-link);
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.admin-attendance-kpis {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  gap: 14px;
+  padding-top: 18px;
+  border-top: 1px solid var(--admin-border);
+}
+
+.admin-attendance-kpis > div {
+  min-height: 84px;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: var(--admin-card);
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  box-shadow: none;
+}
+
+.admin-attendance-kpis .admin-metric-icon {
+  width: 42px;
+  height: 42px;
+}
+
+.admin-attendance-kpis small {
+  color: var(--admin-muted);
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.admin-attendance-kpis strong {
+  color: var(--admin-link);
+  font-size: 28px;
+  line-height: 1;
+}
+
+.admin-attendance-session-meta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.admin-attendance-session-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--admin-light-primary);
+  color: var(--admin-primary);
+  font-size: 13px;
+  font-weight: 900;
+  text-transform: capitalize;
+}
+
+.admin-attendance-table {
+  display: grid;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.admin-attendance-table-head,
+.admin-attendance-player-row {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) 160px 140px 190px;
+  align-items: center;
+  justify-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  text-align: center;
+}
+
+.admin-attendance-table-head span:first-child,
+.admin-attendance-player-main {
+  justify-self: start;
+  text-align: left;
+}
+
+.admin-attendance-table-head span:not(:first-child),
+.admin-attendance-player-row > span,
+.admin-attendance-player-row .admin-badge {
+  justify-self: center;
+  text-align: center;
+}
+
+.admin-attendance-table-head {
+  background: color-mix(in oklab, var(--admin-soft) 70%, #ffffff);
+  color: var(--admin-muted);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.admin-attendance-player-row {
+  background: var(--admin-card);
+  border-top: 1px solid var(--admin-border);
+}
+
+.admin-attendance-player-row > span {
+  color: var(--admin-link);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.admin-attendance-player-main strong,
+.admin-attendance-player-main small {
+  display: block;
+}
+
+.admin-attendance-player-main strong {
+  color: var(--admin-link);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.admin-attendance-player-main small {
+  color: var(--admin-muted);
+  font-size: 12px;
+  font-weight: 500;
+  margin-top: 3px;
+}
+
+.admin-attendance-player-row .admin-badge {
+  font-weight: 600;
+}
+
+
+.admin-dark .admin-schedule-card,
+.admin-dark .admin-attendance-player-row,
+.admin-dark .admin-attendance-kpis > div {
+  background: var(--admin-card);
+  border-color: var(--admin-border);
+}
+
+.admin-dark .admin-schedule-card::after {
+  background: color-mix(in oklab, var(--admin-primary) 10%, var(--admin-card));
+}
+
+.admin-dark .admin-schedule-date {
+  background: color-mix(in oklab, var(--admin-soft) 62%, var(--admin-card));
+  color: var(--admin-muted);
+}
+
+.admin-dark .admin-attendance-visual-card {
+  background: var(--admin-card);
+  border-color: var(--admin-border);
+}
+
+.admin-dark .admin-attendance-ring::after {
+  background: var(--admin-card);
+}
+
+.admin-dark .admin-attendance-kpis {
+  border-top-color: var(--admin-border);
+}
+
+.admin-dark .admin-attendance-table,
+.admin-dark .admin-attendance-player-row {
+  border-color: var(--admin-border);
+}
+
+.admin-dark .admin-attendance-table-head {
+  background: color-mix(in oklab, var(--admin-soft) 78%, var(--admin-card));
+  color: var(--admin-muted);
+}
+
 .admin-matches-table {
   padding: 18px 32px 32px;
 }
@@ -5114,5 +5545,24 @@
   .admin-form-grid,
   .admin-inline-form {
     grid-template-columns: 1fr;
+  }
+
+  .admin-schedule-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-attendance-overview,
+  .admin-attendance-kpis,
+  .admin-attendance-table-head,
+  .admin-attendance-player-row {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-attendance-visual-card {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-attendance-table-head {
+    display: none;
   }
 }

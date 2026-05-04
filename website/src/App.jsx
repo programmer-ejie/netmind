@@ -19,6 +19,7 @@ import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminMatchInputs from './pages/admin/AdminMatchInputs'
 import AdminMatches from './pages/admin/AdminMatches'
 import AdminAttendance from './pages/admin/AdminAttendance'
+import AdminAttendanceCheck from './pages/admin/AdminAttendanceCheck'
 import AdminPlayers from './pages/admin/AdminPlayers'
 import AdminProfile from './pages/admin/AdminProfile'
 import AdminSettings from './pages/admin/AdminSettings'
@@ -145,6 +146,10 @@ function App() {
 
     if (route.page === 'matches' && route.id) {
       return <AdminMatchInputs matchId={route.id} matchNumber={route.matchNumber} currentPath={route.hash} />
+    }
+
+    if (route.page === 'attendance' && route.id && route.section === 'check') {
+      return <AdminAttendanceCheck scheduleId={route.id} currentPath={route.hash} />
     }
 
     const pages = {

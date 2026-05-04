@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS teams (
   coach_id INT NOT NULL,
   team_color VARCHAR(50) NULL,
   logo_url VARCHAR(255) NULL,
+  team_logo_file_id VARCHAR(160) NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_teams_coach FOREIGN KEY (coach_id) REFERENCES users(id)
 );
@@ -151,6 +152,28 @@ CREATE TABLE IF NOT EXISTS training_assignments (
   CONSTRAINT fk_training_assignments_player FOREIGN KEY (player_id) REFERENCES users(id),
   CONSTRAINT fk_training_assignments_assigned_by FOREIGN KEY (assigned_by) REFERENCES users(id),
   CONSTRAINT fk_training_assignments_drill FOREIGN KEY (drill_id) REFERENCES drills(id)
+);
+
+CREATE TABLE IF NOT EXISTS training_schedules (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  team_id INT NOT NULL,
+  session_type ENUM('match', 'training', 'conditioning') NOT NULL DEFAULT 'training',
+  session_date DATE NOT NULL,
+  created_by INT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_training_schedules_team FOREIGN KEY (team_id) REFERENCES teams(id),
+  CONSTRAINT fk_training_schedules_created_by FOREIGN KEY (created_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS training_schedule_qr_tokens (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  training_schedule_id INT NOT NULL,
+  token VARCHAR(96) NOT NULL UNIQUE,
+  expires_at DATETIME NOT NULL,
+  created_by INT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_training_schedule_qr_tokens_schedule FOREIGN KEY (training_schedule_id) REFERENCES training_schedules(id),
+  CONSTRAINT fk_training_schedule_qr_tokens_created_by FOREIGN KEY (created_by) REFERENCES users(id)
 );
 
 CREATE TABLE IF NOT EXISTS drill_performance_logs (
