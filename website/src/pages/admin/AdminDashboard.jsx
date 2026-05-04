@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ClipboardCheck, Shield, UserRound, Users } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ClipboardCheck, Shield, UserRound, Users } from 'lucide-react'
 import AdminLayout, {
   AdminCard,
   EmptyState,
@@ -12,6 +12,7 @@ import AdminLayout, {
 import { listResource } from '../../lib/api'
 
 const areaColors = ['#12aabd', '#ff6692', '#36c76c', '#ffb900']
+const activityRowsPerPage = 4
 
 const formatShortDate = (value) => {
   const date = new Date(value)
@@ -131,6 +132,7 @@ const AdminDashboard = ({ currentPath = '#coach' }) => {
     loading: true,
     error: '',
   })
+  const [activityPage, setActivityPage] = useState(1)
 
   useEffect(() => {
     let alive = true
@@ -196,7 +198,7 @@ const AdminDashboard = ({ currentPath = '#coach' }) => {
         return { ...player, score, logs: logs.length }
       })
       .sort((a, b) => b.score - a.score)
-      .slice(0, 6)
+      .slice(0, 5)
   ), [state.players, state.logs])
 
   const playerScoreStats = useMemo(() => {
@@ -244,8 +246,19 @@ const AdminDashboard = ({ currentPath = '#coach' }) => {
 
     return [...assignments, ...attendance, ...performance]
       .sort((a, b) => new Date(b.sortDate || 0) - new Date(a.sortDate || 0))
-      .slice(0, 6)
   }, [state.assignments, state.attendance, state.logs, state.players])
+
+  const activityPageCount = Math.max(1, Math.ceil(recentActivity.length / activityRowsPerPage))
+  const pagedRecentActivity = useMemo(() => {
+    const start = (activityPage - 1) * activityRowsPerPage
+    return recentActivity.slice(start, start + activityRowsPerPage)
+  }, [activityPage, recentActivity])
+
+  useEffect(() => {
+    if (activityPage > activityPageCount) {
+      setActivityPage(activityPageCount)
+    }
+  }, [activityPage, activityPageCount])
 
   const dashboardNote = state.loading
     ? 'Loading your current team activity.'
@@ -386,25 +399,44 @@ const AdminDashboard = ({ currentPath = '#coach' }) => {
               ))}
             </div>
           ) : recentActivity.length ? (
-            <ul className="admin-timeline">
-              {recentActivity.map((item, index) => (
-                <li key={`${item.action}-${item.subject}-${index}`}>
-                  <time>{item.time}</time>
-                  <span className={item.tone}>{item.action.slice(0, 1).toUpperCase()}</span>
-                  <p>
-                    <strong>{item.action}</strong>
-                    <small>{item.detail} • {item.subject}</small>
-                  </p>
-                </li>
-              ))}
-            </ul>
+            <>
+              <ul className="admin-timeline">
+                {pagedRecentActivity.map((item, index) => (
+                  <li key={`${item.action}-${item.subject}-${item.sortDate}-${index}`}>
+                    <time>{item.time}</time>
+                    <span className={item.tone}>{item.action.slice(0, 1).toUpperCase()}</span>
+                    <p>
+                      <strong>{item.action}</strong>
+                      <small>{item.detail} • {item.subject}</small>
+                    </p>
+                  </li>
+                ))}
+              </ul>
+              <div className="admin-pagination">
+                <button
+                  type="button"
+                  className="admin-pagination-button"
+                  onClick={() => setActivityPage((page) => Math.max(1, page - 1))}
+                  disabled={activityPage === 1}
+                  aria-label="Previous activity page"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <span>Page {activityPage} of {activityPageCount}</span>
+                <button
+                  type="button"
+                  className="admin-pagination-button"
+                  onClick={() => setActivityPage((page) => Math.min(activityPageCount, page + 1))}
+                  disabled={activityPage === activityPageCount}
+                  aria-label="Next activity page"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            </>
           ) : (
             <EmptyState>No recent activity.</EmptyState>
           )}
-          <div className="admin-chart-note admin-dashboard-activity-note">
-            <strong>Dashboard note</strong>
-            <p>{state.logs.length ? `${moneylessNumber(state.logs.length)} performance logs are available for live analysis.` : 'Activity appears here after training assignments or attendance logs are created.'}</p>
-          </div>
         </AdminCard>
 
       </div>

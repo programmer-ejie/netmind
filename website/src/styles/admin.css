@@ -1119,28 +1119,34 @@
 .admin-analytics-hero {
   position: relative;
   overflow: hidden;
-  border: 1px solid color-mix(in oklab, var(--admin-primary) 16%, var(--admin-border));
+  border: 1px solid color-mix(in oklab, var(--admin-primary) 10%, transparent);
   border-radius: 14px;
-  background:
-    linear-gradient(135deg, color-mix(in oklab, var(--admin-primary) 9%, #ffffff), #ffffff 58%),
-    var(--admin-card);
-  box-shadow: 0 16px 34px rgba(47, 64, 80, 0.08);
-  padding: 22px 24px;
+  background: var(--admin-card);
+  box-shadow: 0 18px 36px rgba(47, 64, 80, 0.08);
+  padding: 24px 28px;
 }
 
 .admin-analytics-hero::before {
   content: '';
   position: absolute;
-  inset: 0 auto 0 0;
-  width: 5px;
-  background: linear-gradient(180deg, var(--admin-primary), var(--admin-error));
+  width: 190px;
+  height: 190px;
+  border-radius: 999px;
+  right: -72px;
+  top: -96px;
+  background: color-mix(in oklab, var(--admin-primary) 10%, transparent);
+}
+
+.admin-analytics-hero > * {
+  position: relative;
+  z-index: 1;
 }
 
 .admin-analytics-toolbar h2 {
   color: var(--admin-dark);
-  font-size: 24px;
-  line-height: 1.2;
-  font-weight: 800;
+  font-size: 28px;
+  line-height: 1.18;
+  font-weight: 900;
 }
 
 .admin-dark .admin-analytics-toolbar h2 {
@@ -1148,9 +1154,7 @@
 }
 
 .admin-dark .admin-analytics-hero {
-  background:
-    linear-gradient(135deg, color-mix(in oklab, var(--admin-primary) 16%, #172033), var(--admin-card) 62%),
-    var(--admin-card);
+  background: var(--admin-card);
 }
 
 .admin-analytics-controls {
@@ -1195,64 +1199,74 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 22px;
+  gap: 18px;
   position: relative;
   overflow: hidden;
-  border: 1px solid color-mix(in oklab, var(--admin-primary) 16%, var(--admin-border));
+  border: 1px solid color-mix(in oklab, var(--admin-primary) 10%, transparent);
   border-radius: 14px;
-  background:
-    linear-gradient(135deg, color-mix(in oklab, var(--admin-primary) 9%, #ffffff), #ffffff 60%),
-    var(--admin-card);
-  box-shadow: 0 16px 34px rgba(47, 64, 80, 0.08);
-  padding: 24px;
+  background: var(--admin-card);
+  box-shadow: 0 18px 36px rgba(47, 64, 80, 0.08);
+  padding: 24px 28px;
   margin-bottom: 30px;
 }
 
 .admin-dashboard-hero::before {
   content: '';
   position: absolute;
-  inset: 0 auto 0 0;
-  width: 5px;
-  background: linear-gradient(180deg, var(--admin-primary), var(--admin-success));
+  width: 190px;
+  height: 190px;
+  border-radius: 999px;
+  right: -72px;
+  top: -96px;
+  background: color-mix(in oklab, var(--admin-primary) 10%, transparent);
+}
+
+.admin-dashboard-hero > * {
+  position: relative;
+  z-index: 1;
 }
 
 .admin-dashboard-hero h2 {
   color: var(--admin-dark);
-  font-size: 24px;
-  line-height: 1.2;
-  font-weight: 800;
-  margin: 2px 0 8px;
+  font-size: 28px;
+  line-height: 1.18;
+  font-weight: 900;
+  margin: 4px 0 10px;
 }
 
 .admin-dashboard-hero span {
   color: var(--admin-muted);
   font-weight: 700;
+  line-height: 1.4;
 }
 
 .admin-dashboard-hero-stats {
   display: flex;
   align-items: center;
-  gap: 10px;
-  border: 1px solid var(--admin-border);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.76);
-  padding: 10px;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: transparent;
+  border: 0;
+  padding: 0;
 }
 
 .admin-dashboard-hero-stats span {
-  min-width: 104px;
-  display: grid;
-  grid-template-columns: auto 1fr;
+  min-height: 40px;
+  min-width: 112px;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  gap: 10px;
   border-radius: 8px;
-  background: color-mix(in oklab, var(--admin-soft) 82%, #ffffff);
-  padding: 10px 12px;
+  background: var(--admin-light-primary);
+  color: var(--admin-primary);
+  padding: 9px 14px;
 }
 
 .admin-dashboard-hero-stats strong {
   color: var(--admin-primary);
-  font-size: 22px;
+  font-size: 18px;
   line-height: 1;
   font-weight: 900;
 }
@@ -1435,14 +1449,46 @@
   padding: 16px;
 }
 
-.admin-dashboard-activity-note {
-  margin-top: auto;
+.admin-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 12px;
+  color: var(--admin-muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.admin-pagination-button {
+  width: 34px;
+  height: 34px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--admin-border);
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--admin-link);
+  transition: 0.2s ease;
+}
+
+.admin-pagination-button:hover {
+  border-color: var(--admin-primary);
+  color: var(--admin-primary);
+}
+
+.admin-pagination-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.admin-pagination-button:disabled:hover {
+  border-color: var(--admin-border);
+  color: var(--admin-link);
 }
 
 .admin-dark .admin-dashboard-hero {
-  background:
-    linear-gradient(135deg, color-mix(in oklab, var(--admin-primary) 16%, #172033), var(--admin-card) 62%),
-    var(--admin-card);
+  background: var(--admin-card);
 }
 
 .admin-dark .admin-dashboard-hero h2,
@@ -1451,7 +1497,16 @@
 }
 
 .admin-dark .admin-dashboard-hero-stats {
+  background: transparent;
+}
+
+.admin-dark .admin-dashboard-hero-stats span {
+  background: color-mix(in oklab, var(--admin-primary) 18%, var(--admin-card));
+}
+
+.admin-dark .admin-pagination-button {
   background: color-mix(in oklab, var(--admin-card) 88%, #243146);
+  color: #ffffff;
 }
 
 .admin-dark .admin-dashboard-table-card .admin-native-table th {
