@@ -3326,6 +3326,288 @@
   min-height: 36px;
 }
 
+.admin-wellness-metric-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.admin-wellness-metric {
+  min-height: 132px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 8px 14px;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid color-mix(in oklab, var(--admin-primary) 10%, transparent);
+}
+
+.admin-wellness-metric::after {
+  content: '';
+  position: absolute;
+  right: -36px;
+  top: -44px;
+  width: 120px;
+  height: 120px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--wellness-accent, var(--admin-primary)) 12%, transparent);
+}
+
+.admin-wellness-metric.primary {
+  --wellness-accent: var(--admin-primary);
+}
+
+.admin-wellness-metric.load {
+  --wellness-accent: #2563eb;
+}
+
+.admin-wellness-metric.sleep {
+  --wellness-accent: #7c3aed;
+}
+
+.admin-wellness-metric.warning {
+  --wellness-accent: #f59e0b;
+}
+
+.admin-wellness-metric.danger {
+  --wellness-accent: var(--admin-error);
+}
+
+.admin-wellness-metric-icon {
+  width: 42px;
+  height: 42px;
+  grid-row: span 3;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--wellness-accent, var(--admin-primary)) 12%, #ffffff);
+  color: var(--wellness-accent, var(--admin-primary));
+}
+
+.admin-wellness-metric > span:not(.admin-wellness-metric-icon) {
+  color: var(--admin-muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.admin-wellness-metric strong {
+  color: var(--admin-dark);
+  font-size: 30px;
+  line-height: 1;
+}
+
+.admin-wellness-metric small {
+  color: var(--admin-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.admin-wellness-visual-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.95fr);
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.admin-wellness-chart-card {
+  min-height: 320px;
+}
+
+.admin-wellness-compact-header {
+  margin-bottom: 14px;
+}
+
+.admin-wellness-trend {
+  position: relative;
+  min-height: 232px;
+}
+
+.admin-wellness-trend svg {
+  width: 100%;
+  min-height: 220px;
+  display: block;
+}
+
+.admin-wellness-trend line {
+  stroke: color-mix(in oklab, var(--admin-border) 72%, transparent);
+  stroke-width: 1;
+}
+
+.admin-wellness-trend text {
+  fill: var(--admin-muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.admin-wellness-trend polyline {
+  fill: none;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.admin-wellness-trend .rpe {
+  stroke: var(--admin-primary);
+  fill: var(--admin-primary);
+}
+
+.admin-wellness-trend .fatigue {
+  stroke: #f59e0b;
+  fill: #f59e0b;
+}
+
+.admin-wellness-legend {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  color: var(--admin-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.admin-wellness-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.admin-wellness-legend b {
+  width: 22px;
+  height: 4px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.admin-wellness-legend b.rpe {
+  background: var(--admin-primary);
+}
+
+.admin-wellness-legend b.fatigue {
+  background: #f59e0b;
+}
+
+.admin-wellness-bars {
+  display: grid;
+  gap: 14px;
+}
+
+.admin-wellness-bar-row {
+  min-height: 60px;
+  display: grid;
+  grid-template-columns: minmax(120px, 0.9fr) minmax(130px, 1fr) 74px minmax(130px, 1fr) 92px;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.admin-wellness-bar-row:last-child {
+  border-bottom: 0;
+}
+
+.admin-wellness-bar-row strong,
+.admin-wellness-roster-card strong {
+  display: block;
+  color: var(--admin-dark);
+  font-size: 14px;
+}
+
+.admin-wellness-bar-row small,
+.admin-wellness-roster-card small {
+  display: block;
+  margin-top: 3px;
+  color: var(--admin-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.admin-wellness-bar-track {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--admin-primary) 9%, var(--admin-soft));
+}
+
+.admin-wellness-bar-track b {
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+  background: var(--admin-primary);
+}
+
+.admin-wellness-bar-track.fatigue {
+  background: color-mix(in oklab, #f59e0b 12%, var(--admin-soft));
+}
+
+.admin-wellness-bar-track.fatigue b {
+  background: #f59e0b;
+}
+
+.admin-wellness-bar-value {
+  color: var(--admin-muted);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.admin-wellness-roster {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.admin-wellness-roster-card {
+  min-height: 86px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px 12px;
+  align-items: center;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: linear-gradient(180deg, color-mix(in oklab, var(--admin-soft) 62%, #ffffff), #ffffff);
+  padding: 14px;
+}
+
+.admin-wellness-roster-card > span:not(.admin-badge) {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--admin-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.admin-wellness-table .admin-native-table {
+  min-width: 940px;
+}
+
+.admin-wellness-table .admin-native-table th {
+  background: color-mix(in oklab, var(--admin-soft) 62%, #ffffff);
+}
+
+.admin-wellness-table .admin-native-table td:first-child {
+  font-weight: 800;
+}
+
+.admin-dark .admin-wellness-metric-icon {
+  background: color-mix(in oklab, var(--wellness-accent, var(--admin-primary)) 18%, var(--admin-card));
+}
+
+.admin-dark .admin-wellness-metric strong,
+.admin-dark .admin-wellness-bar-row strong,
+.admin-dark .admin-wellness-roster-card strong {
+  color: #ffffff;
+}
+
+.admin-dark .admin-wellness-roster-card {
+  background: linear-gradient(180deg, color-mix(in oklab, var(--admin-card) 86%, var(--admin-soft)), var(--admin-card));
+}
+
+.admin-dark .admin-wellness-table .admin-native-table th {
+  background: color-mix(in oklab, var(--admin-card) 84%, var(--admin-soft));
+}
+
 .admin-tutorial-link {
   width: fit-content;
   min-height: 34px;
@@ -5208,6 +5490,18 @@
 }
 
 @media (max-width: 1280px) {
+  .admin-wellness-metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-wellness-visual-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-wellness-roster {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .admin-profile-hero,
   .admin-profile-grid {
     grid-template-columns: 1fr;
@@ -5309,6 +5603,20 @@
 }
 
 @media (max-width: 720px) {
+  .admin-wellness-metric-grid,
+  .admin-wellness-roster {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-wellness-bar-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .admin-wellness-bar-value {
+    white-space: normal;
+  }
+
   .admin-modal-backdrop {
     background: rgba(31, 42, 61, 0.56);
   }
