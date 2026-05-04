@@ -2895,6 +2895,131 @@
   min-height: 36px;
 }
 
+.admin-tutorial-link {
+  width: fit-content;
+  min-height: 34px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 12px;
+  background: var(--admin-light-primary);
+  color: var(--admin-primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.admin-tutorial-link:hover {
+  background: var(--admin-primary);
+  color: #ffffff;
+}
+
+.admin-table-muted {
+  color: var(--admin-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.admin-assignment-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.admin-assignment-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-assignment-summary span {
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--admin-soft) 58%, #ffffff);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+}
+
+.admin-dark .admin-assignment-summary span {
+  background: color-mix(in oklab, var(--admin-soft) 76%, var(--admin-card));
+}
+
+.admin-assignment-summary small {
+  color: var(--admin-muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.admin-assignment-summary strong {
+  color: var(--admin-dark);
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.admin-dark .admin-assignment-summary strong {
+  color: #ffffff;
+}
+
+.admin-assignments-table {
+  overflow-x: visible;
+}
+
+.admin-assignments-table .admin-native-table {
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.admin-assignments-table .admin-native-table th,
+.admin-assignments-table .admin-native-table td {
+  padding: 18px 18px;
+}
+
+.admin-assignments-table .admin-native-table th:first-child,
+.admin-assignments-table .admin-native-table td:first-child {
+  width: 27%;
+}
+
+.admin-assignments-table .admin-native-table th:nth-child(2),
+.admin-assignments-table .admin-native-table td:nth-child(2) {
+  width: 34%;
+}
+
+.admin-assignments-table .admin-native-table th:nth-child(3),
+.admin-assignments-table .admin-native-table td:nth-child(3) {
+  width: 20%;
+}
+
+.admin-assignments-table .admin-native-table th:last-child,
+.admin-assignments-table .admin-native-table td:last-child {
+  width: 19%;
+}
+
+.admin-assignments-table .admin-native-table strong,
+.admin-assignments-table .admin-native-table small {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.admin-assignments-table .admin-native-table tbody tr:nth-child(odd) td {
+  background: color-mix(in oklab, var(--admin-soft) 36%, #ffffff);
+}
+
+.admin-dark .admin-assignments-table .admin-native-table tbody tr:nth-child(odd) td {
+  background: color-mix(in oklab, var(--admin-soft) 72%, var(--admin-card));
+}
+
+.admin-assignments-table .admin-native-table th:last-child,
+.admin-assignments-table .admin-native-table td:last-child {
+  text-align: center;
+}
+
+.admin-assignments-table .admin-native-table td:last-child .admin-badge {
+  margin: 0 auto;
+}
+
 .admin-click-row {
   cursor: pointer;
 }
@@ -3178,6 +3303,14 @@
   padding: 18px;
   text-align: center;
   font-weight: 600;
+}
+
+.admin-empty-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .admin-match-empty {

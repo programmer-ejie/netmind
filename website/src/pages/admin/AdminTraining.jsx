@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Edit3, Plus, Trash2 } from 'lucide-react'
+import { Edit3, ExternalLink, Info, Plus, Trash2 } from 'lucide-react'
 import AdminLayout, {
   AdminButton,
   AdminCard,
@@ -10,7 +10,6 @@ import AdminLayout, {
   AdminTextarea,
   EmptyState,
   StatusBadge,
-  assignmentStatuses,
   drillCategories,
   drillDifficulties,
   formatDate,
@@ -40,6 +39,24 @@ const blankAssignment = {
   target_success_rate: '',
 }
 
+const getDisplayUrl = (url) => {
+  if (!url) return ''
+  return /^https?:\/\//i.test(url) ? url : `https://${url}`
+}
+
+const formatStatusLabel = (status = 'pending') => status
+  .split('_')
+  .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+  .join(' ')
+
+const getAssignmentStatusTone = (status = 'pending') => {
+  if (status === 'completed') return 'success'
+  if (status === 'overdue') return 'error'
+  if (status === 'cancelled') return 'secondary'
+  if (status === 'in_progress') return 'warning'
+  return 'secondary'
+}
+
 const AdminTraining = ({ currentPath = '#coach/training' }) => {
   const currentUser = readSavedUser()
   const isTrainerView = currentUser?.role === 'trainer'
@@ -57,6 +74,11 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
 
   const assignedBy = currentUser?.id || coaches[0]?.id || 1
   const drillMap = useMemo(() => new Map(drills.map((drill) => [String(drill.id), drill])), [drills])
+  const assignmentSummary = useMemo(() => ({
+    total: assignments.length,
+    pending: assignments.filter((assignment) => (assignment.status || 'pending') === 'pending').length,
+    completed: assignments.filter((assignment) => assignment.status === 'completed').length,
+  }), [assignments])
 
   const load = async () => {
     const [drillRows, assignmentRows, playerRows, coachRows, memberRows, trainerLinkRows] = await Promise.all([
@@ -100,6 +122,11 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
     setEditingDrill(null)
     setDrillForm(blankDrill)
     setDrillModal(true)
+  }
+
+  const openAssignTraining = () => {
+    setAssignmentForm(blankAssignment)
+    setAssignModal(true)
   }
 
   const openEditDrill = (drill) => {
@@ -176,23 +203,11 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
     }
   }
 
-  const updateStatus = async (assignmentId, status) => {
-    try {
-      await apiRequest(`/training-assignments/${assignmentId}/status`, {
-        method: 'PATCH',
-        body: { status },
-      })
-      await load()
-    } catch (err) {
-      setError(err.message)
-    }
-  }
-
   return (
     <AdminLayout title={isTrainerView ? 'Training Hub' : 'Training'} currentPath={currentPath}>
       {error && <div className="admin-alert">{error}</div>}
 
-      <AdminCard>
+      <AdminCard className="admin-training-card">
         <div className="admin-card-header">
           <div>
             <h2>{activeView === 'drills' ? 'Drills Library' : 'Training Assignments'}</h2>
@@ -225,7 +240,7 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
                 Add Drill
               </AdminButton>
             ) : (
-              <AdminButton onClick={() => setAssignModal(true)}>
+              <AdminButton onClick={openAssignTraining}>
                 <Plus size={17} />
                 Assign Training
               </AdminButton>
@@ -242,6 +257,7 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
                   <th>Category</th>
                   <th>Difficulty</th>
                   <th>Duration</th>
+                  <th>Tutorial</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -256,6 +272,21 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
                     <td><StatusBadge tone="secondary">{drill.difficulty}</StatusBadge></td>
                     <td>{drill.duration_minutes || 30} min</td>
                     <td>
+                      {drill.video_url ? (
+                        <a
+                          className="admin-tutorial-link"
+                          href={getDisplayUrl(drill.video_url)}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          <ExternalLink size={15} />
+                          YouTube tutorial
+                        </a>
+                      ) : (
+                        <span className="admin-table-muted">No tutorial</span>
+                      )}
+                    </td>
+                    <td>
                       <div className="admin-actions">
                         <AdminButton variant="secondary" onClick={() => openEditDrill(drill)} aria-label="Edit drill">
                           <Edit3 size={15} />
@@ -269,46 +300,105 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
                 ))}
               </tbody>
             </table>
-            {!drills.length && <EmptyState>No drills created yet.</EmptyState>}
+            {!drills.length && (
+              <EmptyState>
+                <div className="admin-empty-action">
+                  <span>No drills created yet.</span>
+                  <AdminButton onClick={openCreateDrill}>
+                    <Plus size={17} />
+                    Add Drill
+                  </AdminButton>
+                </div>
+              </EmptyState>
+            )}
           </div>
         ) : (
-          <div className="admin-table">
+          <div className="admin-assignment-panel">
+            <div className="admin-assignment-summary" aria-label="Training assignment summary">
+              <span>
+                <small>Total</small>
+                <strong>{assignmentSummary.total}</strong>
+              </span>
+              <span>
+                <small>Pending</small>
+                <strong>{assignmentSummary.pending}</strong>
+              </span>
+              <span>
+                <small>Completed</small>
+                <strong>{assignmentSummary.completed}</strong>
+              </span>
+            </div>
+
+            <div className="admin-table admin-assignments-table">
             <table className="admin-native-table">
               <thead>
                 <tr>
                   <th>Player</th>
-                  <th>Drill</th>
-                  <th>Due</th>
+                  <th>Training Plan</th>
+                  <th>Due Date</th>
                   <th>Status</th>
                 </tr>
               </thead>
               <tbody>
                 {assignments.map((assignment) => (
                   <tr key={assignment.id}>
-                    <td>{getName(players, assignment.player_id)}</td>
-                    <td>{drillMap.get(String(assignment.drill_id))?.drill_name || assignment.focus_area}</td>
+                    <td>
+                      <strong>{getName(players, assignment.player_id)}</strong>
+                      <small className="admin-block-muted">{assignment.focus_area || 'Assigned player'}</small>
+                    </td>
+                    <td>
+                      <strong>{drillMap.get(String(assignment.drill_id))?.drill_name || assignment.focus_area}</strong>
+                      <small className="admin-block-muted">
+                        {[
+                          assignment.target_reps ? `${assignment.target_reps} reps` : '',
+                          assignment.target_success_rate ? `${assignment.target_success_rate}% target` : '',
+                        ].filter(Boolean).join(' - ') || 'No target metrics set'}
+                      </small>
+                    </td>
                     <td>{formatDate(assignment.due_date)}</td>
                     <td>
-                      <AdminSelect
-                        value={assignment.status || 'pending'}
-                        onChange={(event) => updateStatus(assignment.id, event.target.value)}
-                      >
-                        {assignmentStatuses.map((status) => <option key={status}>{status}</option>)}
-                      </AdminSelect>
+                      <StatusBadge tone={getAssignmentStatusTone(assignment.status)}>
+                        {formatStatusLabel(assignment.status)}
+                      </StatusBadge>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            {!assignments.length && <EmptyState>No training assignments yet.</EmptyState>}
+            {!assignments.length && (
+              <EmptyState>
+                <div className="admin-empty-action">
+                  <span>No training assignments yet.</span>
+                  <AdminButton onClick={openAssignTraining}>
+                    <Plus size={17} />
+                    Assign Training
+                  </AdminButton>
+                </div>
+              </EmptyState>
+            )}
+            </div>
           </div>
         )}
       </AdminCard>
 
-      <AdminModal open={drillModal} title={editingDrill ? 'Edit Drill' : 'Add Drill'} onClose={() => setDrillModal(false)}>
+      <AdminModal
+        open={drillModal}
+        title={editingDrill ? 'Edit Drill' : 'Add Drill'}
+        onClose={() => setDrillModal(false)}
+      >
         <form className="admin-form admin-form-grid" onSubmit={saveDrill}>
+          <div className="admin-password-tip admin-form-span">
+            <Info size={18} />
+            <p>Keep the drill name short, then use description and instructions for the coaching details.</p>
+          </div>
+
           <AdminField label="Drill Name">
-            <AdminInput required value={drillForm.drill_name} onChange={(event) => setDrillForm((current) => ({ ...current, drill_name: event.target.value }))} />
+            <AdminInput
+              required
+              placeholder="e.g. Cross-court spike reps"
+              value={drillForm.drill_name}
+              onChange={(event) => setDrillForm((current) => ({ ...current, drill_name: event.target.value }))}
+            />
           </AdminField>
           <AdminField label="Category">
             <AdminSelect value={drillForm.category} onChange={(event) => setDrillForm((current) => ({ ...current, category: event.target.value }))}>
@@ -321,22 +411,48 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
             </AdminSelect>
           </AdminField>
           <AdminField label="Duration Minutes">
-            <AdminInput type="number" value={drillForm.duration_minutes} onChange={(event) => setDrillForm((current) => ({ ...current, duration_minutes: event.target.value }))} />
+            <AdminInput
+              type="number"
+              placeholder="e.g. 30"
+              value={drillForm.duration_minutes}
+              onChange={(event) => setDrillForm((current) => ({ ...current, duration_minutes: event.target.value }))}
+            />
           </AdminField>
           <AdminField label="Target Metric">
-            <AdminInput value={drillForm.target_metric} onChange={(event) => setDrillForm((current) => ({ ...current, target_metric: event.target.value }))} />
+            <AdminInput
+              placeholder="e.g. Successful attacks"
+              value={drillForm.target_metric}
+              onChange={(event) => setDrillForm((current) => ({ ...current, target_metric: event.target.value }))}
+            />
           </AdminField>
           <AdminField label="Ideal Score">
-            <AdminInput type="number" value={drillForm.ideal_score} onChange={(event) => setDrillForm((current) => ({ ...current, ideal_score: event.target.value }))} />
+            <AdminInput
+              type="number"
+              placeholder="e.g. 85"
+              value={drillForm.ideal_score}
+              onChange={(event) => setDrillForm((current) => ({ ...current, ideal_score: event.target.value }))}
+            />
           </AdminField>
           <AdminField label="Description" className="admin-form-span">
-            <AdminTextarea value={drillForm.description} onChange={(event) => setDrillForm((current) => ({ ...current, description: event.target.value }))} />
+            <AdminTextarea
+              placeholder="What skill this drill improves and when to use it."
+              value={drillForm.description}
+              onChange={(event) => setDrillForm((current) => ({ ...current, description: event.target.value }))}
+            />
           </AdminField>
           <AdminField label="Instructions" className="admin-form-span">
-            <AdminTextarea value={drillForm.instructions} onChange={(event) => setDrillForm((current) => ({ ...current, instructions: event.target.value }))} />
+            <AdminTextarea
+              placeholder="List setup, reps, scoring, and coaching cues."
+              value={drillForm.instructions}
+              onChange={(event) => setDrillForm((current) => ({ ...current, instructions: event.target.value }))}
+            />
           </AdminField>
           <AdminField label="Video URL" className="admin-form-span">
-            <AdminInput value={drillForm.video_url} onChange={(event) => setDrillForm((current) => ({ ...current, video_url: event.target.value }))} />
+            <AdminInput
+              placeholder="e.g. https://youtube.com/watch?v=..."
+              value={drillForm.video_url}
+              onChange={(event) => setDrillForm((current) => ({ ...current, video_url: event.target.value }))}
+            />
           </AdminField>
           <label className="admin-check-field admin-form-span">
             <input
@@ -353,8 +469,17 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
         </form>
       </AdminModal>
 
-      <AdminModal open={assignModal} title="Assign Training" onClose={() => setAssignModal(false)}>
+      <AdminModal
+        open={assignModal}
+        title="Assign Training"
+        onClose={() => setAssignModal(false)}
+      >
         <form className="admin-form admin-form-grid" onSubmit={assignTraining}>
+          <div className="admin-password-tip admin-form-span">
+            <Info size={18} />
+            <p>Choose a player and drill, then add simple targets the player can track.</p>
+          </div>
+
           <AdminField label="Player">
             <AdminSelect required value={assignmentForm.player_id} onChange={(event) => setAssignmentForm((current) => ({ ...current, player_id: event.target.value }))}>
               <option value="">Select player</option>
@@ -371,13 +496,27 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
             <AdminInput type="date" value={assignmentForm.due_date} onChange={(event) => setAssignmentForm((current) => ({ ...current, due_date: event.target.value }))} />
           </AdminField>
           <AdminField label="Focus Area">
-            <AdminInput value={assignmentForm.focus_area} onChange={(event) => setAssignmentForm((current) => ({ ...current, focus_area: event.target.value }))} />
+            <AdminInput
+              placeholder="e.g. Serve receive consistency"
+              value={assignmentForm.focus_area}
+              onChange={(event) => setAssignmentForm((current) => ({ ...current, focus_area: event.target.value }))}
+            />
           </AdminField>
           <AdminField label="Target Reps">
-            <AdminInput type="number" value={assignmentForm.target_reps} onChange={(event) => setAssignmentForm((current) => ({ ...current, target_reps: event.target.value }))} />
+            <AdminInput
+              type="number"
+              placeholder="e.g. 50"
+              value={assignmentForm.target_reps}
+              onChange={(event) => setAssignmentForm((current) => ({ ...current, target_reps: event.target.value }))}
+            />
           </AdminField>
           <AdminField label="Target Success Rate">
-            <AdminInput type="number" value={assignmentForm.target_success_rate} onChange={(event) => setAssignmentForm((current) => ({ ...current, target_success_rate: event.target.value }))} />
+            <AdminInput
+              type="number"
+              placeholder="e.g. 80"
+              value={assignmentForm.target_success_rate}
+              onChange={(event) => setAssignmentForm((current) => ({ ...current, target_success_rate: event.target.value }))}
+            />
           </AdminField>
           <div className="admin-form-actions admin-form-span">
             <AdminButton type="button" variant="secondary" onClick={() => setAssignModal(false)}>Cancel</AdminButton>
