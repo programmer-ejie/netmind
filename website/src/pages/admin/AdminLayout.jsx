@@ -17,7 +17,7 @@ import {
 } from 'lucide-react'
 import websiteLogo from '../../assets/website_logo.png'
 import fallbackProfilePhoto from '../../assets/crpt_image.jpg'
-import { API_BASE, readProfilePreview, readSavedUser } from '../../lib/api'
+import { API_BASE, clearSavedUser, readProfilePreview, readSavedUser } from '../../lib/api'
 import { useThemeMode } from '../../lib/theme'
 
 export const positions = ['OH', 'OPP', 'MB', 'S', 'L']
@@ -107,11 +107,24 @@ const sidebarGroups = [
 ]
 
 const hiddenCoachNavigationHrefs = new Set(['#coach/training'])
+const trainerNavigationHrefs = new Set(['#coach', '#coach/profile', '#coach/analytics', '#coach/settings'])
 
 const getUserRole = (user) => (user?.role || 'coach').toLowerCase()
+const hrefForRole = (href, role) => (role === 'trainer' ? href.replace(/^#coach/, '#trainer') : href)
 
 const getSidebarGroupsForUser = (user) => {
-  if (getUserRole(user) !== 'coach') return sidebarGroups
+  const role = getUserRole(user)
+
+  if (role === 'trainer') {
+    return sidebarGroups
+      .map((group) => ({
+        ...group,
+        items: group.items
+          .filter((item) => trainerNavigationHrefs.has(item.href))
+          .map((item) => ({ ...item, href: hrefForRole(item.href, role) })),
+      }))
+      .filter((group) => group.items.length)
+  }
 
   return sidebarGroups.map((group) => ({
     ...group,
@@ -229,9 +242,9 @@ const getHeaderProfileImage = (user, previewUrl) => {
   return user?.profile_picture_url || fallbackProfilePhoto
 }
 
-export const AdminLayout = ({ children, title, kicker = 'Coach Workspace', currentPath }) => {
+export const AdminLayout = ({ children, title, kicker, currentPath }) => {
   const hash = currentPath || window.location.hash || '#coach'
-  const searchHidden = hash.startsWith('#coach/profile') || hash.startsWith('#coach/settings')
+  const searchHidden = /^#(coach|trainer)\/(profile|settings)/.test(hash)
   const navRef = useRef(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -242,7 +255,10 @@ export const AdminLayout = ({ children, title, kicker = 'Coach Workspace', curre
   const [headerPreview, setHeaderPreview] = useState(() => readProfilePreview())
   const { isDark, toggleTheme } = useThemeMode()
   const headerProfileImage = getHeaderProfileImage(headerProfile, headerPreview)
+  const role = getUserRole(headerProfile)
   const sidebarGroupsForUser = getSidebarGroupsForUser(headerProfile)
+  const workspaceKicker = kicker || (role === 'trainer' ? 'Trainer Workspace' : 'Coach Workspace')
+  const workspaceRoot = role === 'trainer' ? '#trainer' : '#coach'
 
   useEffect(() => {
     const syncProfile = () => {
@@ -284,6 +300,11 @@ export const AdminLayout = ({ children, title, kicker = 'Coach Workspace', curre
   }
   const closeNotifications = () => setNotificationsOpen(false)
   const closeProfile = () => setProfileOpen(false)
+  const logout = () => {
+    clearSavedUser()
+    closeProfile()
+    window.location.hash = 'auth'
+  }
   const toggleSidebar = () => {
     if (window.innerWidth <= 1100) {
       setSidebarOpen((current) => !current)
@@ -304,7 +325,7 @@ export const AdminLayout = ({ children, title, kicker = 'Coach Workspace', curre
 
       <aside className="admin-sidebar" aria-label="Coach sidebar">
         <div className="admin-brand-wrap">
-          <a href="#coach" className="admin-logo" onClick={closeSidebar}>
+          <a href={workspaceRoot} className="admin-logo" onClick={closeSidebar}>
             <img src={websiteLogo} alt="" aria-hidden="true" />
             <span>NetMind</span>
           </a>
@@ -315,8 +336,8 @@ export const AdminLayout = ({ children, title, kicker = 'Coach Workspace', curre
             <div className="admin-nav-group" key={group.label}>
               <p>{group.label}</p>
               {group.items.map(({ href, icon: Icon, label }) => {
-                const isActive = href === '#coach'
-                  ? hash === '#coach'
+                const isActive = href === workspaceRoot
+                  ? hash === workspaceRoot
                   : hash === href || hash.startsWith(`${href}/`)
 
                 return (
@@ -335,10 +356,10 @@ export const AdminLayout = ({ children, title, kicker = 'Coach Workspace', curre
           ))}
         </nav>
 
-        <a href="#auth" className="admin-logout">
+        <button type="button" className="admin-logout" onClick={logout}>
           <LogOut size={18} />
           Logout
-        </a>
+        </button>
       </aside>
 
       <section className="admin-main">
@@ -357,7 +378,7 @@ export const AdminLayout = ({ children, title, kicker = 'Coach Workspace', curre
               <Menu size={21} />
             </button>
 
-            <a href="#coach" className="admin-mobile-logo" aria-label="NetMind coach home">
+            <a href={workspaceRoot} className="admin-mobile-logo" aria-label="NetMind workspace home">
               <img src={websiteLogo} alt="" aria-hidden="true" />
               <span>NetMind</span>
             </a>
@@ -366,11 +387,11 @@ export const AdminLayout = ({ children, title, kicker = 'Coach Workspace', curre
               {!searchHidden && (
                 <div className="admin-search-wrap">
                   <Search size={18} />
-                  <input className="admin-search" type="search" placeholder="Search..." aria-label="Search coach workspace" />
+                  <input className="admin-search" type="search" placeholder="Search..." aria-label="Search workspace" />
                 </div>
               )}
             <div className="admin-title">
-              <p className="admin-kicker">{kicker}</p>
+              <p className="admin-kicker">{workspaceKicker}</p>
               <h1>{title}</h1>
             </div>
             <div className="admin-header-actions">
@@ -452,18 +473,18 @@ export const AdminLayout = ({ children, title, kicker = 'Coach Workspace', curre
 
                 {profileOpen && (
                   <div className="admin-profile-menu" role="menu">
-                    <a href="#coach/profile" role="menuitem" onClick={closeProfile}>
+                    <a href={`${workspaceRoot}/profile`} role="menuitem" onClick={closeProfile}>
                       <UserCircle size={16} />
                       Profile
                     </a>
-                    <a href="#coach/settings" role="menuitem" onClick={closeProfile}>
+                    <a href={`${workspaceRoot}/settings`} role="menuitem" onClick={closeProfile}>
                       <Settings size={16} />
                       Settings
                     </a>
-                    <a className="admin-profile-logout" href="#auth" role="menuitem" onClick={closeProfile}>
+                    <button type="button" className="admin-profile-logout" role="menuitem" onClick={logout}>
                       <LogOut size={16} />
                       Logout
-                    </a>
+                    </button>
                   </div>
                 )}
               </div>

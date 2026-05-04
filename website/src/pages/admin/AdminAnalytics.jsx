@@ -258,14 +258,59 @@ const RadarChart = ({ data }) => {
   )
 }
 
+const AnalyticsSkeleton = () => (
+  <>
+    <div className="admin-analytics-toolbar admin-analytics-hero">
+      <div className="admin-dashboard-hero-copy-skeleton">
+        <span className="admin-skeleton-line short" />
+        <span className="admin-skeleton-line wide" />
+        <span className="admin-skeleton-line" />
+      </div>
+      <div className="admin-analytics-controls">
+        <span className="admin-skeleton-line wide" />
+        <span className="admin-skeleton-line" />
+      </div>
+    </div>
+    <div className="admin-stat-grid">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <AdminCard className="admin-stat-card admin-stat-card-skeleton" key={`analytics-stat-skeleton-${index}`}>
+          <span className="admin-skeleton-square" />
+          <span className="admin-skeleton-line" />
+          <strong className="admin-skeleton-line short" />
+        </AdminCard>
+      ))}
+    </div>
+    <div className="admin-grid admin-page-grid">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <AdminCard
+          className={`admin-analytics-card ${index % 2 === 0 ? 'admin-analytics-primary-card' : 'admin-analytics-side-card'}`}
+          key={`analytics-card-skeleton-${index}`}
+        >
+          <div className="admin-skeleton-list">
+            {Array.from({ length: 6 }).map((__, itemIndex) => <span key={`analytics-card-line-${index}-${itemIndex}`} />)}
+          </div>
+        </AdminCard>
+      ))}
+      <AdminCard className="admin-table-card admin-analytics-card admin-analytics-table-card">
+        <div className="admin-skeleton-list">
+          {Array.from({ length: 6 }).map((_, index) => <span key={`analytics-table-line-${index}`} />)}
+        </div>
+      </AdminCard>
+    </div>
+  </>
+)
+
 const AdminAnalytics = ({ currentPath = '#coach/analytics' }) => {
   const currentUser = readSavedUser()
+  const roleLabel = currentUser?.role === 'trainer' ? 'Trainer' : 'Coach'
+  const roleScope = currentUser?.role === 'trainer' ? 'trainer' : 'coach'
   const [activeView, setActiveView] = useState('practice')
   const [selectedTeamId, setSelectedTeamId] = useState('')
   const [metric, setMetric] = useState('positive_results')
   const [state, setState] = useState({
     players: [],
     teamMembers: [],
+    teamTrainers: [],
     teams: [],
     matches: [],
     matchScores: [],
@@ -273,6 +318,7 @@ const AdminAnalytics = ({ currentPath = '#coach/analytics' }) => {
     attendance: [],
     comparisons: [],
     logs: [],
+    loading: true,
     error: '',
   })
 
@@ -281,9 +327,10 @@ const AdminAnalytics = ({ currentPath = '#coach/analytics' }) => {
 
     const load = async () => {
       try {
-        const [players, teamMembers, teams, matches, matchScores, rankings, attendance, comparisons, logs] = await Promise.all([
+        const [players, teamMembers, teamTrainers, teams, matches, matchScores, rankings, attendance, comparisons, logs] = await Promise.all([
           listResource('players'),
           listResource('team-members', { limit: 100 }),
+          listResource('team-trainers', { limit: 100 }),
           listResource('teams', { limit: 100 }),
           listResource('matches', { limit: 100, sortBy: 'match_date', sortDir: 'asc' }),
           listResource('match-scores', { limit: 100, sortBy: 'match_number', sortDir: 'asc' }),
@@ -293,9 +340,9 @@ const AdminAnalytics = ({ currentPath = '#coach/analytics' }) => {
           listResource('performance-logs', { limit: 100 }),
         ])
 
-        if (alive) setState({ players, teamMembers, teams, matches, matchScores, rankings, attendance, comparisons, logs, error: '' })
+        if (alive) setState({ players, teamMembers, teamTrainers, teams, matches, matchScores, rankings, attendance, comparisons, logs, loading: false, error: '' })
       } catch (err) {
-        if (alive) setState((current) => ({ ...current, error: err.message }))
+        if (alive) setState((current) => ({ ...current, loading: false, error: err.message }))
       }
     }
 
@@ -303,12 +350,22 @@ const AdminAnalytics = ({ currentPath = '#coach/analytics' }) => {
     return () => {
       alive = false
     }
-  }, [])
+  }, [currentUser?.id, currentUser?.role])
 
   const coachTeams = useMemo(() => {
+    if (currentUser?.role === 'trainer') {
+      const assignedTeamIds = new Set(
+        state.teamTrainers
+          .filter((link) => String(link.trainer_id) === String(currentUser?.id))
+          .map((link) => String(link.team_id)),
+      )
+
+      return state.teams.filter((team) => assignedTeamIds.has(String(team.id)))
+    }
+
     const owned = state.teams.filter((team) => String(team.coach_id) === String(currentUser?.id))
     return owned.length ? owned : state.teams
-  }, [currentUser?.id, state.teams])
+  }, [currentUser?.id, currentUser?.role, state.teamTrainers, state.teams])
 
   const allCoachTeamIds = useMemo(() => new Set(coachTeams.map((team) => String(team.id))), [coachTeams])
 
@@ -386,8 +443,10 @@ const AdminAnalytics = ({ currentPath = '#coach/analytics' }) => {
   const allVisibleMatchIds = useMemo(() => new Set(allVisibleMatches.map((match) => String(match.id))), [allVisibleMatches])
 
   const scopedAttendance = useMemo(() => (
-    state.attendance.filter((log) => coachTeamIds.has(String(log.team_id)))
-  ), [coachTeamIds, state.attendance])
+    state.attendance.filter((log) => (
+      coachTeamIds.has(String(log.team_id)) || coachPlayerIds.has(String(log.player_id))
+    ))
+  ), [coachPlayerIds, coachTeamIds, state.attendance])
 
   const visibleAttendance = useMemo(() => (
     scopedAttendance.filter((log) => {
@@ -585,11 +644,15 @@ const AdminAnalytics = ({ currentPath = '#coach/analytics' }) => {
     <AdminLayout title="Analytics" currentPath={currentPath}>
       {state.error && <div className="admin-alert">{state.error}</div>}
 
+      {state.loading ? (
+        <AnalyticsSkeleton />
+      ) : (
+        <>
       <div className="admin-analytics-toolbar admin-analytics-hero">
         <div>
           <h2>{activeView === 'practice' ? 'Practice Analytics' : 'Actual Match Analytics'}</h2>
           <p className="admin-muted">
-            Showing performance for {selectedTeamId ? getName(coachTeams, selectedTeamId) : 'all teams covered by the logged-in coach'}.
+            Showing performance for {selectedTeamId ? getName(coachTeams, selectedTeamId) : `all teams covered by the logged-in ${roleScope}`}.
           </p>
         </div>
         <div className="admin-analytics-controls">
@@ -621,7 +684,7 @@ const AdminAnalytics = ({ currentPath = '#coach/analytics' }) => {
       </div>
 
       <div className="admin-stat-grid">
-        <StatCard icon={Users} label="Coach Players" value={moneylessNumber(totals.players)} />
+        <StatCard icon={Users} label={`${roleLabel} Players`} value={moneylessNumber(totals.players)} />
         <StatCard icon={Swords} label={activeView === 'practice' ? 'Practice Matches' : 'Actual Matches'} value={moneylessNumber(totals.matches)} tone="secondary" />
         <StatCard icon={Trophy} label="Win Rate" value={`${totals.winRate}%`} tone="success" />
         <StatCard icon={ClipboardCheck} label="Attendance Logs" value={moneylessNumber(visibleAttendance.length)} tone="success" />
@@ -632,7 +695,7 @@ const AdminAnalytics = ({ currentPath = '#coach/analytics' }) => {
           <div className="admin-card-header">
             <div>
               <h2>Player Comparison</h2>
-              <p className="admin-muted">Filtered to players on the coach roster.</p>
+              <p className="admin-muted">Filtered to players on the {roleScope} roster.</p>
             </div>
             <AdminField label="Metric" className="admin-compact-field">
               <AdminSelect value={metric} onChange={(event) => setMetric(event.target.value)}>
@@ -722,8 +785,8 @@ const AdminAnalytics = ({ currentPath = '#coach/analytics' }) => {
         <AdminCard className="admin-table-card admin-analytics-card admin-analytics-table-card">
           <div className="admin-card-header">
             <div>
-              <h2>Coach Team Performance</h2>
-              <p className="admin-muted">Record, win rate, and point differential inside the logged-in coach scope.</p>
+              <h2>{roleLabel} Team Performance</h2>
+              <p className="admin-muted">Record, win rate, and point differential inside the logged-in {roleScope} scope.</p>
             </div>
             <PieChart size={21} />
           </div>
@@ -754,7 +817,7 @@ const AdminAnalytics = ({ currentPath = '#coach/analytics' }) => {
                 ))}
               </tbody>
             </table>
-            {!teamPerformance.length && <EmptyState>No coach teams yet.</EmptyState>}
+            {!teamPerformance.length && <EmptyState>No {roleScope} teams yet.</EmptyState>}
           </div>
         </AdminCard>
 
@@ -846,6 +909,8 @@ const AdminAnalytics = ({ currentPath = '#coach/analytics' }) => {
           </div>
         </AdminCard>
       </div>
+        </>
+      )}
     </AdminLayout>
   )
 }

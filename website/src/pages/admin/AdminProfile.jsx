@@ -27,6 +27,7 @@ import AdminLayout, {
 import {
   API_BASE,
   apiRequest,
+  getResource,
   listResource,
   readSavedUser,
   saveUser,
@@ -56,7 +57,7 @@ const formatProfileDate = (value) => {
 const profileRows = (profile) => [
   { label: 'Name', value: profile?.name || '-', icon: UserRound, className: '' },
   { label: 'Gmail', value: profile?.email || '-', icon: Mail, className: '' },
-  { label: 'Role', value: profile?.role || 'coach', icon: ShieldCheck, className: '' },
+  { label: 'Role', value: profile?.role || '-', icon: ShieldCheck, className: '' },
   { label: 'Age', value: profile?.age || '-', icon: Cake, className: '' },
   { label: 'Location', value: profile?.location || '-', icon: MapPin, className: 'wide' },
   { label: 'Birthdate', value: formatProfileDate(profile?.birthdate), icon: CalendarDays, className: '' },
@@ -69,10 +70,48 @@ const getProfileImageUrl = (profile, previewUrl) => {
   return profile?.profile_picture_url || fallbackProfilePhoto
 }
 
+const ProfileSkeleton = () => (
+  <>
+    <div className="admin-profile-hero">
+      <AdminCard className="admin-profile-card admin-profile-modern-card admin-profile-skeleton-card">
+        <span className="admin-skeleton-square admin-profile-photo-skeleton" />
+        <div className="admin-profile-intro">
+          <div className="admin-profile-skeleton-copy">
+            <span className="admin-skeleton-line short" />
+            <span className="admin-skeleton-line wide" />
+            <span className="admin-skeleton-line" />
+          </div>
+        </div>
+      </AdminCard>
+      <div className="admin-stat-grid compact">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <AdminCard className="admin-stat-card admin-stat-card-skeleton" key={`profile-stat-skeleton-${index}`}>
+            <span className="admin-skeleton-square" />
+            <span className="admin-skeleton-line" />
+            <strong className="admin-skeleton-line short" />
+          </AdminCard>
+        ))}
+      </div>
+    </div>
+    <div className="admin-profile-grid">
+      <AdminCard className="admin-profile-details-card">
+        <div className="admin-skeleton-list">
+          {Array.from({ length: 7 }).map((_, index) => <span key={`profile-detail-skeleton-${index}`} />)}
+        </div>
+      </AdminCard>
+      <AdminCard className="admin-profile-team-card">
+        <div className="admin-skeleton-list">
+          {Array.from({ length: 4 }).map((_, index) => <span key={`profile-team-skeleton-${index}`} />)}
+        </div>
+      </AdminCard>
+    </div>
+  </>
+)
+
 const AdminProfile = ({ currentPath = '#coach/profile' }) => {
   const savedUser = useMemo(() => readSavedUser(), [])
   const fileInputRef = useRef(null)
-  const [form, setForm] = useState(savedUser || null)
+  const [form, setForm] = useState(null)
   const [previewUrl, setPreviewUrl] = useState('')
   const [selectedFile, setSelectedFile] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -80,10 +119,12 @@ const AdminProfile = ({ currentPath = '#coach/profile' }) => {
   const [editOpen, setEditOpen] = useState(false)
   const [message, setMessage] = useState('')
   const [state, setState] = useState({
-    profile: savedUser || null,
+    profile: null,
     teams: [],
     players: [],
     trainers: [],
+    teamMembers: [],
+    teamTrainers: [],
     assignments: [],
     loading: true,
     error: '',
@@ -94,19 +135,17 @@ const AdminProfile = ({ currentPath = '#coach/profile' }) => {
 
     const load = async () => {
       try {
-        const [coaches, teams, players, trainers, assignments] = await Promise.all([
-          listResource('coaches'),
+        const [freshProfile, teams, players, trainers, teamMembers, teamTrainers, assignments] = await Promise.all([
+          savedUser?.id ? getResource('users', savedUser.id).catch(() => savedUser) : Promise.resolve(savedUser),
           listResource('teams', { limit: 100 }),
           listResource('players'),
           listResource('trainers'),
+          listResource('team-members', { limit: 100 }),
+          listResource('team-trainers', { limit: 100 }),
           listResource('training-assignments', { limit: 100 }),
         ])
 
         if (alive) {
-          const freshProfile = coaches.find((coach) => String(coach.id) === String(savedUser?.id))
-            || coaches.find((coach) => coach.email === savedUser?.email)
-            || coaches[0]
-
           if (freshProfile) saveUser(freshProfile)
 
           setState({
@@ -114,6 +153,8 @@ const AdminProfile = ({ currentPath = '#coach/profile' }) => {
             teams,
             players,
             trainers,
+            teamMembers,
+            teamTrainers,
             assignments,
             loading: false,
             error: '',
@@ -137,8 +178,34 @@ const AdminProfile = ({ currentPath = '#coach/profile' }) => {
   }, [savedUser])
 
   const profile = state.profile
-  const activeTeam = state.teams.find((team) => String(team.coach_id) === String(profile?.id)) || state.teams[0]
-  const completedAssignments = state.assignments.filter((item) => item.status === 'completed').length
+  const isTrainerProfile = profile?.role === 'trainer'
+  const scopedTeamIds = useMemo(() => {
+    if (!isTrainerProfile) {
+      return new Set(state.teams
+        .filter((team) => String(team.coach_id) === String(profile?.id))
+        .map((team) => String(team.id)))
+    }
+
+    return new Set(state.teamTrainers
+      .filter((link) => String(link.trainer_id) === String(profile?.id))
+      .map((link) => String(link.team_id)))
+  }, [isTrainerProfile, profile?.id, state.teamTrainers, state.teams])
+  const scopedTeams = useMemo(() => (
+    state.teams.filter((team) => scopedTeamIds.has(String(team.id)))
+  ), [scopedTeamIds, state.teams])
+  const scopedPlayerIds = useMemo(() => new Set(
+    state.teamMembers
+      .filter((member) => scopedTeamIds.has(String(member.team_id)))
+      .map((member) => String(member.player_id)),
+  ), [scopedTeamIds, state.teamMembers])
+  const scopedPlayers = useMemo(() => (
+    state.players.filter((player) => scopedPlayerIds.has(String(player.id)))
+  ), [scopedPlayerIds, state.players])
+  const scopedAssignments = useMemo(() => (
+    state.assignments.filter((item) => scopedPlayerIds.has(String(item.player_id)))
+  ), [scopedPlayerIds, state.assignments])
+  const activeTeam = scopedTeams[0]
+  const completedAssignments = scopedAssignments.filter((item) => item.status === 'completed').length
   const profileImage = getProfileImageUrl(profile, previewUrl)
 
   useEffect(() => {
@@ -184,7 +251,7 @@ const AdminProfile = ({ currentPath = '#coach/profile' }) => {
       const updated = await updateResource('users', form.id, {
         name: form.name,
         email: form.email,
-        role: form.role || 'coach',
+        role: form.role || savedUser?.role || 'coach',
         age: form.age || null,
         birthdate: form.birthdate || null,
         location: form.location || null,
@@ -251,6 +318,10 @@ const AdminProfile = ({ currentPath = '#coach/profile' }) => {
         </div>
       )}
 
+      {state.loading ? (
+        <ProfileSkeleton />
+      ) : (
+        <>
       <div className="admin-profile-hero">
         <AdminCard className="admin-profile-card admin-profile-modern-card">
           <div className="admin-profile-photo-panel">
@@ -270,8 +341,8 @@ const AdminProfile = ({ currentPath = '#coach/profile' }) => {
           </div>
           <div className="admin-profile-intro">
             <div>
-              <p className="admin-kicker">{profile?.role || 'coach'}</p>
-              <h2>{profile?.name || 'NetMind Coach'}</h2>
+              <p className="admin-kicker">{profile?.role || savedUser?.role || 'coach'}</p>
+              <h2>{profile?.name || 'NetMind User'}</h2>
               <span className="admin-profile-email">
                 <Mail size={16} />
                 {profile?.email || 'No Gmail linked'}
@@ -295,8 +366,8 @@ const AdminProfile = ({ currentPath = '#coach/profile' }) => {
         </AdminCard>
 
         <div className="admin-stat-grid compact">
-          <StatCard icon={ShieldCheck} label="Teams" value={state.teams.length} tone="primary" />
-          <StatCard icon={Users} label="Players" value={state.players.length} tone="secondary" />
+          <StatCard icon={ShieldCheck} label="Teams" value={scopedTeams.length} tone="primary" />
+          <StatCard icon={Users} label="Players" value={scopedPlayers.length} tone="secondary" />
           <StatCard icon={Activity} label="Completed" value={completedAssignments} tone="success" />
         </div>
       </div>
@@ -329,7 +400,7 @@ const AdminProfile = ({ currentPath = '#coach/profile' }) => {
               ))}
             </dl>
           ) : (
-            <EmptyState>Create or login to a coach account first.</EmptyState>
+            <EmptyState>Login to an account first.</EmptyState>
           )}
         </AdminCard>
 
@@ -406,10 +477,12 @@ const AdminProfile = ({ currentPath = '#coach/profile' }) => {
                 </div>
               </form>
             ) : (
-              <EmptyState>Create or login to a coach account first.</EmptyState>
+              <EmptyState>Login to an account first.</EmptyState>
             )}
           </section>
         </div>
+      )}
+        </>
       )}
     </AdminLayout>
   )

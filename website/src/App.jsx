@@ -24,6 +24,7 @@ import AdminTeamDetails from './pages/admin/AdminTeamDetails'
 import AdminTeams from './pages/admin/AdminTeams'
 import AdminTrainers from './pages/admin/AdminTrainers'
 import AdminTraining from './pages/admin/AdminTraining'
+import { readSavedUser } from './lib/api'
 
 const getRoute = () => {
   const hash = window.location.hash || ''
@@ -32,13 +33,16 @@ const getRoute = () => {
     window.history.replaceState(null, '', coachHash)
     return getRoute()
   }
-  if (!hash.startsWith('#coach')) return { area: 'home', hash }
+  const isCoachRoute = hash.startsWith('#coach')
+  const isTrainerRoute = hash.startsWith('#trainer')
+  if (!isCoachRoute && !isTrainerRoute) return { area: 'home', hash }
 
   const parts = hash.replace(/^#/, '').split('/')
   const page = parts[1] || 'dashboard'
 
   return {
     area: 'coach',
+    base: parts[0],
     hash,
     page,
     id: parts[2],
@@ -50,6 +54,7 @@ const getRoute = () => {
 function App() {
   const [modalOpen, setModalOpen] = useState(false)
   const [route, setRoute] = useState(getRoute)
+  const [authVersion, setAuthVersion] = useState(0)
 
   useEffect(() => {
     const handleHashChange = () => {
@@ -67,7 +72,31 @@ function App() {
     return () => window.removeEventListener('hashchange', handleHashChange)
   }, [])
 
+  useEffect(() => {
+    const syncUser = () => setAuthVersion((version) => version + 1)
+
+    window.addEventListener('storage', syncUser)
+    window.addEventListener('netmind:user-updated', syncUser)
+    return () => {
+      window.removeEventListener('storage', syncUser)
+      window.removeEventListener('netmind:user-updated', syncUser)
+    }
+  }, [])
+
   if (route.area === 'coach') {
+    const currentUser = readSavedUser()
+    const expectedBase = currentUser?.role === 'trainer' ? 'trainer' : 'coach'
+
+    if (currentUser?.role && route.base !== expectedBase) {
+      window.location.hash = route.hash.replace(/^#(coach|trainer)/, expectedBase)
+      return null
+    }
+
+    if (currentUser?.role === 'trainer' && !['dashboard', 'profile', 'analytics', 'settings'].includes(route.page)) {
+      window.location.hash = 'trainer'
+      return null
+    }
+
     if (route.page === 'players') {
       window.location.hash = 'coach/teams'
       return null
@@ -92,8 +121,9 @@ function App() {
       settings: AdminSettings,
     }
     const AdminPage = pages[route.page] || AdminDashboard
+    const pageKey = `${route.hash}-${currentUser?.id || 'guest'}-${currentUser?.role || 'none'}-${authVersion}`
 
-    return <AdminPage currentPath={route.hash} />
+    return <AdminPage key={pageKey} currentPath={route.hash} />
   }
 
   return (

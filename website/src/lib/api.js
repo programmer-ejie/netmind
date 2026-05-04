@@ -96,9 +96,21 @@ export const readSavedUser = () => {
 
 export const saveUser = (user) => {
   if (user) {
-    localStorage.setItem('netmind_user', JSON.stringify(user))
-    window.dispatchEvent(new Event('netmind:user-updated'))
+    const nextUser = JSON.stringify(user)
+    const currentUser = localStorage.getItem('netmind_user')
+
+    if (currentUser !== nextUser) {
+      localStorage.setItem('netmind_user', nextUser)
+      window.dispatchEvent(new Event('netmind:user-updated'))
+    }
   }
+}
+
+export const clearSavedUser = () => {
+  localStorage.removeItem('netmind_user')
+  localStorage.removeItem('netmind_token')
+  delete window.__netmindProfilePreview
+  window.dispatchEvent(new Event('netmind:user-updated'))
 }
 
 export const setProfilePreview = (previewUrl) => {

@@ -9,7 +9,7 @@ import AdminLayout, {
   initials,
   moneylessNumber,
 } from './AdminLayout'
-import { listResource } from '../../lib/api'
+import { listResource, readSavedUser } from '../../lib/api'
 
 const areaColors = ['#12aabd', '#ff6692', '#36c76c', '#ffb900']
 const activityRowsPerPage = 4
@@ -121,11 +121,23 @@ const BoxChart = ({ stats }) => {
   )
 }
 
+const StatCardSkeleton = () => (
+  <AdminCard className="admin-stat-card admin-stat-card-skeleton" aria-label="Loading dashboard stat">
+    <span className="admin-skeleton-square" />
+    <span className="admin-skeleton-line" />
+    <strong className="admin-skeleton-line short" />
+  </AdminCard>
+)
+
 const AdminDashboard = ({ currentPath = '#coach' }) => {
+  const currentUser = readSavedUser()
+  const roleLabel = currentUser?.role === 'trainer' ? 'Trainer' : 'Coach'
   const [state, setState] = useState({
     teams: [],
     players: [],
     trainers: [],
+    teamMembers: [],
+    teamTrainers: [],
     logs: [],
     assignments: [],
     attendance: [],
@@ -139,17 +151,19 @@ const AdminDashboard = ({ currentPath = '#coach' }) => {
 
     const load = async () => {
       try {
-        const [teams, players, trainers, logs, assignments, attendance] = await Promise.all([
+        const [teams, players, trainers, teamMembers, teamTrainers, logs, assignments, attendance] = await Promise.all([
           listResource('teams', { limit: 100 }),
           listResource('players'),
           listResource('trainers'),
+          listResource('team-members', { limit: 100 }),
+          listResource('team-trainers', { limit: 100 }),
           listResource('performance-logs', { limit: 100 }),
           listResource('training-assignments', { limit: 100 }),
           listResource('attendance-logs', { limit: 100 }),
         ])
 
         if (alive) {
-          setState({ teams, players, trainers, logs, assignments, attendance, loading: false, error: '' })
+          setState({ teams, players, trainers, teamMembers, teamTrainers, logs, assignments, attendance, loading: false, error: '' })
         }
       } catch (error) {
         if (alive) setState((current) => ({ ...current, loading: false, error: error.message }))
@@ -162,15 +176,58 @@ const AdminDashboard = ({ currentPath = '#coach' }) => {
     }
   }, [])
 
+  const isTrainerDashboard = currentUser?.role === 'trainer'
+  const scopedTeamIds = useMemo(() => {
+    if (!isTrainerDashboard) return new Set(state.teams.map((team) => String(team.id)))
+
+    return new Set(state.teamTrainers
+      .filter((link) => String(link.trainer_id) === String(currentUser?.id))
+      .map((link) => String(link.team_id)))
+  }, [currentUser?.id, isTrainerDashboard, state.teamTrainers, state.teams])
+  const scopedTeams = useMemo(() => (
+    state.teams.filter((team) => scopedTeamIds.has(String(team.id)))
+  ), [scopedTeamIds, state.teams])
+  const scopedPlayerIds = useMemo(() => new Set(
+    isTrainerDashboard
+      ? state.teamMembers
+        .filter((member) => scopedTeamIds.has(String(member.team_id)))
+        .map((member) => String(member.player_id))
+      : state.players.map((player) => String(player.id)),
+  ), [isTrainerDashboard, scopedTeamIds, state.players, state.teamMembers])
+  const scopedPlayers = useMemo(() => (
+    state.players.filter((player) => scopedPlayerIds.has(String(player.id)))
+  ), [scopedPlayerIds, state.players])
+  const scopedTrainerIds = useMemo(() => new Set(
+    isTrainerDashboard
+      ? state.teamTrainers
+        .filter((link) => scopedTeamIds.has(String(link.team_id)))
+        .map((link) => String(link.trainer_id))
+      : state.trainers.map((trainer) => String(trainer.id)),
+  ), [isTrainerDashboard, scopedTeamIds, state.teamTrainers, state.trainers])
+  const scopedTrainers = useMemo(() => (
+    state.trainers.filter((trainer) => scopedTrainerIds.has(String(trainer.id)))
+  ), [scopedTrainerIds, state.trainers])
+  const scopedLogs = useMemo(() => (
+    state.logs.filter((log) => scopedPlayerIds.has(String(log.user_id)))
+  ), [scopedPlayerIds, state.logs])
+  const scopedAssignments = useMemo(() => (
+    state.assignments.filter((item) => scopedPlayerIds.has(String(item.player_id)))
+  ), [scopedPlayerIds, state.assignments])
+  const scopedAttendance = useMemo(() => (
+    state.attendance.filter((item) => (
+      scopedPlayerIds.has(String(item.player_id)) || scopedTeamIds.has(String(item.team_id))
+    ))
+  ), [scopedPlayerIds, scopedTeamIds, state.attendance])
+
   const bumpChartData = useMemo(() => {
     if (state.loading) return []
 
     const labels = Array.from(new Set(
-      state.logs
+      scopedLogs
         .map((log) => formatShortDate(log.created_at || log.session_date))
         .filter(Boolean),
     )).slice(-7)
-    const actions = Object.entries(state.logs.reduce((acc, log) => {
+    const actions = Object.entries(scopedLogs.reduce((acc, log) => {
       const action = log.action_type || 'overall'
       acc[action] = (acc[action] || 0) + Number(log.value || 1)
       return acc
@@ -183,27 +240,27 @@ const AdminDashboard = ({ currentPath = '#coach' }) => {
       labels,
       series: actions.map((action) => ({
         label: action,
-        values: labels.map((label) => state.logs
+        values: labels.map((label) => scopedLogs
           .filter((log) => formatShortDate(log.created_at || log.session_date) === label && (log.action_type || 'overall') === action)
           .reduce((sum, log) => sum + Number(log.value || 1), 0)),
       })),
     }
-  }, [state.logs])
+  }, [scopedLogs, state.loading])
 
   const topPlayers = useMemo(() => (
-    state.players
+    scopedPlayers
       .map((player) => {
-        const logs = state.logs.filter((log) => String(log.user_id) === String(player.id))
+        const logs = scopedLogs.filter((log) => String(log.user_id) === String(player.id))
         const score = logs.reduce((sum, log) => sum + (Number(log.value) || 1), 0)
         return { ...player, score, logs: logs.length }
       })
       .sort((a, b) => b.score - a.score)
       .slice(0, 5)
-  ), [state.players, state.logs])
+  ), [scopedPlayers, scopedLogs])
 
   const playerScoreStats = useMemo(() => {
-    const scores = state.players.map((player) => {
-      const logs = state.logs.filter((log) => String(log.user_id) === String(player.id))
+    const scores = scopedPlayers.map((player) => {
+      const logs = scopedLogs.filter((log) => String(log.user_id) === String(player.id))
       return logs.reduce((sum, log) => sum + (Number(log.value) || 1), 0)
     })
 
@@ -215,11 +272,11 @@ const AdminDashboard = ({ currentPath = '#coach' }) => {
       max: Math.max(...scores, 0),
       average: scores.length ? scores.reduce((sum, score) => sum + score, 0) / scores.length : 0,
     }
-  }, [state.players, state.logs])
+  }, [scopedPlayers, scopedLogs])
 
   const recentActivity = useMemo(() => {
-    const playerName = (id) => state.players.find((player) => String(player.id) === String(id))?.name || `Player #${id}`
-    const assignments = state.assignments.slice(0, 3).map((item) => ({
+    const playerName = (id) => scopedPlayers.find((player) => String(player.id) === String(id))?.name || `Player #${id}`
+    const assignments = scopedAssignments.slice(0, 3).map((item) => ({
       time: formatDate(item.created_at),
       action: 'Training',
       detail: item.status || 'pending',
@@ -227,7 +284,7 @@ const AdminDashboard = ({ currentPath = '#coach' }) => {
       tone: item.status === 'completed' ? 'secondary' : 'warning',
       sortDate: item.created_at,
     }))
-    const attendance = state.attendance.slice(0, 3).map((item) => ({
+    const attendance = scopedAttendance.slice(0, 3).map((item) => ({
       time: formatDate(item.session_date),
       action: 'Attendance',
       detail: item.status || 'marked',
@@ -235,7 +292,7 @@ const AdminDashboard = ({ currentPath = '#coach' }) => {
       tone: item.status === 'present' ? 'primary' : 'error',
       sortDate: item.session_date,
     }))
-    const performance = state.logs.slice(0, 6).map((item) => ({
+    const performance = scopedLogs.slice(0, 6).map((item) => ({
       time: formatDate(item.created_at),
       action: item.action_type || 'Performance',
       detail: item.result || 'logged',
@@ -246,7 +303,7 @@ const AdminDashboard = ({ currentPath = '#coach' }) => {
 
     return [...assignments, ...attendance, ...performance]
       .sort((a, b) => new Date(b.sortDate || 0) - new Date(a.sortDate || 0))
-  }, [state.assignments, state.attendance, state.logs, state.players])
+  }, [scopedAssignments, scopedAttendance, scopedLogs, scopedPlayers])
 
   const activityPageCount = Math.max(1, Math.ceil(recentActivity.length / activityRowsPerPage))
   const pagedRecentActivity = useMemo(() => {
@@ -262,38 +319,65 @@ const AdminDashboard = ({ currentPath = '#coach' }) => {
 
   const dashboardNote = state.loading
     ? 'Loading your current team activity.'
-    : `${moneylessNumber(state.teams.length)} teams, ${moneylessNumber(state.players.length)} players, and ${moneylessNumber(state.logs.length)} performance logs are currently tracked.`
-  const performanceNote = state.logs.length
+    : `${moneylessNumber(scopedTeams.length)} teams, ${moneylessNumber(scopedPlayers.length)} players, and ${moneylessNumber(scopedLogs.length)} performance logs are currently tracked.`
+  const performanceNote = scopedLogs.length
     ? 'Performance logs are grouped by action type so you can quickly spot where the team is most active.'
     : 'Add match inputs to populate this forecast with live team activity.'
 
   return (
-    <AdminLayout title="Coach Dashboard" currentPath={currentPath}>
+    <AdminLayout title={`${roleLabel} Dashboard`} currentPath={currentPath}>
       {state.error && <div className="admin-alert">{state.error}</div>}
 
       <div className="admin-dashboard-hero">
         <div>
-          <p className="admin-kicker">Team Operations</p>
-          <h2>Dashboard Overview</h2>
-          <span>{dashboardNote}</span>
+          {state.loading ? (
+            <div className="admin-dashboard-hero-copy-skeleton" aria-label="Loading dashboard overview">
+              <span className="admin-skeleton-line short" />
+              <span className="admin-skeleton-line wide" />
+              <span className="admin-skeleton-line" />
+            </div>
+          ) : (
+            <>
+              <p className="admin-kicker">{roleLabel} Operations</p>
+              <h2>Dashboard Overview</h2>
+              <span>{dashboardNote}</span>
+            </>
+          )}
         </div>
         <div className="admin-dashboard-hero-stats">
-          <span>
-            <strong>{state.loading ? '...' : moneylessNumber(state.teams.length)}</strong>
-            <small>Teams</small>
-          </span>
-          <span>
-            <strong>{state.loading ? '...' : moneylessNumber(state.trainers.length)}</strong>
-            <small>Trainers</small>
-          </span>
+          {state.loading ? (
+            Array.from({ length: 2 }).map((_, index) => (
+              <span className="admin-dashboard-hero-stat-skeleton" key={`hero-stat-skeleton-${index}`}>
+                <i className="admin-skeleton-line short" />
+                <i className="admin-skeleton-line" />
+              </span>
+            ))
+          ) : (
+            <>
+              <span>
+                <strong>{moneylessNumber(scopedTeams.length)}</strong>
+                <small>Teams</small>
+              </span>
+              <span>
+                <strong>{moneylessNumber(scopedTrainers.length)}</strong>
+                <small>Trainers</small>
+              </span>
+            </>
+          )}
         </div>
       </div>
 
       <div className="admin-stat-grid">
-        <StatCard icon={Shield} label="Teams" value={state.loading ? '...' : moneylessNumber(state.teams.length)} />
-        <StatCard icon={Users} label="Players" value={state.loading ? '...' : moneylessNumber(state.players.length)} tone="secondary" />
-        <StatCard icon={UserRound} label="Trainers" value={state.loading ? '...' : moneylessNumber(state.trainers.length)} tone="success" />
-        <StatCard icon={ClipboardCheck} label="Attendance Logs" value={state.loading ? '...' : moneylessNumber(state.attendance.length)} tone="success" />
+        {state.loading ? (
+          Array.from({ length: 4 }).map((_, index) => <StatCardSkeleton key={`stat-card-skeleton-${index}`} />)
+        ) : (
+          <>
+            <StatCard icon={Shield} label="Teams" value={moneylessNumber(scopedTeams.length)} />
+            <StatCard icon={Users} label="Players" value={moneylessNumber(scopedPlayers.length)} tone="secondary" />
+            <StatCard icon={UserRound} label="Trainers" value={moneylessNumber(scopedTrainers.length)} tone="success" />
+            <StatCard icon={ClipboardCheck} label="Attendance Logs" value={moneylessNumber(scopedAttendance.length)} tone="success" />
+          </>
+        )}
       </div>
 
       <div className="admin-grid">
@@ -303,7 +387,7 @@ const AdminDashboard = ({ currentPath = '#coach' }) => {
               <h2>Performance Forecast</h2>
               <p className="admin-muted">{performanceNote}</p>
             </div>
-            <StatusBadge tone="secondary">{state.loading ? 'Loading' : `${state.logs.length} inputs`}</StatusBadge>
+            <StatusBadge tone="secondary">{state.loading ? 'Loading' : `${scopedLogs.length} inputs`}</StatusBadge>
           </div>
           {state.loading ? (
             <div className="admin-skeleton-bars" aria-label="Loading chart">
@@ -329,7 +413,7 @@ const AdminDashboard = ({ currentPath = '#coach' }) => {
             <div className="admin-skeleton-list">
               {Array.from({ length: 4 }).map((_, index) => <span key={index} />)}
             </div>
-          ) : state.players.length ? (
+          ) : scopedPlayers.length ? (
             <BoxChart stats={playerScoreStats} />
           ) : (
             <EmptyState>No player scores yet.</EmptyState>

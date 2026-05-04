@@ -11,9 +11,26 @@ import AdminLayout, {
   formatDate,
   initials,
 } from './AdminLayout'
-import { deleteResource, listResource, registerTrainerWithTemporaryPassword, updateResource } from '../../lib/api'
+import { API_BASE, deleteResource, listResource, registerTrainerWithTemporaryPassword, updateResource } from '../../lib/api'
 
 const blankTrainer = { name: '', email: '' }
+
+const trainerPhotoUrl = (trainer) => {
+  if (trainer.profile_picture_file_id) return `${API_BASE}/profile-pictures/${trainer.profile_picture_file_id}`
+  return trainer.profile_picture_url || ''
+}
+
+const TrainerAvatar = ({ trainer }) => {
+  const photoUrl = trainerPhotoUrl(trainer)
+
+  if (!photoUrl) return <b>{initials(trainer.name)}</b>
+
+  return (
+    <b className="admin-player-photo">
+      <img src={photoUrl} alt="" aria-hidden="true" />
+    </b>
+  )
+}
 
 const AdminTrainers = ({ currentPath = '#coach/trainers' }) => {
   const [trainers, setTrainers] = useState([])
@@ -157,7 +174,7 @@ const AdminTrainers = ({ currentPath = '#coach/trainers' }) => {
                   <tr key={trainer.id}>
                     <td>
                       <span className="admin-player">
-                        <b>{initials(trainer.name)}</b>
+                        <TrainerAvatar trainer={trainer} />
                         <span>
                           <strong>{trainer.name}</strong>
                           <small>{trainer.email}</small>

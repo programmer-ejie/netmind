@@ -6,12 +6,33 @@ import AdminLayout, {
   AdminField,
   AdminInput,
 } from './AdminLayout'
-import { API_BASE, apiRequest, listResource, readSavedUser } from '../../lib/api'
+import { API_BASE, apiRequest, getResource, readSavedUser } from '../../lib/api'
+
+const SettingsSkeleton = () => (
+  <>
+    <div className="admin-two-column">
+      {Array.from({ length: 2 }).map((_, index) => (
+        <AdminCard key={`settings-card-skeleton-${index}`}>
+          <div className="admin-skeleton-list">
+            {Array.from({ length: 5 }).map((__, itemIndex) => <span key={`settings-line-skeleton-${index}-${itemIndex}`} />)}
+          </div>
+        </AdminCard>
+      ))}
+    </div>
+    <AdminCard className="admin-settings-note-card">
+      <span className="admin-skeleton-square" />
+      <div className="admin-skeleton-list">
+        <span />
+        <span />
+      </div>
+    </AdminCard>
+  </>
+)
 
 const AdminSettings = ({ currentPath = '#coach/settings' }) => {
   const savedUser = useMemo(() => readSavedUser(), [])
-  const [coaches, setCoaches] = useState([])
-  const [profile, setProfile] = useState(savedUser || null)
+  const [profile, setProfile] = useState(null)
+  const [loading, setLoading] = useState(true)
   const [codeOpen, setCodeOpen] = useState(false)
   const [passwordOpen, setPasswordOpen] = useState(false)
   const [passwordCode, setPasswordCode] = useState('')
@@ -25,13 +46,22 @@ const AdminSettings = ({ currentPath = '#coach/settings' }) => {
 
   useEffect(() => {
     const load = async () => {
-      const coachRows = await listResource('coaches')
-      setCoaches(coachRows)
-      setProfile((current) => current || coachRows[0] || null)
+      setLoading(true)
+      if (!savedUser?.id) {
+        setProfile(null)
+        setLoading(false)
+        return
+      }
+      const freshProfile = await getResource('users', savedUser.id)
+      setProfile(freshProfile)
+      setLoading(false)
     }
 
-    load().catch((err) => setError(err.message))
-  }, [])
+    load().catch((err) => {
+      setLoading(false)
+      setError(err.message)
+    })
+  }, [savedUser])
 
   const openPasswordCodeModal = async () => {
     setMessage('')
@@ -170,6 +200,10 @@ const AdminSettings = ({ currentPath = '#coach/settings' }) => {
       {error && <div className="admin-alert">{error}</div>}
       {message && <div className="admin-alert success">{message}</div>}
 
+      {loading ? (
+        <SettingsSkeleton />
+      ) : (
+        <>
       <div className="admin-two-column">
         <AdminCard>
           <div className="admin-card-header">
@@ -338,11 +372,7 @@ const AdminSettings = ({ currentPath = '#coach/settings' }) => {
           </section>
         </div>
       )}
-
-      {coaches.length > 1 && (
-        <p className="admin-muted admin-settings-note">
-          Showing the saved coach profile first, otherwise the first coach account from the API.
-        </p>
+        </>
       )}
     </AdminLayout>
   )
