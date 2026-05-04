@@ -5,7 +5,6 @@ import {
   ClipboardCheck,
   Dumbbell,
   Home,
-  ListChecks,
   LogOut,
   Menu,
   Moon,
@@ -123,7 +122,6 @@ const trainerSidebarGroups = [
     label: 'Trainer',
     items: [
       { href: '#trainer/players', icon: UsersRound, label: 'My Players' },
-      { href: '#trainer/player-details', icon: ListChecks, label: 'Player Details' },
       { href: '#trainer/training', icon: Dumbbell, label: 'Training Hub' },
       { href: '#trainer/attendance', icon: ClipboardCheck, label: 'Attendance' },
       { href: '#trainer/wellness', icon: HeartPulse, label: 'Wellness Log' },
@@ -152,6 +150,12 @@ const getSidebarGroupsForUser = (user) => {
     ...group,
     items: group.items.filter((item) => !hiddenCoachNavigationHrefs.has(item.href)),
   }))
+}
+
+const normalizeActiveHash = (hash) => {
+  if (hash.startsWith('#trainer/player-stats')) return '#trainer/players'
+  if (hash.startsWith('#coach/player-stats')) return '#coach/players'
+  return hash
 }
 
 const notifications = [
@@ -266,6 +270,7 @@ const getHeaderProfileImage = (user, previewUrl) => {
 
 export const AdminLayout = ({ children, title, kicker, currentPath }) => {
   const hash = currentPath || window.location.hash || '#coach'
+  const activeHash = normalizeActiveHash(hash)
   const searchHidden = /^#(coach|trainer)\/(profile|settings)/.test(hash)
   const navRef = useRef(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -359,8 +364,8 @@ export const AdminLayout = ({ children, title, kicker, currentPath }) => {
               <p>{group.label}</p>
               {group.items.map(({ href, icon: Icon, label }) => {
                 const isActive = href === workspaceRoot
-                  ? hash === workspaceRoot
-                  : hash === href || hash.startsWith(`${href}/`)
+                  ? activeHash === workspaceRoot
+                  : activeHash === href || activeHash.startsWith(`${href}/`)
 
                 return (
                   <a

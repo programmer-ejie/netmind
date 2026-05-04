@@ -114,11 +114,16 @@ function App() {
       return null
     }
 
+    if (route.page === 'player-details') {
+      window.location.hash = 'trainer/players'
+      return null
+    }
+
     if (currentUser?.role === 'trainer' && ![
       'dashboard',
       'profile',
       'players',
-      'player-details',
+      'player-stats',
       'training',
       'attendance',
       'wellness',
@@ -146,7 +151,7 @@ function App() {
       dashboard: AdminDashboard,
       profile: AdminProfile,
       players: AdminPlayers,
-      'player-details': AdminPlayers,
+      'player-stats': AdminPlayers,
       teams: AdminTeams,
       trainers: AdminTrainers,
       matches: AdminMatches,

@@ -3751,7 +3751,458 @@
 
 .admin-stats-modal {
   display: grid;
+  gap: 20px;
+}
+
+.admin-player-summary {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 22px;
+  align-items: center;
+  padding: 24px;
+  border: 1px solid color-mix(in oklab, var(--admin-primary) 14%, var(--admin-border));
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 94% 8%, color-mix(in oklab, var(--admin-primary) 13%, transparent), transparent 34%),
+    linear-gradient(180deg, color-mix(in oklab, var(--admin-soft) 78%, var(--admin-card)), var(--admin-card));
+  box-shadow: 0 18px 36px rgba(47, 64, 80, 0.08);
+}
+
+.admin-player-summary::before {
+  content: '';
+  position: absolute;
+  right: -58px;
+  top: -78px;
+  width: 180px;
+  height: 180px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--admin-primary) 9%, transparent);
+}
+
+.admin-player-summary > * {
+  position: relative;
+  z-index: 1;
+}
+
+.admin-player-summary-main {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
   gap: 18px;
+}
+
+.admin-player-summary-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: var(--admin-light-primary);
+  color: var(--admin-primary);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--admin-primary) 12%, transparent);
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.admin-player-summary-copy {
+  min-width: 0;
+}
+
+.admin-player-summary h3 {
+  color: var(--admin-dark);
+  font-size: 28px;
+  font-weight: 900;
+  line-height: 1.12;
+  overflow-wrap: anywhere;
+}
+
+.admin-player-summary p {
+  margin-top: 4px;
+  color: var(--admin-muted);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.admin-player-summary-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.admin-player-summary-tags > span:not(.admin-badge) {
+  border: 1px solid color-mix(in oklab, var(--admin-border) 72%, transparent);
+  border-radius: 8px;
+  background: var(--admin-card);
+  color: var(--admin-link);
+  padding: 7px 11px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.admin-player-summary-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(84px, 1fr));
+  gap: 10px;
+}
+
+.admin-player-summary-metrics span {
+  min-height: 70px;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  border: 1px solid color-mix(in oklab, var(--admin-primary) 10%, var(--admin-border));
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--admin-card) 88%, transparent);
+  padding: 10px 12px;
+  text-align: center;
+}
+
+.admin-player-summary-metrics strong {
+  color: var(--admin-primary);
+  font-size: 20px;
+  line-height: 1;
+  font-weight: 900;
+}
+
+.admin-player-summary-metrics small {
+  margin-top: 6px;
+  color: var(--admin-muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.admin-stats-modal .admin-stat-grid.compact,
+.admin-player-stat-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.admin-stats-modal .admin-stat-grid.compact .admin-card,
+.admin-player-stat-card {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 1fr;
+  align-content: center;
+  min-height: 96px;
+  border: 1px solid color-mix(in oklab, var(--admin-primary) 8%, var(--admin-border));
+  border-radius: 12px;
+  background: linear-gradient(180deg, var(--admin-card), color-mix(in oklab, var(--admin-soft) 58%, var(--admin-card)));
+  padding: 18px;
+  box-shadow: 0 10px 24px rgba(47, 64, 80, 0.05);
+}
+
+.admin-player-stat-card::after {
+  content: '';
+  position: absolute;
+  right: 16px;
+  top: 16px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--admin-primary);
+  opacity: 0.26;
+}
+
+.admin-stats-modal .admin-stat-grid.compact .admin-card strong {
+  font-size: 24px;
+}
+
+.admin-stats-section {
+  display: grid;
+  gap: 14px;
+}
+
+.admin-player-stats-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(340px, 0.75fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.admin-player-stats-side {
+  display: grid;
+  gap: 18px;
+}
+
+.admin-stats-panel {
+  border: 1px solid var(--admin-border);
+  border-radius: 14px;
+  background: var(--admin-card);
+  box-shadow: 0 12px 28px rgba(47, 64, 80, 0.06);
+  padding: 20px;
+}
+
+.admin-stats-panel-large {
+  min-height: 520px;
+}
+
+.admin-performance-radar {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.28fr) minmax(280px, 1fr) minmax(150px, 0.24fr);
+  gap: 18px;
+  align-items: center;
+  border: 1px solid color-mix(in oklab, var(--admin-primary) 10%, var(--admin-border));
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 88% 14%, color-mix(in oklab, var(--admin-primary) 10%, transparent), transparent 32%),
+    linear-gradient(180deg, color-mix(in oklab, var(--admin-soft) 62%, var(--admin-card)), var(--admin-card));
+  padding: 18px;
+}
+
+.admin-performance-radar strong,
+.admin-performance-radar small {
+  display: block;
+}
+
+.admin-performance-radar strong {
+  margin-top: 6px;
+  color: var(--admin-dark);
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1.15;
+}
+
+.admin-performance-radar small {
+  margin-top: 8px;
+  color: var(--admin-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.admin-performance-radar svg {
+  width: 100%;
+  max-height: 300px;
+  overflow: visible;
+}
+
+.admin-performance-radar-ring {
+  fill: none;
+  stroke: color-mix(in oklab, var(--admin-border) 82%, transparent);
+  stroke-width: 1.5;
+}
+
+.admin-performance-radar-axis {
+  stroke: color-mix(in oklab, var(--admin-border) 74%, transparent);
+  stroke-width: 1.5;
+}
+
+.admin-performance-radar-area {
+  fill: color-mix(in oklab, var(--admin-primary) 18%, transparent);
+  stroke: var(--admin-primary);
+  stroke-linejoin: round;
+  stroke-width: 3;
+}
+
+.admin-performance-radar circle {
+  fill: var(--admin-card);
+  stroke: var(--admin-primary);
+  stroke-width: 3;
+}
+
+.admin-performance-radar text {
+  fill: var(--admin-muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.admin-performance-radar-legend {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-performance-radar-legend span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: var(--admin-card);
+  color: var(--admin-link);
+  padding: 9px 10px;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: capitalize;
+}
+
+.admin-performance-radar-legend b {
+  color: var(--admin-primary);
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.admin-section-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.admin-section-title h3 {
+  color: var(--admin-dark);
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.admin-section-title span {
+  color: var(--admin-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.admin-stats-table {
+  overflow-x: hidden;
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+}
+
+.admin-stats-table .admin-native-table {
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.admin-stats-table .admin-native-table th {
+  background: color-mix(in oklab, var(--admin-soft) 66%, #ffffff);
+  text-transform: uppercase;
+  letter-spacing: 0;
+  font-size: 11px;
+}
+
+.admin-stats-table .admin-native-table th,
+.admin-stats-table .admin-native-table td {
+  padding: 15px 16px;
+  overflow-wrap: anywhere;
+}
+
+.admin-stats-table .admin-native-table tbody tr:nth-child(even) td {
+  background: color-mix(in oklab, var(--admin-soft) 34%, #ffffff);
+}
+
+.admin-stats-table-compact .admin-native-table th,
+.admin-stats-table-compact .admin-native-table td {
+  padding: 13px 12px;
+}
+
+.admin-stats-table-compact td strong,
+.admin-stats-table-compact td small {
+  display: block;
+}
+
+.admin-stats-table-compact td strong {
+  color: var(--admin-link);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.admin-stats-table-compact td small {
+  color: var(--admin-muted);
+  font-size: 11px;
+  font-weight: 700;
+  margin-top: 2px;
+}
+
+.admin-info-list {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-info-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.admin-player-last-logged {
+  border-top: 1px solid var(--admin-border);
+  padding-top: 16px;
+  text-align: right;
+  font-weight: 800;
+}
+
+.admin-info-row strong,
+.admin-info-row small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.admin-info-row strong {
+  color: var(--admin-dark);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.admin-info-row small {
+  margin-top: 4px;
+  color: var(--admin-muted);
+  font-size: 12px;
+}
+
+.admin-player-stats-page {
+  overflow: hidden;
+}
+
+.admin-player-stats-page-header {
+  align-items: flex-start;
+  border-bottom: 1px solid var(--admin-border);
+  margin-bottom: 22px;
+  padding-bottom: 20px;
+}
+
+.admin-player-stats-title {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  min-width: 0;
+}
+
+.admin-player-stats-page *,
+.admin-player-stats-page *::before,
+.admin-player-stats-page *::after {
+  min-width: 0;
+}
+
+.admin-dark .admin-player-summary,
+.admin-dark .admin-player-stat-card,
+.admin-dark .admin-stats-panel,
+.admin-dark .admin-performance-radar {
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.28);
+}
+
+.admin-dark .admin-player-summary {
+  background:
+    radial-gradient(circle at 94% 8%, color-mix(in oklab, var(--admin-primary) 16%, transparent), transparent 34%),
+    linear-gradient(180deg, color-mix(in oklab, var(--admin-card) 72%, var(--admin-soft)), var(--admin-card));
+}
+
+.admin-dark .admin-player-stat-card {
+  background: linear-gradient(180deg, color-mix(in oklab, var(--admin-card) 88%, var(--admin-soft)), var(--admin-card));
+}
+
+.admin-dark .admin-performance-radar {
+  background:
+    radial-gradient(circle at 88% 14%, color-mix(in oklab, var(--admin-primary) 14%, transparent), transparent 32%),
+    linear-gradient(180deg, color-mix(in oklab, var(--admin-card) 78%, var(--admin-soft)), var(--admin-card));
+}
+
+.admin-dark .admin-player-summary-tags > span:not(.admin-badge),
+.admin-dark .admin-player-summary-metrics span,
+.admin-dark .admin-performance-radar-legend span {
+  background: color-mix(in oklab, var(--admin-card) 86%, var(--admin-soft));
+}
+
+.admin-dark .admin-performance-radar-ring,
+.admin-dark .admin-performance-radar-axis {
+  stroke: color-mix(in oklab, var(--admin-muted) 44%, transparent);
 }
 
 .admin-settings-note {
@@ -4202,6 +4653,15 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  .admin-stats-modal .admin-stat-grid.compact,
+  .admin-player-stat-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .admin-player-stats-layout {
+    grid-template-columns: 1fr;
+  }
+
   .admin-profile-info-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -4292,6 +4752,36 @@
   .admin-modal {
     width: min(100vw, 360px);
     padding: 22px 18px;
+  }
+
+  .admin-stats-modal .admin-stat-grid.compact {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-player-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-player-summary,
+  .admin-info-row {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-player-summary-main,
+  .admin-player-summary-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-player-summary {
+    padding: 20px;
+  }
+
+  .admin-player-summary h3 {
+    font-size: 24px;
+  }
+
+  .admin-performance-radar {
+    grid-template-columns: 1fr;
   }
 
   .admin-code-modal {

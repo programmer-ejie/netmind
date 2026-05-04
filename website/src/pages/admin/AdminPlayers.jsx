@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { BarChart3, Edit3, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, BarChart3, Edit3, Plus, Trash2 } from 'lucide-react'
 import AdminLayout, {
   AdminButton,
   AdminCard,
@@ -25,17 +25,113 @@ const blankCreate = {
   team_id: '',
 }
 
+const buildActionRadar = (actions = [], logs = []) => {
+  const totals = new Map()
+
+  actions.forEach((action) => {
+    const label = action.action_type || 'other'
+    totals.set(label, (totals.get(label) || 0) + Number(action.total || 0))
+  })
+
+  if (!totals.size) {
+    logs.forEach((log) => {
+      const label = log.action_type || 'other'
+      totals.set(label, (totals.get(label) || 0) + 1)
+    })
+  }
+
+  const preferredOrder = ['spike', 'serve', 'receive', 'dig', 'set', 'block']
+  return preferredOrder
+    .filter((label) => totals.has(label))
+    .map((label) => ({ label, total: totals.get(label) || 0 }))
+}
+
+const PerformanceRadar = ({ actions = [], logs = [] }) => {
+  const data = buildActionRadar(actions, logs)
+  const size = 280
+  const center = size / 2
+  const radius = 96
+  const maxTotal = Math.max(...data.map((item) => item.total), 1)
+  const rings = [0.25, 0.5, 0.75, 1]
+  const angleFor = (index) => (-90 + (360 / Math.max(data.length, 1)) * index) * (Math.PI / 180)
+  const pointFor = (index, scale = 1) => {
+    const angle = angleFor(index)
+    const distance = radius * scale
+    return {
+      x: center + Math.cos(angle) * distance,
+      y: center + Math.sin(angle) * distance,
+    }
+  }
+  const polygon = data.map((item, index) => {
+    const point = pointFor(index, item.total / maxTotal)
+    return `${point.x},${point.y}`
+  }).join(' ')
+
+  return (
+    <div className="admin-performance-radar">
+      <div>
+        <span className="admin-kicker">Skill radar</span>
+        <strong>{logs.length} recorded actions</strong>
+        <small>{data.length ? 'Action volume by volleyball skill' : 'No logs yet'}</small>
+      </div>
+      <svg viewBox={`0 0 ${size} ${size}`} role="img" aria-label="Performance action radar chart">
+        {data.length > 2 && rings.map((ring) => (
+          <polygon
+            className="admin-performance-radar-ring"
+            key={ring}
+            points={data.map((_, index) => {
+              const point = pointFor(index, ring)
+              return `${point.x},${point.y}`
+            }).join(' ')}
+          />
+        ))}
+        {data.map((item, index) => {
+          const axisEnd = pointFor(index, 1)
+          const labelPoint = pointFor(index, 1.22)
+
+          return (
+            <g key={item.label}>
+              <line className="admin-performance-radar-axis" x1={center} y1={center} x2={axisEnd.x} y2={axisEnd.y} />
+              <text x={labelPoint.x} y={labelPoint.y} textAnchor="middle">{item.label}</text>
+            </g>
+          )
+        })}
+        {polygon && <polygon className="admin-performance-radar-area" points={polygon} />}
+        {data.map((item, index) => {
+          const point = pointFor(index, item.total / maxTotal)
+          return (
+            <g key={`${item.label}-point`}>
+              <circle cx={point.x} cy={point.y} r="5" />
+              <title>{`${item.label}: ${item.total}`}</title>
+            </g>
+          )
+        })}
+      </svg>
+      <div className="admin-performance-radar-legend">
+        {data.map((item) => (
+          <span key={item.label}>
+            <b>{item.total}</b>
+            {item.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 const AdminPlayers = ({ currentPath = '#coach/players' }) => {
   const currentUser = readSavedUser()
   const isTrainerView = currentUser?.role === 'trainer'
-  const isPlayerDetails = currentPath.includes('player-details')
-  const pageTitle = isPlayerDetails ? 'Player Details' : isTrainerView ? 'My Players' : 'Players'
+  const pathParts = currentPath.replace(/^#/, '').split('/')
+  const currentBase = pathParts[0] || (isTrainerView ? 'trainer' : 'coach')
+  const isStatsPage = pathParts[1] === 'player-stats'
+  const statsPlayerId = pathParts[2]
+  const pageTitle = isStatsPage ? 'Player Stats' : isTrainerView ? 'My Players' : 'Players'
   const [players, setPlayers] = useState([])
   const [teams, setTeams] = useState([])
   const [memberships, setMemberships] = useState([])
   const [createModal, setCreateModal] = useState(false)
   const [editModal, setEditModal] = useState(false)
-  const [statsModal, setStatsModal] = useState(false)
   const [createForm, setCreateForm] = useState(blankCreate)
   const [editForm, setEditForm] = useState(null)
   const [stats, setStats] = useState(null)
@@ -74,10 +170,6 @@ const AdminPlayers = ({ currentPath = '#coach/players' }) => {
     setTeams(teamRows)
     setMemberships(memberRows)
   }
-
-  useEffect(() => {
-    load().catch((err) => setError(err.message))
-  }, [])
 
   const createPlayer = async (event) => {
     event.preventDefault()
@@ -148,19 +240,195 @@ const AdminPlayers = ({ currentPath = '#coach/players' }) => {
     }
   }
 
-  const openStats = async (player) => {
-    setStatsModal(true)
-    setStats({ loading: true, player })
+  const loadPlayerStats = async (playerOrId) => {
+    const playerId = typeof playerOrId === 'object' ? playerOrId.id : playerOrId
+    const selectedPlayer = typeof playerOrId === 'object' ? playerOrId : null
+    setStats({ loading: true, player: selectedPlayer })
 
-    try {
-      const [summary, logs] = await Promise.all([
-        apiRequest(`/players/${player.id}/summary`),
-        apiRequest(`/players/${player.id}/performance-logs`),
-      ])
-      setStats({ ...summary, logs, loading: false })
-    } catch (err) {
-      setStats({ loading: false, error: err.message, player })
+    const [summary, logs, assignments, attendance, injuries] = await Promise.all([
+      apiRequest(`/players/${playerId}/summary`),
+      apiRequest(`/players/${playerId}/performance-logs`),
+      apiRequest(`/players/${playerId}/training-assignments`),
+      apiRequest(`/players/${playerId}/attendance`),
+      apiRequest(`/players/${playerId}/injuries`),
+    ])
+    setStats({ ...summary, player: summary.player || selectedPlayer, logs, assignments, attendance, injuries, loading: false })
+  }
+
+  const openStats = (player) => {
+    window.location.hash = `${currentBase}/player-stats/${player.id}`
+  }
+
+  useEffect(() => {
+    load().catch((err) => setError(err.message))
+
+    if (isStatsPage && statsPlayerId) {
+      loadPlayerStats(statsPlayerId).catch((err) => setError(err.message))
     }
+  }, [])
+
+  const renderStatsContent = () => (
+    <>
+      {stats?.loading && <EmptyState>Loading stats...</EmptyState>}
+      {stats?.error && <div className="admin-alert">{stats.error}</div>}
+      {stats && !stats.loading && !stats.error && (
+        <div className="admin-stats-modal">
+          <div className="admin-player-summary">
+            <div className="admin-player-summary-main">
+              <span className="admin-player-summary-avatar">{initials(stats.player?.name || stats.player?.email)}</span>
+              <div className="admin-player-summary-copy">
+                <span className="admin-kicker">Player profile</span>
+                <h3>{stats.player?.name || 'Player'}</h3>
+                <p>{stats.player?.email || 'No email saved'}</p>
+                <div className="admin-player-summary-tags">
+                  <StatusBadge tone={stats.player?.is_active ? 'success' : 'warning'}>
+                    {stats.player?.is_active ? 'Active' : 'Inactive'}
+                  </StatusBadge>
+                  <span>{getName(teams, teamByPlayer.get(String(stats.player?.id)))}</span>
+                  <span>{stats.player?.position || 'No position'}</span>
+                  <span>#{stats.player?.jersey_number || '-'}</span>
+                </div>
+              </div>
+            </div>
+            <div className="admin-player-summary-metrics" aria-label="Player stat overview">
+              <span>
+                <strong>{stats.logs?.length || 0}</strong>
+                <small>Logs</small>
+              </span>
+              <span>
+                <strong>{stats.training?.completed || 0}/{stats.training?.total_assignments || 0}</strong>
+                <small>Training</small>
+              </span>
+              <span>
+                <strong>{Number(stats.wellness?.avg_rpe || 0).toFixed(1)}</strong>
+                <small>Avg RPE</small>
+              </span>
+            </div>
+          </div>
+
+          <div className="admin-stat-grid compact admin-player-stat-grid">
+            <AdminCard className="admin-player-stat-card">
+              <span className="admin-muted">Assignments</span>
+              <strong>{stats.training?.total_assignments || 0}</strong>
+            </AdminCard>
+            <AdminCard className="admin-player-stat-card">
+              <span className="admin-muted">Completed</span>
+              <strong>{stats.training?.completed || 0}</strong>
+            </AdminCard>
+            <AdminCard className="admin-player-stat-card">
+              <span className="admin-muted">Avg RPE</span>
+              <strong>{Number(stats.wellness?.avg_rpe || 0).toFixed(1)}</strong>
+            </AdminCard>
+            <AdminCard className="admin-player-stat-card">
+              <span className="admin-muted">Attendance</span>
+              <strong>{stats.attendance?.length || 0}</strong>
+            </AdminCard>
+            <AdminCard className="admin-player-stat-card">
+              <span className="admin-muted">Drill Success</span>
+              <strong>{Number(stats.drills?.avg_success_rate || 0).toFixed(0)}%</strong>
+            </AdminCard>
+            <AdminCard className="admin-player-stat-card">
+              <span className="admin-muted">Active Injuries</span>
+              <strong>{stats.active_injuries?.length || 0}</strong>
+            </AdminCard>
+          </div>
+
+          <div className="admin-player-stats-layout">
+            <section className="admin-stats-section admin-stats-panel admin-stats-panel-large">
+              <div className="admin-section-title">
+                <h3>Performance Logs</h3>
+                <span>{stats.logs?.length || 0} total</span>
+              </div>
+              <PerformanceRadar actions={stats.actions || []} logs={stats.logs || []} />
+            </section>
+
+            <div className="admin-player-stats-side">
+              <section className="admin-stats-section admin-stats-panel">
+                <div className="admin-section-title">
+                  <h3>Training Assignments</h3>
+                  <span>{stats.assignments?.length || 0} records</span>
+                </div>
+                <div className="admin-info-list">
+                  {(stats.assignments || []).slice(0, 4).map((assignment) => (
+                    <article className="admin-info-row" key={assignment.id}>
+                      <div>
+                        <strong>{assignment.drill_name || assignment.focus_area || 'Training assignment'}</strong>
+                        <small>{assignment.focus_area || assignment.drill_description || 'No description'}</small>
+                      </div>
+                      <StatusBadge tone={assignment.status === 'completed' ? 'success' : assignment.status === 'overdue' ? 'warning' : 'secondary'}>
+                        {assignment.status || 'pending'}
+                      </StatusBadge>
+                    </article>
+                  ))}
+                  {!stats.assignments?.length && <EmptyState>No training assignments yet.</EmptyState>}
+                </div>
+              </section>
+
+              <section className="admin-stats-section admin-stats-panel">
+                <div className="admin-section-title">
+                  <h3>Health and Attendance</h3>
+                  <span>Latest records</span>
+                </div>
+                <div className="admin-info-list">
+                  {(stats.attendance || []).slice(0, 2).map((item) => (
+                    <article className="admin-info-row" key={`attendance-${item.id}`}>
+                      <div>
+                        <strong>{item.status || 'Attendance'}</strong>
+                        <small>{item.session_type || 'session'} - {formatDate(item.session_date)}</small>
+                      </div>
+                      <span className="admin-muted">{item.reason || 'Logged'}</span>
+                    </article>
+                  ))}
+                  {(stats.injuries || []).slice(0, 2).map((injury) => (
+                    <article className="admin-info-row" key={`injury-${injury.id}`}>
+                      <div>
+                        <strong>{injury.injury_type || 'Injury log'}</strong>
+                        <small>{injury.body_part || 'No body part'} - {formatDate(injury.occurred_at)}</small>
+                      </div>
+                      <StatusBadge tone={injury.recovered_at ? 'success' : 'warning'}>
+                        {injury.recovered_at ? 'Recovered' : 'Active'}
+                      </StatusBadge>
+                    </article>
+                  ))}
+                  {!stats.attendance?.length && !stats.injuries?.length && <EmptyState>No health or attendance logs yet.</EmptyState>}
+                </div>
+              </section>
+            </div>
+          </div>
+
+          <p className="admin-muted admin-player-last-logged">Last logged: {formatDate(stats.wellness?.last_logged_at)}</p>
+        </div>
+      )}
+    </>
+  )
+
+  if (isStatsPage) {
+    return (
+      <AdminLayout title={pageTitle} currentPath={currentPath}>
+        {error && <div className="admin-alert">{error}</div>}
+        <AdminCard className="admin-player-stats-page">
+          <div className="admin-card-header admin-player-stats-page-header">
+            <div className="admin-player-stats-title">
+              <button
+                type="button"
+                className="admin-team-back"
+                onClick={() => { window.location.hash = `${currentBase}/players` }}
+                aria-label="Back to My Players"
+              >
+                <ArrowLeft size={18} />
+              </button>
+              <div>
+                <h2>Player Stats</h2>
+                <p className="admin-muted">
+                  Review {stats?.player?.name ? `${stats.player.name}'s` : "the player's"} database-backed performance, training, attendance, and health records.
+                </p>
+              </div>
+            </div>
+          </div>
+          {renderStatsContent()}
+        </AdminCard>
+      </AdminLayout>
+    )
   }
 
   return (
@@ -305,52 +573,6 @@ const AdminPlayers = ({ currentPath = '#coach/players' }) => {
         )}
       </AdminModal>
 
-      <AdminModal open={statsModal} title="Player Stats" onClose={() => setStatsModal(false)}>
-        {stats?.loading && <EmptyState>Loading stats...</EmptyState>}
-        {stats?.error && <div className="admin-alert">{stats.error}</div>}
-        {stats && !stats.loading && !stats.error && (
-          <div className="admin-stats-modal">
-            <div className="admin-stat-grid compact">
-              <AdminCard>
-                <span className="admin-muted">Assignments</span>
-                <strong>{stats.training?.total_assignments || 0}</strong>
-              </AdminCard>
-              <AdminCard>
-                <span className="admin-muted">Completed</span>
-                <strong>{stats.training?.completed || 0}</strong>
-              </AdminCard>
-              <AdminCard>
-                <span className="admin-muted">Avg RPE</span>
-                <strong>{Number(stats.wellness?.avg_rpe || 0).toFixed(1)}</strong>
-              </AdminCard>
-            </div>
-            <div className="admin-table">
-              <table className="admin-native-table">
-                <thead>
-                  <tr>
-                    <th>Action</th>
-                    <th>Result</th>
-                    <th>Total</th>
-                    <th>Avg Value</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(stats.actions || []).map((action, index) => (
-                    <tr key={`${action.action_type}-${action.result}-${index}`}>
-                      <td>{action.action_type}</td>
-                      <td>{action.result || '-'}</td>
-                      <td>{action.total}</td>
-                      <td>{Number(action.average_value || 0).toFixed(1)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {!stats.actions?.length && <EmptyState>No performance logs for this player.</EmptyState>}
-            </div>
-            <p className="admin-muted">Last logged: {formatDate(stats.wellness?.last_logged_at)}</p>
-          </div>
-        )}
-      </AdminModal>
     </AdminLayout>
   )
 }
