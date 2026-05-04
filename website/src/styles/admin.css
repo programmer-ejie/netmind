@@ -1108,6 +1108,36 @@
   margin-bottom: 0;
 }
 
+.admin-analytics-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
+.admin-analytics-toolbar h2 {
+  color: var(--admin-dark);
+  font-size: 24px;
+  line-height: 1.2;
+  font-weight: 800;
+}
+
+.admin-dark .admin-analytics-toolbar h2 {
+  color: #ffffff;
+}
+
+.admin-analytics-controls {
+  display: flex;
+  align-items: end;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.admin-analytics-controls .admin-field {
+  margin: 0;
+}
+
 .admin-card {
   min-width: 0;
   border: 0;
@@ -2864,6 +2894,12 @@
   border-color: var(--admin-card);
 }
 
+.admin-pie-wrap {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+
 .admin-pie-legend {
   display: grid;
   gap: 10px;
@@ -2882,6 +2918,191 @@
   width: 11px;
   height: 11px;
   border-radius: 999px;
+}
+
+.admin-line-chart {
+  display: grid;
+  gap: 14px;
+}
+
+.admin-line-chart svg {
+  width: 100%;
+  min-height: 240px;
+  overflow: visible;
+}
+
+.admin-line-chart text {
+  fill: var(--admin-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.admin-line-grid {
+  stroke: var(--admin-border);
+  stroke-width: 1;
+}
+
+.admin-line-grid.vertical {
+  opacity: 0.55;
+}
+
+.admin-line-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+}
+
+.admin-line-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--admin-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.admin-line-legend i {
+  width: 11px;
+  height: 11px;
+  border-radius: 999px;
+}
+
+.admin-column-chart {
+  min-height: 320px;
+  display: flex;
+  align-items: end;
+  justify-content: space-around;
+  gap: 16px;
+  border-radius: 10px;
+  background-image:
+    linear-gradient(to right, rgba(144, 164, 174, 0.18) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(144, 164, 174, 0.22) 1px, transparent 1px);
+  background-size: 92px 64px;
+  padding: 28px 22px 24px;
+}
+
+.admin-dark .admin-column-chart {
+  background-image:
+    linear-gradient(to right, rgba(224, 230, 235, 0.1) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(224, 230, 235, 0.12) 1px, transparent 1px);
+}
+
+.admin-column-item {
+  height: 100%;
+  min-width: 58px;
+  display: grid;
+  grid-template-rows: 24px minmax(0, 1fr) auto;
+  align-items: end;
+  justify-items: center;
+  gap: 8px;
+}
+
+.admin-column-item strong {
+  color: var(--admin-dark);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.admin-dark .admin-column-item strong {
+  color: #ffffff;
+}
+
+.admin-column-item span {
+  width: min(42px, 100%);
+  min-height: 8px;
+  border-radius: 7px 7px 0 0;
+  background: linear-gradient(180deg, var(--admin-primary), color-mix(in oklab, var(--admin-primary) 70%, #007b8f));
+  box-shadow: 0 10px 18px color-mix(in oklab, var(--admin-primary) 22%, transparent);
+}
+
+.admin-column-item:nth-child(even) span {
+  background: linear-gradient(180deg, var(--admin-error), color-mix(in oklab, var(--admin-error) 70%, #c8265a));
+  box-shadow: 0 10px 18px color-mix(in oklab, var(--admin-error) 18%, transparent);
+}
+
+.admin-column-item small {
+  width: 82px;
+  color: var(--admin-muted);
+  font-size: 12px;
+  font-weight: 700;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-radar-chart {
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+}
+
+.admin-radar-chart svg {
+  width: min(100%, 420px);
+  min-height: 320px;
+}
+
+.admin-radar-grid {
+  fill: transparent;
+  stroke: var(--admin-border);
+  stroke-width: 1.2;
+}
+
+.admin-radar-axis {
+  stroke: var(--admin-border);
+  stroke-width: 1;
+}
+
+.admin-radar-area {
+  fill: color-mix(in oklab, var(--admin-primary) 24%, transparent);
+  stroke: var(--admin-primary);
+  stroke-linejoin: round;
+  stroke-width: 4;
+}
+
+.admin-radar-point {
+  fill: var(--admin-error);
+  stroke: #ffffff;
+  stroke-width: 3;
+}
+
+.admin-radar-chart text {
+  fill: var(--admin-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.admin-radar-values {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.admin-radar-values span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--admin-border);
+  border-radius: 999px;
+  background: var(--admin-soft);
+  color: var(--admin-muted);
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.admin-radar-values b {
+  color: var(--admin-dark);
+}
+
+.admin-dark .admin-radar-point {
+  stroke: var(--admin-card);
+}
+
+.admin-dark .admin-radar-values b {
+  color: #ffffff;
 }
 
 .admin-compact-field {
@@ -3541,6 +3762,16 @@
 
   .admin-card-header {
     align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .admin-analytics-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-analytics-controls {
+    align-items: stretch;
     flex-direction: column;
   }
 
