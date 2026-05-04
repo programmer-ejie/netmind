@@ -37,6 +37,8 @@ const getRoute = () => {
     hash,
     page,
     id: parts[2],
+    section: parts[3],
+    matchNumber: parts[4],
   }
 }
 
@@ -71,7 +73,7 @@ function App() {
     }
 
     if (route.page === 'matches' && route.id) {
-      return <AdminMatchInputs matchId={route.id} currentPath={route.hash} />
+      return <AdminMatchInputs matchId={route.id} matchNumber={route.matchNumber} currentPath={route.hash} />
     }
 
     const pages = {

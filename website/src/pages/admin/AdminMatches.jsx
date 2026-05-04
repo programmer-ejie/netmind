@@ -17,11 +17,22 @@ import { createResource, deleteResource, listResource, readSavedUser, updateReso
 
 const actualMatchTypes = ['league', 'tournament', 'playoff']
 const results = ['win', 'loss', 'draw']
+const bestOfLabels = {
+  1: 'Best of One',
+  3: 'Best of Three',
+  5: 'Best of Five',
+}
+
+const countLabel = (count, singular, plural = `${singular}s`) => (
+  `${count} ${count === 1 ? singular : plural}`
+)
+const totalSets = (rows) => rows.reduce((sum, match) => sum + Number(match.best_of || 1), 0)
 
 const blankMatch = {
   team_id: '',
   opponent_name: '',
   match_date: '',
+  best_of: '1',
   is_home: true,
   result: '',
   team_score: '',
@@ -34,6 +45,7 @@ const blankMatch = {
 const AdminMatches = ({ currentPath = '#admin/matches' }) => {
   const currentUser = readSavedUser()
   const [matches, setMatches] = useState([])
+  const [matchScores, setMatchScores] = useState([])
   const [teams, setTeams] = useState([])
   const [seasons, setSeasons] = useState([])
   const [activeView, setActiveView] = useState('practice')
@@ -96,21 +108,50 @@ const AdminMatches = ({ currentPath = '#admin/matches' }) => {
     }))
   }
 
-  const formatScore = (match) => (
-    match.team_score !== null && match.team_score !== undefined
-      && match.opponent_score !== null && match.opponent_score !== undefined
-      ? `${match.team_score} - ${match.opponent_score}`
-      : '----'
-  )
+  const formatBestOf = (value) => bestOfLabels[Number(value)] || 'Best of One'
+  const getWinner = (score) => {
+    if (
+      score?.team_score === null || score?.team_score === undefined
+      || score?.opponent_score === null || score?.opponent_score === undefined
+    ) return null
+
+    if (Number(score.team_score) > Number(score.opponent_score)) return 'team'
+    if (Number(score.team_score) < Number(score.opponent_score)) return 'opponent'
+    return null
+  }
+  const formatSeriesResult = (match) => {
+    const bestOf = Number(match.best_of || 1)
+    const scores = matchScores.filter((score) => String(score.match_id) === String(match.id))
+
+    if (bestOf <= 1) {
+      const score = scores.find((item) => Number(item.match_number) === 1) || match
+      const winner = getWinner(score)
+
+      if (winner === 'team') return '1 - 0'
+      if (winner === 'opponent') return '0 - 1'
+      return '----'
+    }
+
+    const wins = scores.reduce((current, score) => {
+      const winner = getWinner(score)
+      if (winner === 'team') return { ...current, team: current.team + 1 }
+      if (winner === 'opponent') return { ...current, opponent: current.opponent + 1 }
+      return current
+    }, { team: 0, opponent: 0 })
+
+    return wins.team || wins.opponent ? `${wins.team} - ${wins.opponent}` : '----'
+  }
 
   const load = async () => {
-    const [matchRows, teamRows, seasonRows] = await Promise.all([
+    const [matchRows, scoreRows, teamRows, seasonRows] = await Promise.all([
       listResource('matches', { limit: 100, sortBy: 'match_date', sortDir: 'asc' }),
+      listResource('match-scores', { limit: 100, sortBy: 'match_number', sortDir: 'asc' }),
       listResource('teams', { limit: 100 }),
       listResource('seasons', { limit: 100 }),
     ])
 
     setMatches(matchRows)
+    setMatchScores(scoreRows)
     setTeams(teamRows)
     setSeasons(seasonRows)
   }
@@ -137,6 +178,7 @@ const AdminMatches = ({ currentPath = '#admin/matches' }) => {
       team_id: match.team_id || '',
       opponent_name: match.opponent_name || '',
       match_date: match.match_date ? String(match.match_date).slice(0, 10) : '',
+      best_of: match.best_of ? String(match.best_of) : '1',
       is_home: Boolean(match.is_home),
       result: match.result || '',
       team_score: match.team_score ?? '',
@@ -156,6 +198,7 @@ const AdminMatches = ({ currentPath = '#admin/matches' }) => {
       team_id: form.team_id,
       opponent_name: form.opponent_name,
       match_date: form.match_date,
+      best_of: Number(form.best_of),
       is_home: Boolean(form.is_home),
       result: form.result || null,
       team_score: form.team_score === '' ? null : Number(form.team_score),
@@ -195,21 +238,24 @@ const AdminMatches = ({ currentPath = '#admin/matches' }) => {
           <span><ClipboardList size={19} /></span>
           <div>
             <p>Practice Matches</p>
-            <strong>{practiceMatches.length}</strong>
+            <strong>{countLabel(practiceMatches.length, 'Match', 'Matches')}</strong>
+            <small>{countLabel(totalSets(practiceMatches), 'set')} total</small>
           </div>
         </AdminCard>
         <AdminCard className="admin-match-stat actual">
           <span><Trophy size={19} /></span>
           <div>
             <p>Actual Matches</p>
-            <strong>{actualMatches.length}</strong>
+            <strong>{countLabel(actualMatches.length, 'Match', 'Matches')}</strong>
+            <small>{countLabel(totalSets(actualMatches), 'set')} total</small>
           </div>
         </AdminCard>
         <AdminCard className="admin-match-stat scheduled">
           <span><CalendarCheck2 size={19} /></span>
           <div>
             <p>Total Scheduled</p>
-            <strong>{matches.length}</strong>
+            <strong>{countLabel(matches.length, 'Match', 'Matches')}</strong>
+            <small>{countLabel(totalSets(matches), 'set')} total</small>
           </div>
         </AdminCard>
       </div>
@@ -257,8 +303,8 @@ const AdminMatches = ({ currentPath = '#admin/matches' }) => {
               <tr>
                 <th>Match</th>
                 <th>Date</th>
+                <th>Best Of</th>
                 <th>Type</th>
-                <th>Score</th>
                 <th>Result</th>
                 <th>Actions</th>
               </tr>
@@ -269,7 +315,9 @@ const AdminMatches = ({ currentPath = '#admin/matches' }) => {
                   key={match.id}
                   className="admin-match-click-row"
                   onClick={() => {
-                    window.location.hash = `admin/matches/${match.id}/inputs`
+                    window.location.hash = Number(match.best_of || 1) > 1
+                      ? `admin/matches/${match.id}/sets`
+                      : `admin/matches/${match.id}/inputs`
                   }}
                 >
                   <td>
@@ -280,9 +328,9 @@ const AdminMatches = ({ currentPath = '#admin/matches' }) => {
                     </strong>
                   </td>
                   <td>{formatDate(match.match_date)}</td>
+                  <td>{formatBestOf(match.best_of)}</td>
                   <td><StatusBadge tone={match.match_type === 'friendly' ? 'secondary' : 'primary'}>{match.match_type}</StatusBadge></td>
-                  <td>{formatScore(match)}</td>
-                  <td>{match.result ? <StatusBadge tone={match.result === 'win' ? 'success' : match.result === 'loss' ? 'error' : 'warning'}>{match.result}</StatusBadge> : '----'}</td>
+                  <td>{formatSeriesResult(match)}</td>
                   <td>
                     <div className="admin-actions" onClick={(event) => event.stopPropagation()}>
                       <AdminButton variant="secondary" onClick={() => openEdit(match)} aria-label="Edit match">
@@ -370,6 +418,14 @@ const AdminMatches = ({ currentPath = '#admin/matches' }) => {
 
           <AdminField label="Date">
             <AdminInput required type="date" value={form.match_date} onChange={(event) => setForm((current) => ({ ...current, match_date: event.target.value }))} />
+          </AdminField>
+
+          <AdminField label="Best Of">
+            <AdminSelect value={form.best_of} onChange={(event) => setForm((current) => ({ ...current, best_of: event.target.value }))}>
+              <option value="1">Best of One</option>
+              <option value="3">Best of Three</option>
+              <option value="5">Best of Five</option>
+            </AdminSelect>
           </AdminField>
 
           {isActualMatchForm && (

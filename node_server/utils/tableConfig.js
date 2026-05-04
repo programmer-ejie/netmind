@@ -66,6 +66,7 @@ const tables = {
       "team_id",
       "opponent_name",
       "match_date",
+      "best_of",
       "is_home",
       "result",
       "team_score",
@@ -76,6 +77,11 @@ const tables = {
     ],
     filterFields: ["team_id", "season_id", "result", "match_type", "is_home"],
     searchFields: ["opponent_name", "notes"],
+  },
+  "match-scores": {
+    table: "match_scores",
+    fields: ["match_id", "match_number", "team_score", "opponent_score", "result"],
+    filterFields: ["match_id", "match_number", "result"],
   },
   "team-rankings": {
     table: "team_rankings",
@@ -150,6 +156,7 @@ const tables = {
       "user_id",
       "session_type",
       "match_id",
+      "match_number",
       "season_id",
       "action_type",
       "result",
@@ -161,7 +168,7 @@ const tables = {
       "energy_level",
       "injury_status",
     ],
-    filterFields: ["user_id", "session_type", "match_id", "season_id", "action_type", "result", "injury_status"],
+    filterFields: ["user_id", "session_type", "match_id", "match_number", "season_id", "action_type", "result", "injury_status"],
   },
   "attendance-logs": {
     table: "attendance_logs",

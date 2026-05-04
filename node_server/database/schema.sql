@@ -75,6 +75,7 @@ CREATE TABLE IF NOT EXISTS matches (
   team_id INT NOT NULL,
   opponent_name VARCHAR(100) NOT NULL,
   match_date DATE NOT NULL,
+  best_of INT NOT NULL DEFAULT 1,
   is_home BOOLEAN DEFAULT TRUE,
   result ENUM('win', 'loss', 'draw') NULL,
   team_score INT NULL,
@@ -85,6 +86,19 @@ CREATE TABLE IF NOT EXISTS matches (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_matches_team FOREIGN KEY (team_id) REFERENCES teams(id),
   CONSTRAINT fk_matches_season FOREIGN KEY (season_id) REFERENCES seasons(id)
+);
+
+CREATE TABLE IF NOT EXISTS match_scores (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  match_id INT NOT NULL,
+  match_number INT NOT NULL,
+  team_score INT NULL,
+  opponent_score INT NULL,
+  result ENUM('win', 'loss', 'draw') NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_match_number_score (match_id, match_number),
+  CONSTRAINT fk_match_scores_match FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS team_rankings (
@@ -167,6 +181,7 @@ CREATE TABLE IF NOT EXISTS performance_logs (
   user_id INT NOT NULL,
   session_type ENUM('match', 'training', 'conditioning') NOT NULL,
   match_id INT NULL,
+  match_number INT NOT NULL DEFAULT 1,
   season_id INT NULL,
   action_type ENUM('spike', 'serve', 'receive', 'dig', 'set', 'block', 'jump', 'run') NOT NULL,
   result ENUM('kill', 'error', 'ace', 'perfect', 'good', 'poor', 'assist', 'stuff', 'touch', 'normal') NULL,

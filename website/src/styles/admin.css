@@ -1304,6 +1304,14 @@
   font-weight: 800;
 }
 
+.admin-match-stat small {
+  display: block;
+  margin-top: 6px;
+  color: var(--admin-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .admin-dark .admin-match-stat strong,
 .admin-dark .admin-match-empty strong {
   color: #ffffff;
@@ -1782,6 +1790,234 @@
   font-weight: 800;
 }
 
+.admin-match-number-card {
+  margin-top: 18px;
+  overflow: hidden;
+  position: relative;
+  border-color: color-mix(in oklab, var(--admin-primary) 12%, var(--admin-border));
+  background:
+    linear-gradient(135deg, color-mix(in oklab, var(--admin-primary) 5%, transparent), transparent 34%),
+    var(--admin-card);
+}
+
+.admin-match-number-card::after {
+  content: '';
+  width: 180px;
+  height: 180px;
+  border-radius: 999px;
+  position: absolute;
+  right: -76px;
+  top: -92px;
+  background: color-mix(in oklab, var(--admin-primary) 9%, transparent);
+  pointer-events: none;
+}
+
+.admin-match-number-header {
+  max-width: 680px;
+  margin-bottom: 22px;
+  position: relative;
+  z-index: 1;
+}
+
+.admin-match-number-header h2 {
+  color: var(--admin-dark);
+  font-size: 26px;
+  line-height: 1.2;
+  font-weight: 900;
+}
+
+.admin-match-number-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  position: relative;
+  z-index: 1;
+}
+
+.admin-match-number-option {
+  min-height: 196px;
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 10px;
+  background:
+    linear-gradient(180deg, #ffffff 0%, color-mix(in oklab, var(--admin-bg) 62%, #ffffff) 100%);
+  color: var(--admin-link);
+  position: relative;
+  text-align: center;
+  box-shadow:
+    0 18px 36px rgba(31, 42, 61, 0.08),
+    0 6px 14px rgba(31, 42, 61, 0.05);
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.admin-match-number-option:not([aria-disabled='true']):hover,
+.admin-match-number-option:focus-visible {
+  border-color: color-mix(in oklab, var(--admin-primary) 58%, var(--admin-border));
+  box-shadow: 0 20px 42px rgba(18, 170, 189, 0.16);
+  background: #ffffff;
+  transform: translateY(-3px);
+  outline: none;
+}
+
+.admin-match-number-option.scored {
+  border-color: color-mix(in oklab, var(--admin-success) 34%, var(--admin-border));
+  box-shadow:
+    0 22px 44px rgba(31, 42, 61, 0.1),
+    0 10px 24px color-mix(in oklab, var(--admin-success) 18%, transparent);
+}
+
+.admin-match-number-option.scored::after {
+  content: 'Scored';
+  min-height: 26px;
+  border-radius: 0 0 0 10px;
+  display: inline-flex;
+  align-items: center;
+  position: absolute;
+  right: 0;
+  top: 0;
+  background: var(--admin-success);
+  color: #ffffff;
+  padding: 0 14px;
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.admin-match-number-option b {
+  width: 58px;
+  height: 58px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: color-mix(in oklab, var(--admin-primary) 12%, #ffffff);
+  color: var(--admin-primary);
+  font-size: 24px;
+  font-weight: 950;
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--admin-primary) 12%, transparent);
+}
+
+.admin-match-number-title {
+  color: var(--admin-dark);
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.admin-match-number-status {
+  min-height: 24px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in oklab, var(--admin-primary) 10%, #ffffff);
+  color: var(--admin-primary);
+  padding: 0 10px;
+  position: absolute;
+  left: 14px;
+  top: 14px;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.admin-match-number-option small,
+.admin-match-number-option em {
+  display: block;
+  color: var(--admin-muted);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.admin-match-number-option.locked {
+  cursor: not-allowed;
+  background:
+    repeating-linear-gradient(-45deg, transparent 0 10px, rgba(148, 163, 184, 0.05) 10px 20px),
+    linear-gradient(180deg, #ffffff 0%, #f8fbfd 100%);
+  color: #64748b;
+}
+
+.admin-match-number-option.locked b {
+  background: #eef5f7;
+  color: #94a3b8;
+}
+
+.admin-match-number-option.locked .admin-match-number-status {
+  background: #eef2f7;
+  color: #64748b;
+}
+
+.admin-match-number-option.locked .admin-match-number-title {
+  color: #536471;
+}
+
+.admin-match-number-option.locked::after {
+  content: 'Need to score the first match first.';
+  width: max-content;
+  max-width: 220px;
+  border-radius: 8px;
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 10px);
+  z-index: 3;
+  background: var(--admin-dark);
+  color: #ffffff;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(4px);
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.admin-match-number-option.locked:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.admin-match-number-option.waiting {
+  cursor: wait;
+  overflow: hidden;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdfe 100%);
+  color: #64748b;
+}
+
+.admin-match-number-option.waiting b {
+  background: #edf8fa;
+}
+
+.admin-match-number-option.waiting .admin-match-number-status {
+  background: color-mix(in oklab, var(--admin-warning) 12%, #ffffff);
+  color: #b26f00;
+}
+
+.admin-match-number-option.scored .admin-match-number-status {
+  background: color-mix(in oklab, var(--admin-success) 14%, #ffffff);
+  color: var(--admin-success);
+}
+
+.admin-match-number-option.waiting::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(18, 170, 189, 0.08), transparent);
+  animation: admin-skeleton-sweep 1.4s ease-in-out infinite;
+}
+
+@keyframes admin-skeleton-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(100%);
+  }
+}
+
 .admin-dark .admin-match-input-main h2 {
   color: #ffffff;
 }
@@ -2006,6 +2242,104 @@
   justify-content: flex-end;
   gap: 10px;
   margin-top: 4px;
+}
+
+.admin-score-confirm-backdrop {
+  z-index: 160;
+}
+
+.admin-score-confirm-modal {
+  width: min(430px, 100%);
+}
+
+.admin-score-confirm-icon {
+  width: 54px;
+  height: 54px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: color-mix(in oklab, var(--admin-warning) 14%, #ffffff);
+  color: var(--admin-warning);
+}
+
+.admin-score-confirm-summary {
+  width: 100%;
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  background: color-mix(in oklab, var(--admin-soft) 48%, #ffffff);
+  padding: 14px;
+}
+
+.admin-score-confirm-summary span {
+  min-width: 0;
+  color: var(--admin-muted);
+  font-size: 12px;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-score-confirm-summary span:first-child {
+  text-align: right;
+}
+
+.admin-score-confirm-summary strong {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: #ffffff;
+  color: var(--admin-link);
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.admin-score-confirm-summary b {
+  color: var(--admin-primary);
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.admin-score-confirm-actions {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.admin-warning-button {
+  background: var(--admin-warning);
+  color: #ffffff;
+}
+
+.admin-warning-button:hover {
+  background: color-mix(in oklab, var(--admin-warning) 88%, #000000);
+}
+
+.admin-danger-button {
+  background: var(--admin-error);
+  color: #ffffff;
+}
+
+.admin-danger-button:hover {
+  background: color-mix(in oklab, var(--admin-error) 88%, #000000);
+}
+
+.admin-danger-close {
+  background: var(--admin-light-error);
+  color: var(--admin-error);
+}
+
+.admin-danger-close:hover {
+  background: var(--admin-error);
+  color: #ffffff;
 }
 
 .admin-native-table {

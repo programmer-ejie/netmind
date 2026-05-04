@@ -709,19 +709,20 @@ router.get("/players/:playerId/performance-logs", asyncHandler(async (req, res) 
 router.post("/players/:playerId/performance-logs", asyncHandler(async (req, res) => {
   const result = await query(
     `INSERT INTO performance_logs
-      (user_id, session_type, match_id, season_id, action_type, result, value, minutes_played, fatigue_level, rpe, sleep_quality, energy_level, injury_status)
-    VALUES (?, ?, ?, ?, ?, ?, ?, COALESCE(?, 0), ?, ?, ?, ?, COALESCE(?, 'none'))`,
+      (user_id, session_type, match_id, match_number, season_id, action_type, result, value, minutes_played, fatigue_level, rpe, sleep_quality, energy_level, injury_status)
+    VALUES (?, ?, ?, COALESCE(?, 1), ?, ?, ?, ?, COALESCE(?, 0), ?, ?, ?, ?, COALESCE(?, 'none'))`,
     [
       req.params.playerId,
       req.body.session_type,
       req.body.match_id || null,
+      req.body.match_number || null,
       req.body.season_id || null,
       req.body.action_type,
       req.body.result || null,
       req.body.value || null,
       req.body.minutes_played ?? null,
-      req.body.fatigue_level,
-      req.body.rpe,
+      req.body.fatigue_level ?? null,
+      req.body.rpe ?? null,
       req.body.sleep_quality || null,
       req.body.energy_level || null,
       req.body.injury_status || null,
@@ -732,13 +733,20 @@ router.post("/players/:playerId/performance-logs", asyncHandler(async (req, res)
 }));
 
 router.get("/matches/:matchId/performance-logs", asyncHandler(async (req, res) => {
+  const values = [req.params.matchId];
+  const matchNumberSql = req.query.match_number ? "AND pl.match_number = ?" : "";
+  if (req.query.match_number) {
+    values.push(req.query.match_number);
+  }
+
   const rows = await query(
     `SELECT pl.*, u.name, u.position, u.jersey_number
     FROM performance_logs pl
     JOIN users u ON u.id = pl.user_id
     WHERE pl.match_id = ?
+    ${matchNumberSql}
     ORDER BY pl.created_at DESC`,
-    [req.params.matchId]
+    values
   );
   res.json(rows);
 }));
