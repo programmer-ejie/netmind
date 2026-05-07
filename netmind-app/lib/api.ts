@@ -137,6 +137,36 @@ export type PerformanceLog = PerformanceReflectionInput & {
   created_at?: string | null;
 };
 
+export type PlayerSummary = {
+  player?: NetmindUser | null;
+  actions?: Array<{
+    action_type?: string | null;
+    result?: string | null;
+    total?: number | string | null;
+    average_value?: number | string | null;
+  }>;
+  wellness?: {
+    avg_fatigue?: number | string | null;
+    avg_rpe?: number | string | null;
+    avg_energy_level?: number | string | null;
+    avg_confidence_level?: number | string | null;
+    avg_focus_level?: number | string | null;
+    avg_sleep_hours?: number | string | null;
+    last_logged_at?: string | null;
+    last_checkin_date?: string | null;
+  };
+  training?: {
+    total_assignments?: number | string | null;
+    completed?: number | string | null;
+    overdue?: number | string | null;
+  };
+  drills?: {
+    avg_success_rate?: number | string | null;
+    total_reps?: number | string | null;
+  };
+  active_injuries?: InjuryLog[];
+};
+
 const defaultApiBase = Platform.select({
   android: 'http://10.0.2.2:5001/api',
   default: 'http://localhost:5001/api',
@@ -214,6 +244,10 @@ export function listTeamMatches(teamId: number | string) {
 
 export function listPlayerPerformanceLogs(playerId: number | string) {
   return apiRequest<PerformanceLog[]>(`/players/${playerId}/performance-logs`);
+}
+
+export function getPlayerSummary(playerId: number | string) {
+  return apiRequest<PlayerSummary>(`/players/${playerId}/summary`);
 }
 
 export function submitPlayerPerformanceReflection(playerId: number | string, body: PerformanceReflectionInput) {

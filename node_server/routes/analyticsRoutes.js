@@ -4,6 +4,29 @@ const asyncHandler = require("../utils/asyncHandler");
 
 const router = express.Router();
 
+async function columnExists(table, column) {
+  const rows = await query(
+    `SELECT COUNT(*) AS count
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = ?
+      AND COLUMN_NAME = ?`,
+    [table, column]
+  );
+
+  return Number(rows[0]?.count || 0) > 0;
+}
+
+async function ensureAnalyticsColumns() {
+  if (!(await columnExists("performance_logs", "confidence_level"))) {
+    await query("ALTER TABLE performance_logs ADD COLUMN confidence_level TINYINT NULL");
+  }
+
+  if (!(await columnExists("performance_logs", "focus_level"))) {
+    await query("ALTER TABLE performance_logs ADD COLUMN focus_level TINYINT NULL");
+  }
+}
+
 router.get(
   "/teams/:teamId/roster",
   asyncHandler(async (req, res) => {
@@ -74,6 +97,8 @@ router.get(
 router.get(
   "/players/:playerId/summary",
   asyncHandler(async (req, res) => {
+    await ensureAnalyticsColumns();
+
     const params = [req.params.playerId];
     const seasonSql = req.query.season_id ? "AND season_id = ?" : "";
 
@@ -95,14 +120,23 @@ router.get(
     );
     const [wellness] = await query(
       `SELECT
-        AVG(fatigue_level) AS avg_fatigue,
         AVG(rpe) AS avg_rpe,
-        AVG(sleep_quality) AS avg_sleep_quality,
         AVG(energy_level) AS avg_energy_level,
+        AVG(confidence_level) AS avg_confidence_level,
+        AVG(focus_level) AS avg_focus_level,
         MAX(created_at) AS last_logged_at
       FROM performance_logs
       WHERE user_id = ? ${seasonSql}`,
       params
+    );
+    const [checkins] = await query(
+      `SELECT
+        AVG(fatigue_level) AS avg_fatigue,
+        AVG(sleep_hours) AS avg_sleep_hours,
+        MAX(checkin_date) AS last_checkin_date
+      FROM wellness_checkins
+      WHERE player_id = ?`,
+      [req.params.playerId]
     );
     const [training] = await query(
       `SELECT
@@ -114,7 +148,15 @@ router.get(
       [req.params.playerId]
     );
     const [drills] = await query(
-      `SELECT AVG(success_rate) AS avg_success_rate, SUM(reps_completed) AS total_reps
+      `SELECT
+        AVG(
+          CASE
+            WHEN COALESCE(success_count, 0) + COALESCE(failure_count, 0) > 0
+            THEN (success_count / (success_count + failure_count)) * 100
+            ELSE NULL
+          END
+        ) AS avg_success_rate,
+        SUM(reps_completed) AS total_reps
       FROM drill_performance_logs
       WHERE player_id = ?`,
       [req.params.playerId]
@@ -130,7 +172,12 @@ router.get(
     res.json({
       player,
       actions,
-      wellness,
+      wellness: {
+        ...wellness,
+        avg_fatigue: checkins.avg_fatigue,
+        avg_sleep_hours: checkins.avg_sleep_hours,
+        last_checkin_date: checkins.last_checkin_date,
+      },
       training,
       drills,
       active_injuries: injuries,
