@@ -1,6 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { PropsWithChildren } from 'react';
 import {
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -11,7 +12,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { palette } from '@/constants/netmind';
 import { useNetmindTheme } from '@/contexts/netmind-theme';
@@ -29,6 +30,11 @@ export function Screen({
   onRefresh?: () => void;
 }>) {
   const { colors } = useNetmindTheme();
+  const insets = useSafeAreaInsets();
+  const bottomNavSpace = Platform.OS === 'android'
+    ? Math.max(insets.bottom, 30)
+    : Math.max(insets.bottom, 12);
+  const scrollBottomLimit = 56 + bottomNavSpace + 10;
 
   return (
     <SafeAreaView edges={['left', 'right']} style={[styles.safeArea, { backgroundColor: colors.wash }]}>
@@ -43,7 +49,7 @@ export function Screen({
           />
         ) : undefined}
         showsVerticalScrollIndicator={false}
-        style={{ backgroundColor: colors.wash }}>
+        style={[styles.scroller, { backgroundColor: colors.wash, marginBottom: scrollBottomLimit }]}>
         <View style={styles.header}>
           <Text style={[styles.eyebrow, { color: colors.court }]}>NetMind Volleyball</Text>
           <Text style={[styles.title, { color: colors.ink }]}>{title}</Text>
@@ -208,8 +214,11 @@ const styles = StyleSheet.create({
   screen: {
     paddingHorizontal: 18,
     paddingTop: 8,
-    paddingBottom: 24,
+    paddingBottom: 16,
     gap: 16,
+  },
+  scroller: {
+    flex: 1,
   },
   header: {
     gap: 5,

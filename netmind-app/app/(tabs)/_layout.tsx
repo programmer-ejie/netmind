@@ -1,5 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Asset } from 'expo-asset';
 import { Image as ExpoImage } from 'expo-image';
 import { Tabs, router, usePathname, type Href } from 'expo-router';
@@ -8,6 +9,7 @@ import {
   Animated,
   Easing,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -17,7 +19,6 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { HapticTab } from '@/components/haptic-tab';
 import { useNetmindTheme } from '@/contexts/netmind-theme';
 
 const logoSource = require('@/assets/images/website_logo.png');
@@ -33,13 +34,28 @@ const navItems = [
   { title: 'Settings', route: '/(tabs)/settings', icon: 'settings' },
 ] as const;
 
+const tabIcons: Record<string, keyof typeof MaterialIcons.glyphMap> = {
+  dashboard: 'dashboard',
+  performance: 'edit-note',
+  wellness: 'favorite',
+  training: 'assignment',
+  profile: 'person',
+  settings: 'settings',
+};
+const bottomTabNames = new Set(['dashboard', 'performance', 'wellness', 'training', 'profile', 'settings']);
+const darkNavColors = {
+  surface: '#0B3442',
+  accent: '#27D3E2',
+  icon: '#EAF6F8',
+  muted: 'rgba(234, 246, 248, 0.46)',
+  border: 'rgba(234, 246, 248, 0.10)',
+};
+
 export default function TabLayout() {
   const { colors, isDark } = useNetmindTheme();
-  const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const drawerProgress = useRef(new Animated.Value(0)).current;
-  const bottomInset = Math.max(insets.bottom, 12);
   const drawerWidth = Math.min(width * 0.82, 340);
 
   useEffect(() => {
@@ -77,22 +93,9 @@ export default function TabLayout() {
   return (
     <View style={[styles.shell, { backgroundColor: colors.wash }]}>
       <Tabs
+        tabBar={(props) => <FloatingTabBar {...props} />}
         screenOptions={{
           header: () => <AppHeader onOpenSidebar={openSidebar} />,
-          tabBarActiveTintColor: colors.court,
-          tabBarInactiveTintColor: colors.muted,
-          tabBarLabelStyle: {
-            fontSize: 11,
-            fontWeight: '800',
-          },
-          tabBarStyle: {
-            backgroundColor: colors.surface,
-            borderTopColor: colors.line,
-            height: 60 + bottomInset,
-            paddingBottom: bottomInset,
-            paddingTop: 8,
-          },
-          tabBarButton: HapticTab,
         }}>
         <Tabs.Screen
           name="dashboard"
@@ -172,6 +175,103 @@ export default function TabLayout() {
           </Animated.View>
         </View>
       </Modal>
+    </View>
+  );
+}
+
+function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+  const { colors, isDark } = useNetmindTheme();
+  const insets = useSafeAreaInsets();
+  const [barWidth, setBarWidth] = useState(0);
+  const slide = useRef(new Animated.Value(0)).current;
+  const visibleRoutes = state.routes.filter((route) => bottomTabNames.has(route.name));
+  const activeRoute = state.routes[state.index];
+  const activeIndex = Math.max(0, visibleRoutes.findIndex((route) => route.key === activeRoute.key));
+  const itemWidth = barWidth ? (barWidth - 18) / visibleRoutes.length : 0;
+  const bottomSpace = Platform.OS === 'android'
+    ? Math.max(insets.bottom, 30)
+    : Math.max(insets.bottom, 12);
+  const navColors = isDark
+    ? darkNavColors
+    : {
+        surface: colors.surface,
+        accent: colors.court,
+        icon: colors.ink,
+        muted: '#b7c4c8',
+        border: colors.line,
+      };
+
+  useEffect(() => {
+    Animated.timing(slide, {
+      toValue: activeIndex,
+      duration: 260,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [activeIndex, slide]);
+
+  return (
+    <View
+      pointerEvents="box-none"
+      style={[
+        styles.floatingTabShell,
+        {
+          paddingBottom: bottomSpace,
+        },
+      ]}>
+      <View
+        onLayout={(event) => setBarWidth(event.nativeEvent.layout.width)}
+        style={[
+          styles.floatingTabBar,
+          {
+            backgroundColor: navColors.surface,
+            borderColor: navColors.border,
+            shadowColor: isDark ? darkNavColors.accent : '#000000',
+            shadowOpacity: isDark ? 0.13 : 0.08,
+          },
+        ]}>
+        <View style={styles.floatingTabItems}>
+          {visibleRoutes.map((route) => {
+            const options = descriptors[route.key].options;
+            const isFocused = route.key === activeRoute.key;
+            const icon = tabIcons[route.name] || 'circle';
+
+            const onPress = () => {
+              const event = navigation.emit({
+                type: 'tabPress',
+                target: route.key,
+                canPreventDefault: true,
+              });
+
+              if (!isFocused && !event.defaultPrevented) {
+                navigation.navigate(route.name, route.params);
+              }
+            };
+
+            return (
+              <Pressable
+                accessibilityLabel={options.tabBarAccessibilityLabel}
+                accessibilityRole="button"
+                accessibilityState={isFocused ? { selected: true } : {}}
+                key={route.key}
+                onPress={onPress}
+                style={[styles.floatingTabItem, { width: itemWidth || undefined }]}>
+                <MaterialIcons
+                  name={icon}
+                  size={21}
+                  color={isFocused ? navColors.accent : navColors.muted}
+                />
+                <View
+                  style={[
+                    styles.floatingTabDot,
+                    { backgroundColor: isFocused ? navColors.accent : 'transparent' },
+                  ]}
+                />
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
     </View>
   );
 }
@@ -352,6 +452,46 @@ function BrandLogo({ size }: { size: number }) {
 const styles = StyleSheet.create({
   shell: {
     flex: 1,
+  },
+  floatingTabShell: {
+    alignItems: 'center',
+    bottom: 0,
+    left: 0,
+    paddingHorizontal: 24,
+    paddingTop: 14,
+    position: 'absolute',
+    right: 0,
+  },
+  floatingTabBar: {
+    borderWidth: 1,
+    borderRadius: 20,
+    elevation: 16,
+    height: 56,
+    maxWidth: 356,
+    position: 'relative',
+    shadowColor: '#27D3E2',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.13,
+    shadowRadius: 22,
+    width: '100%',
+  },
+  floatingTabItems: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    height: '100%',
+    justifyContent: 'space-between',
+    paddingHorizontal: 9,
+  },
+  floatingTabItem: {
+    alignItems: 'center',
+    gap: 4,
+    height: '100%',
+    justifyContent: 'center',
+  },
+  floatingTabDot: {
+    borderRadius: 2.5,
+    height: 5,
+    width: 5,
   },
   header: {
     alignItems: 'center',
