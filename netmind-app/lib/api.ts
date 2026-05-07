@@ -35,6 +35,31 @@ export type TeamMember = {
   id: number;
   team_id: number;
   player_id: number;
+  is_active?: boolean | number;
+};
+
+export type Match = {
+  id: number;
+  team_id: number;
+  opponent_name: string;
+  match_date: string;
+  best_of?: number | string | null;
+  is_home?: boolean | number;
+  result?: 'win' | 'loss' | 'draw' | string | null;
+  team_score?: number | string | null;
+  opponent_score?: number | string | null;
+  season_id?: number | string | null;
+  match_type?: string | null;
+  notes?: string | null;
+};
+
+export type MatchScore = {
+  id: number;
+  match_id: number;
+  match_number: number;
+  team_score?: number | string | null;
+  opponent_score?: number | string | null;
+  result?: 'win' | 'loss' | 'draw' | string | null;
 };
 
 export type TrainingAssignment = {
@@ -89,6 +114,26 @@ export type InjuryLog = InjuryReportInput & {
   player_id: number;
   recovered_at?: string | null;
   days_missed?: number | null;
+  created_at?: string | null;
+};
+
+export type PerformanceReflectionInput = {
+  session_type: 'match';
+  match_id: number;
+  action_type: 'reflection';
+  result?: 'normal' | string | null;
+  rpe: number;
+  energy_level: number;
+  confidence_level: number;
+  focus_level: number;
+  injury_status: 'none' | 'minor' | 'moderate' | 'injured';
+  notes?: string | null;
+};
+
+export type PerformanceLog = PerformanceReflectionInput & {
+  id: number;
+  user_id: number;
+  match_number?: number | string;
   created_at?: string | null;
 };
 
@@ -160,6 +205,21 @@ export function updateTrainingAssignmentStatus(assignmentId: number | string, st
   return apiRequest<TrainingAssignment>(`/training-assignments/${assignmentId}/status`, {
     method: 'PATCH',
     body: JSON.stringify({ status }),
+  });
+}
+
+export function listTeamMatches(teamId: number | string) {
+  return apiRequest<Match[]>(`/teams/${teamId}/matches`);
+}
+
+export function listPlayerPerformanceLogs(playerId: number | string) {
+  return apiRequest<PerformanceLog[]>(`/players/${playerId}/performance-logs`);
+}
+
+export function submitPlayerPerformanceReflection(playerId: number | string, body: PerformanceReflectionInput) {
+  return apiRequest<PerformanceLog>(`/players/${playerId}/performance-logs`, {
+    method: 'POST',
+    body: JSON.stringify(body),
   });
 }
 

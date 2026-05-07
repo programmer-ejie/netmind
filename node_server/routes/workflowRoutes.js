@@ -90,6 +90,39 @@ async function ensureRecord(table, id, label) {
   return record;
 }
 
+async function columnExists(table, column) {
+  const rows = await query(
+    `SELECT COUNT(*) AS count
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = ?
+      AND COLUMN_NAME = ?`,
+    [table, column]
+  );
+
+  return Number(rows[0]?.count || 0) > 0;
+}
+
+async function ensurePerformanceLogColumns() {
+  if (!(await columnExists("performance_logs", "confidence_level"))) {
+    await query("ALTER TABLE performance_logs ADD COLUMN confidence_level TINYINT NULL");
+  }
+
+  if (!(await columnExists("performance_logs", "focus_level"))) {
+    await query("ALTER TABLE performance_logs ADD COLUMN focus_level TINYINT NULL");
+  }
+
+  if (!(await columnExists("performance_logs", "notes"))) {
+    await query("ALTER TABLE performance_logs ADD COLUMN notes TEXT NULL");
+  }
+
+  await query("ALTER TABLE performance_logs MODIFY energy_level TINYINT NULL");
+  await query(
+    `ALTER TABLE performance_logs
+    MODIFY action_type ENUM('spike', 'serve', 'receive', 'dig', 'set', 'block', 'jump', 'run', 'reflection') NOT NULL`
+  );
+}
+
 router.get("/routes", (req, res) => {
   res.json({
     auth: [
@@ -711,15 +744,67 @@ router.post("/training-assignments/:assignmentId/logs", asyncHandler(async (req,
 }));
 
 router.get("/players/:playerId/performance-logs", asyncHandler(async (req, res) => {
+  await ensurePerformanceLogColumns();
+
   const rows = await query("SELECT * FROM performance_logs WHERE user_id = ? ORDER BY created_at DESC", [req.params.playerId]);
   res.json(rows);
 }));
 
 router.post("/players/:playerId/performance-logs", asyncHandler(async (req, res) => {
+  await ensurePerformanceLogColumns();
+
+  const isReflection = req.body.session_type === "match" && req.body.action_type === "reflection" && req.body.match_id;
+  if (isReflection) {
+    const existingRows = await query(
+      `SELECT id FROM performance_logs
+      WHERE user_id = ?
+        AND session_type = 'match'
+        AND action_type = 'reflection'
+        AND match_id = ?
+      ORDER BY created_at DESC
+      LIMIT 1`,
+      [req.params.playerId, req.body.match_id]
+    );
+
+    if (existingRows.length) {
+      await query(
+        `UPDATE performance_logs
+        SET result = ?,
+          value = ?,
+          minutes_played = COALESCE(?, 0),
+          fatigue_level = ?,
+          rpe = ?,
+          sleep_quality = ?,
+          energy_level = ?,
+          confidence_level = ?,
+          focus_level = ?,
+          injury_status = COALESCE(?, 'none'),
+          notes = ?
+        WHERE id = ?`,
+        [
+          req.body.result || null,
+          req.body.value || null,
+          req.body.minutes_played ?? null,
+          req.body.fatigue_level ?? null,
+          req.body.rpe ?? null,
+          req.body.sleep_quality || null,
+          req.body.energy_level || null,
+          req.body.confidence_level || null,
+          req.body.focus_level || null,
+          req.body.injury_status || null,
+          req.body.notes || null,
+          existingRows[0].id,
+        ]
+      );
+
+      return res.json(await getById("performance_logs", existingRows[0].id));
+    }
+  }
+
   const result = await query(
     `INSERT INTO performance_logs
-      (user_id, session_type, match_id, match_number, season_id, action_type, result, value, minutes_played, fatigue_level, rpe, sleep_quality, energy_level, injury_status)
-    VALUES (?, ?, ?, COALESCE(?, 1), ?, ?, ?, ?, COALESCE(?, 0), ?, ?, ?, ?, COALESCE(?, 'none'))`,
+      (user_id, session_type, match_id, match_number, season_id, action_type, result, value, minutes_played, fatigue_level, rpe, sleep_quality, energy_level, confidence_level, focus_level, injury_status, notes)
+    VALUES (?, ?, ?, COALESCE(?, 1), ?, ?, ?, ?, COALESCE(?, 0), ?, ?, ?, ?, ?, ?, COALESCE(?, 'none'), ?)`,
     [
       req.params.playerId,
       req.body.session_type,
@@ -734,7 +819,10 @@ router.post("/players/:playerId/performance-logs", asyncHandler(async (req, res)
       req.body.rpe ?? null,
       req.body.sleep_quality || null,
       req.body.energy_level || null,
+      req.body.confidence_level || null,
+      req.body.focus_level || null,
       req.body.injury_status || null,
+      req.body.notes || null,
     ]
   );
 

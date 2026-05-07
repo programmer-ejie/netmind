@@ -19,7 +19,7 @@ export default function DashboardScreen() {
         <PrimaryButton
           icon="add-chart"
           onPress={() => router.push('/(tabs)/performance')}
-          title="Log spike, jump, run"
+          title="Log match reflection"
         />
         <PrimaryButton
           icon="favorite"
