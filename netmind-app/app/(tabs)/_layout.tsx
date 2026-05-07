@@ -1,4 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Asset } from 'expo-asset';
 import { Image as ExpoImage } from 'expo-image';
 import { Tabs, router, usePathname, type Href } from 'expo-router';
@@ -8,6 +9,7 @@ import {
   Easing,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -223,6 +225,12 @@ function Sidebar({ drawerWidth, onClose }: { drawerWidth: number; onClose: () =>
     router.push(route);
   };
 
+  const logout = async () => {
+    await AsyncStorage.multiRemove(['netmind_user', 'netmind_token']);
+    onClose();
+    router.replace('/login');
+  };
+
   return (
     <View
       style={[
@@ -230,49 +238,85 @@ function Sidebar({ drawerWidth, onClose }: { drawerWidth: number; onClose: () =>
         {
           backgroundColor: colors.surface,
           borderRightColor: colors.line,
+          paddingBottom: insets.bottom + 14,
           paddingTop: insets.top + 14,
           width: drawerWidth,
         },
       ]}>
-      <View style={styles.drawerBrand}>
-        <BrandLogo size={44} />
-        <View style={styles.drawerBrandText}>
-          <Text style={[styles.drawerTitle, { color: colors.ink }]}>NetMind</Text>
-          <Text style={[styles.drawerSubtitle, { color: colors.muted }]}>Player Workspace</Text>
+      <View style={[styles.drawerBrandCard, { backgroundColor: colors.wash, borderColor: colors.line }]}>
+        <View style={styles.drawerBrand}>
+          <BrandLogo size={44} />
+          <View style={styles.drawerBrandText}>
+            <Text style={[styles.drawerTitle, { color: colors.ink }]}>NetMind</Text>
+            <Text style={[styles.drawerSubtitle, { color: colors.muted }]}>Player Workspace</Text>
+          </View>
+          <Pressable
+            accessibilityLabel="Close sidebar"
+            onPress={onClose}
+            style={[styles.drawerClose, { backgroundColor: colors.surface, borderColor: colors.line }]}>
+            <MaterialIcons name="close" size={21} color={colors.muted} />
+          </Pressable>
         </View>
-        <Pressable accessibilityLabel="Close sidebar" onPress={onClose} style={styles.drawerClose}>
-          <MaterialIcons name="close" size={22} color={colors.muted} />
-        </Pressable>
+        <View style={styles.drawerStatusRow}>
+          <View style={[styles.drawerStatusDot, { backgroundColor: colors.court }]} />
+          <Text style={[styles.drawerStatusText, { color: colors.muted }]}>Signed in as player</Text>
+        </View>
       </View>
 
-      <View style={styles.drawerNav}>
-        {navItems.map((item) => {
-          const pathPart = item.route.replace('/(tabs)', '');
-          const isActive = pathname === pathPart || (pathPart === '/dashboard' && pathname === '/');
+      <ScrollView
+        contentContainerStyle={styles.drawerScrollContent}
+        showsVerticalScrollIndicator={false}>
+        <Text style={[styles.drawerSectionLabel, { color: colors.muted }]}>Main menu</Text>
+        <View style={styles.drawerNav}>
+          {navItems.map((item) => {
+            const pathPart = item.route.replace('/(tabs)', '');
+            const isActive = pathname === pathPart || (pathPart === '/dashboard' && pathname === '/');
 
-          return (
-            <Pressable
-              accessibilityRole="button"
-              key={item.route}
-              onPress={() => goTo(item.route)}
-              style={[
-                styles.drawerItem,
-                {
-                  backgroundColor: isActive ? colors.courtSoft : 'transparent',
-                  borderColor: isActive ? colors.line : 'transparent',
-                },
-              ]}>
-              <MaterialIcons
-                name={item.icon}
-                size={21}
-                color={isActive ? colors.court : colors.muted}
-              />
-              <Text style={[styles.drawerItemText, { color: isActive ? colors.ink : colors.muted }]}>
-                {item.title}
-              </Text>
-            </Pressable>
-          );
-        })}
+            return (
+              <Pressable
+                accessibilityRole="button"
+                key={item.route}
+                onPress={() => goTo(item.route)}
+                style={[
+                  styles.drawerItem,
+                  {
+                    backgroundColor: isActive ? colors.courtSoft : 'transparent',
+                    borderColor: isActive ? colors.court : 'transparent',
+                  },
+                ]}>
+                <View style={[
+                  styles.drawerItemIcon,
+                  { backgroundColor: isActive ? colors.surface : colors.wash },
+                ]}>
+                  <MaterialIcons
+                    name={item.icon}
+                    size={20}
+                    color={isActive ? colors.court : colors.muted}
+                  />
+                </View>
+                <Text style={[styles.drawerItemText, { color: isActive ? colors.ink : colors.muted }]}>
+                  {item.title}
+                </Text>
+                {isActive ? <View style={[styles.drawerActiveRail, { backgroundColor: colors.court }]} /> : null}
+              </Pressable>
+            );
+          })}
+        </View>
+      </ScrollView>
+
+      <View style={[styles.drawerFooter, { borderTopColor: colors.line }]}>
+        <View style={styles.drawerFooterText}>
+          <Text style={[styles.drawerFooterTitle, { color: colors.ink }]}>Session</Text>
+          <Text style={[styles.drawerFooterSubtitle, { color: colors.muted }]}>Secure player account</Text>
+        </View>
+        <Pressable
+          accessibilityLabel="Log out"
+          accessibilityRole="button"
+          onPress={logout}
+          style={styles.logoutButton}>
+          <MaterialIcons name="logout" size={20} color="#ffffff" />
+          <Text style={styles.logoutButtonText}>Logout</Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -390,11 +434,17 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.18,
     shadowRadius: 18,
   },
+  drawerBrandCard: {
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 12,
+    marginBottom: 14,
+    padding: 12,
+  },
   drawerBrand: {
     alignItems: 'center',
     flexDirection: 'row',
     gap: 10,
-    paddingBottom: 18,
   },
   drawerBrandText: {
     flex: 1,
@@ -409,11 +459,38 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     marginTop: 1,
   },
+  drawerStatusRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  drawerStatusDot: {
+    borderRadius: 4,
+    height: 8,
+    width: 8,
+  },
+  drawerStatusText: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
   drawerClose: {
     alignItems: 'center',
+    borderRadius: 8,
+    borderWidth: 1,
     height: 38,
     justifyContent: 'center',
     width: 38,
+  },
+  drawerScrollContent: {
+    paddingBottom: 18,
+  },
+  drawerSectionLabel: {
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0,
+    marginBottom: 8,
+    paddingHorizontal: 4,
+    textTransform: 'uppercase',
   },
   drawerNav: {
     gap: 6,
@@ -423,12 +500,60 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     flexDirection: 'row',
-    gap: 12,
+    gap: 10,
     minHeight: 48,
-    paddingHorizontal: 12,
+    overflow: 'hidden',
+    paddingHorizontal: 10,
+    position: 'relative',
+  },
+  drawerItemIcon: {
+    alignItems: 'center',
+    borderRadius: 8,
+    height: 34,
+    justifyContent: 'center',
+    width: 34,
   },
   drawerItemText: {
     flex: 1,
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  drawerActiveRail: {
+    bottom: 10,
+    borderRadius: 2,
+    position: 'absolute',
+    right: 8,
+    top: 10,
+    width: 4,
+  },
+  drawerFooter: {
+    borderTopWidth: 1,
+    gap: 12,
+    paddingTop: 14,
+  },
+  drawerFooterText: {
+    gap: 2,
+  },
+  drawerFooterTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  drawerFooterSubtitle: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  logoutButton: {
+    alignItems: 'center',
+    backgroundColor: '#d93025',
+    borderRadius: 8,
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+    minHeight: 48,
+    paddingHorizontal: 14,
+  },
+  logoutButtonText: {
+    color: '#ffffff',
     fontSize: 15,
     fontWeight: '900',
   },
