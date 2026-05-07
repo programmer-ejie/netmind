@@ -326,9 +326,12 @@ export const AdminLayout = ({ children, title, kicker, currentPath }) => {
   const closeNotifications = () => setNotificationsOpen(false)
   const closeProfile = () => setProfileOpen(false)
   const logout = () => {
-    clearSavedUser()
     closeProfile()
+    clearSavedUser()
     window.location.hash = 'auth'
+    window.setTimeout(() => {
+      document.getElementById('auth')?.scrollIntoView({ behavior: 'auto', block: 'start' })
+    }, 0)
   }
   const toggleSidebar = () => {
     if (window.innerWidth <= 1100) {

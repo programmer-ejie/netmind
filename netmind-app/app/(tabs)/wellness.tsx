@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -36,6 +36,7 @@ export default function WellnessScreen() {
   const [checkIns, setCheckIns] = useState<WellnessCheckIn[]>([]);
   const [checkedInDates, setCheckedInDates] = useState<string[]>([]);
   const [loadingCheckIns, setLoadingCheckIns] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [savingCheckIn, setSavingCheckIn] = useState(false);
   const [savingInjury, setSavingInjury] = useState(false);
   const [message, setMessage] = useState('');
@@ -53,45 +54,41 @@ export default function WellnessScreen() {
     { label: 'Sleep', value: Number(latestCheckIn.sleep_hours), max: 10 },
   ] : [];
 
-  useEffect(() => {
-    let alive = true;
-
-    const loadCheckIns = async () => {
+  const loadCheckIns = useCallback(async (mode: 'initial' | 'refresh' = 'initial') => {
+    if (mode === 'refresh') {
+      setRefreshing(true);
+    } else {
       setLoadingCheckIns(true);
-      setMessage('');
+    }
+    setMessage('');
 
-      try {
-        const saved = await AsyncStorage.getItem('netmind_user');
-        const savedUser = saved ? JSON.parse(saved) as NetmindUser : null;
+    try {
+      const saved = await AsyncStorage.getItem('netmind_user');
+      const savedUser = saved ? JSON.parse(saved) as NetmindUser : null;
 
-        if (!alive) return;
-        setPlayer(savedUser);
+      setPlayer(savedUser);
 
-        if (!savedUser?.id) {
-          setCheckedInDates([]);
-          setMessage('Sign in again to load wellness check-ins.');
-          return;
-        }
-
-        const rows = await listPlayerWellnessCheckIns(savedUser.id, monthKey);
-        if (!alive) return;
-
-        setCheckIns(rows);
-        setCheckedInDates(rows.map((row) => dateKeyFromValue(row.checkin_date)));
-      } catch (error) {
-        if (!alive) return;
-        setMessage(error instanceof Error ? error.message : 'Unable to load wellness check-ins.');
-      } finally {
-        if (alive) setLoadingCheckIns(false);
+      if (!savedUser?.id) {
+        setCheckedInDates([]);
+        setMessage('Sign in again to load wellness check-ins.');
+        return;
       }
-    };
 
-    loadCheckIns();
+      const rows = await listPlayerWellnessCheckIns(savedUser.id, monthKey);
 
-    return () => {
-      alive = false;
-    };
+      setCheckIns(rows);
+      setCheckedInDates(rows.map((row) => dateKeyFromValue(row.checkin_date)));
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Unable to load wellness check-ins.');
+    } finally {
+      setLoadingCheckIns(false);
+      setRefreshing(false);
+    }
   }, [monthKey]);
+
+  useEffect(() => {
+    loadCheckIns();
+  }, [loadCheckIns]);
 
   const toggleArea = (area: string) => {
     setSelected((current) =>
@@ -178,7 +175,11 @@ export default function WellnessScreen() {
   };
 
   return (
-    <Screen title="Wellness Log" subtitle="Submit fatigue, RPE, and sleep so trainers can review recovery.">
+    <Screen
+      onRefresh={() => loadCheckIns('refresh')}
+      refreshing={refreshing}
+      title="Wellness Log"
+      subtitle="Submit fatigue, RPE, and sleep so trainers can review recovery.">
       <View style={styles.topAction}>
         <PrimaryButton
           icon="health-and-safety"

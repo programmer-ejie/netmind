@@ -66,6 +66,42 @@ function App() {
   const [route, setRoute] = useState(getRoute)
   const [authVersion, setAuthVersion] = useState(0)
 
+  const moveHashToAuth = () => {
+    if (window.location.hash !== '#auth') {
+      window.history.replaceState(null, '', '#auth')
+    }
+    window.setTimeout(() => {
+      document.getElementById('auth')?.scrollIntoView({ behavior: 'auto', block: 'start' })
+    }, 0)
+  }
+
+  const renderHome = () => (
+    <div className="min-h-screen bg-background text-foreground">
+      <Navbar />
+      <HeroSection onOpenModal={() => setModalOpen(true)} />
+      <AboutSection />
+      <SkillsSection />
+      <ProgramsSection />
+      <CurriculumSection />
+      <PricingSection />
+      <AuthSection />
+      <DashboardPreview />
+      <TestimonialsSection />
+      <BlogSection />
+      <FAQSection />
+      <CTASection />
+      <FooterSection />
+      <LeadCaptureModal open={modalOpen} onClose={() => setModalOpen(false)} />
+
+      <button
+        onClick={() => setModalOpen(true)}
+        className="fixed bottom-6 right-6 z-50 glow-button rounded-full px-5 py-3 text-sm font-bold md:hidden"
+      >
+        Demo
+      </button>
+    </div>
+  )
+
   useEffect(() => {
     const handleHashChange = () => {
       const nextRoute = getRoute()
@@ -111,9 +147,11 @@ function App() {
     const currentRole = currentUser?.role
 
     if (!['coach', 'trainer'].includes(currentRole)) {
-      clearSavedUser()
-      window.location.hash = 'auth'
-      return null
+      if (currentUser) {
+        window.setTimeout(clearSavedUser, 0)
+      }
+      moveHashToAuth()
+      return renderHome()
     }
 
     const expectedBase = currentUser?.role === 'trainer' ? 'trainer' : 'coach'
@@ -179,32 +217,7 @@ function App() {
     return <AdminPage key={pageKey} currentPath={route.hash} />
   }
 
-  return (
-    <div className="min-h-screen bg-background text-foreground">
-      <Navbar />
-      <HeroSection onOpenModal={() => setModalOpen(true)} />
-      <AboutSection />
-      <SkillsSection />
-      <ProgramsSection />
-      <CurriculumSection />
-      <PricingSection />
-      <AuthSection />
-      <DashboardPreview />
-      <TestimonialsSection />
-      <BlogSection />
-      <FAQSection />
-      <CTASection />
-      <FooterSection />
-      <LeadCaptureModal open={modalOpen} onClose={() => setModalOpen(false)} />
-
-      <button
-        onClick={() => setModalOpen(true)}
-        className="fixed bottom-6 right-6 z-50 glow-button rounded-full px-5 py-3 text-sm font-bold md:hidden"
-      >
-        Demo
-      </button>
-    </div>
-  )
+  return renderHome()
 }
 
 export default App

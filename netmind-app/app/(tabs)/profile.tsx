@@ -2,7 +2,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -108,6 +108,7 @@ export default function ProfileScreen() {
   const [profile, setProfile] = useState<NetmindUser | null>(null);
   const [teamName, setTeamName] = useState('No team linked yet');
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -138,54 +139,55 @@ export default function ProfileScreen() {
     { label: 'Joined', value: formatDate(profile?.created_at), icon: 'schedule' },
   ], [profile]);
 
-  useEffect(() => {
-    let alive = true;
+  const loadProfile = useCallback(async (mode: 'initial' | 'refresh' = 'initial') => {
+    if (mode === 'refresh') {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
 
-    const loadProfile = async () => {
-      try {
-        const saved = await AsyncStorage.getItem('netmind_user');
-        const savedUser = saved ? JSON.parse(saved) as NetmindUser : null;
-        const freshProfile = savedUser?.id
-          ? await getResource<NetmindUser>('users', savedUser.id).catch(() => savedUser)
-          : null;
+    try {
+      const saved = await AsyncStorage.getItem('netmind_user');
+      const savedUser = saved ? JSON.parse(saved) as NetmindUser : null;
+      const freshProfile = savedUser?.id
+        ? await getResource<NetmindUser>('users', savedUser.id).catch(() => savedUser)
+        : null;
 
-        if (!alive) return;
-
-        setProfile(freshProfile);
-        if (freshProfile) {
-          await AsyncStorage.setItem('netmind_user', JSON.stringify(freshProfile));
-          setForm({
-            name: freshProfile.name || '',
-            position: freshProfile.position || '',
-            jersey_number: String(freshProfile.jersey_number || ''),
-            birthdate: toDateInput(freshProfile.birthdate),
-            location: freshProfile.location || '',
-          });
-        }
-
-        if (freshProfile?.id) {
-          const links = await listResource<TeamMember>('team-members', {
-            player_id: freshProfile.id,
-            is_active: 1,
-            limit: 1,
-          }).catch(() => ({ data: [] }));
-          const teamId = links.data[0]?.team_id;
-
-          if (teamId) {
-            const team = await getResource<Team>('teams', teamId).catch(() => null);
-            if (alive && team?.team_name) setTeamName(team.team_name);
-          }
-        }
-      } finally {
-        if (alive) setLoading(false);
+      setProfile(freshProfile);
+      setTeamName('No team linked yet');
+      if (freshProfile) {
+        await AsyncStorage.setItem('netmind_user', JSON.stringify(freshProfile));
+        setForm({
+          name: freshProfile.name || '',
+          position: freshProfile.position || '',
+          jersey_number: String(freshProfile.jersey_number || ''),
+          birthdate: toDateInput(freshProfile.birthdate),
+          location: freshProfile.location || '',
+        });
       }
-    };
 
-    loadProfile();
-    return () => {
-      alive = false;
-    };
+      if (freshProfile?.id) {
+        const links = await listResource<TeamMember>('team-members', {
+          player_id: freshProfile.id,
+          is_active: 1,
+          limit: 1,
+        }).catch(() => ({ data: [] }));
+        const teamId = links.data[0]?.team_id;
+
+        if (teamId) {
+          const team = await getResource<Team>('teams', teamId).catch(() => null);
+          if (team?.team_name) setTeamName(team.team_name);
+        }
+      }
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadProfile();
+  }, [loadProfile]);
 
   const updateForm = (field: keyof ProfileForm, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -277,7 +279,11 @@ export default function ProfileScreen() {
   };
 
   return (
-    <Screen title="Profile" subtitle="Player information, identity, and account details.">
+    <Screen
+      onRefresh={() => loadProfile('refresh')}
+      refreshing={refreshing}
+      title="Profile"
+      subtitle="Player information, identity, and account details.">
       {message ? (
         <View style={[styles.notice, { backgroundColor: colors.courtSoft, borderColor: colors.line }]}>
           <Text style={[styles.noticeText, { color: colors.ink }]}>{message}</Text>

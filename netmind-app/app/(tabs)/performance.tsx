@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -55,6 +55,7 @@ export default function PerformanceScreen() {
   const [bodyCondition, setBodyCondition] = useState<(typeof bodyConditions)[number]['value']>('none');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [reflectionModalVisible, setReflectionModalVisible] = useState(false);
   const [reflectionMode, setReflectionMode] = useState<'create' | 'view'>('create');
@@ -77,59 +78,55 @@ export default function PerformanceScreen() {
     [matches, reflectedMatchIds, statusFilter]
   );
 
-  useEffect(() => {
-    let alive = true;
-
-    const loadPerformanceContext = async () => {
+  const loadPerformanceContext = useCallback(async (mode: 'initial' | 'refresh' = 'initial') => {
+    if (mode === 'refresh') {
+      setRefreshing(true);
+    } else {
       setLoading(true);
-      setMessage('');
+    }
+    setMessage('');
 
-      try {
-        const saved = await AsyncStorage.getItem('netmind_user');
-        const savedUser = saved ? JSON.parse(saved) as NetmindUser : null;
+    try {
+      const saved = await AsyncStorage.getItem('netmind_user');
+      const savedUser = saved ? JSON.parse(saved) as NetmindUser : null;
 
-        if (!alive) return;
-        setPlayer(savedUser);
+      setPlayer(savedUser);
 
-        if (!savedUser?.id) {
-          setMessage('Sign in again to load your matches.');
-          return;
-        }
-
-        const teamLinks = await listResource<TeamMember>('team-members', {
-          player_id: savedUser.id,
-          is_active: 1,
-        });
-        const activeTeamIds = [...new Set(teamLinks.data.map((link) => link.team_id))];
-        const teamMatches = (await Promise.all(activeTeamIds.map((teamId) => listTeamMatches(teamId)))).flat();
-        const scoreRows = await listResource<MatchScore>('match-scores', {
-          limit: 500,
-          sortBy: 'match_number',
-          sortDir: 'asc',
-        });
-        const uniqueMatches = [...new Map(teamMatches.map((match) => [match.id, match])).values()]
-          .filter((match) => isCompletedMatch(match, scoreRows.data))
-          .sort((first, second) => dateKey(second.match_date).localeCompare(dateKey(first.match_date)));
-        const savedLogs = await listPlayerPerformanceLogs(savedUser.id);
-
-        if (!alive) return;
-        setMatches(uniqueMatches);
-        setMatchScores(scoreRows.data);
-        setLogs(savedLogs);
-      } catch (error) {
-        if (!alive) return;
-        setMessage(error instanceof Error ? error.message : 'Unable to load performance matches.');
-      } finally {
-        if (alive) setLoading(false);
+      if (!savedUser?.id) {
+        setMessage('Sign in again to load your matches.');
+        return;
       }
-    };
 
-    loadPerformanceContext();
+      const teamLinks = await listResource<TeamMember>('team-members', {
+        player_id: savedUser.id,
+        is_active: 1,
+      });
+      const activeTeamIds = [...new Set(teamLinks.data.map((link) => link.team_id))];
+      const teamMatches = (await Promise.all(activeTeamIds.map((teamId) => listTeamMatches(teamId)))).flat();
+      const scoreRows = await listResource<MatchScore>('match-scores', {
+        limit: 500,
+        sortBy: 'match_number',
+        sortDir: 'asc',
+      });
+      const uniqueMatches = [...new Map(teamMatches.map((match) => [match.id, match])).values()]
+        .filter((match) => isCompletedMatch(match, scoreRows.data))
+        .sort((first, second) => dateKey(second.match_date).localeCompare(dateKey(first.match_date)));
+      const savedLogs = await listPlayerPerformanceLogs(savedUser.id);
 
-    return () => {
-      alive = false;
-    };
+      setMatches(uniqueMatches);
+      setMatchScores(scoreRows.data);
+      setLogs(savedLogs);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Unable to load performance matches.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadPerformanceContext();
+  }, [loadPerformanceContext]);
 
   const openReflectionModal = (match: Match) => {
     setSelectedMatchId(match.id);
@@ -210,7 +207,11 @@ export default function PerformanceScreen() {
   };
 
   return (
-    <Screen title="Log Performance" subtitle="Reflect on coach-created matches without re-entering coach stats.">
+    <Screen
+      onRefresh={() => loadPerformanceContext('refresh')}
+      refreshing={refreshing}
+      title="Log Performance"
+      subtitle="Reflect on coach-created matches without re-entering coach stats.">
       {message ? (
         <View style={[styles.notice, { backgroundColor: colors.courtSoft, borderColor: colors.line }]}>
           <Text style={[styles.noticeText, { color: colors.ink }]}>{message}</Text>
