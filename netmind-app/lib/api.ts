@@ -55,6 +55,43 @@ export type TrainingAssignment = {
   created_at?: string | null;
 };
 
+export type WellnessCheckIn = {
+  id: number;
+  player_id: number;
+  checkin_date: string;
+  fatigue_level: number;
+  rpe: number;
+  sleep_hours: number | string;
+  notes?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+export type WellnessCheckInInput = {
+  checkin_date: string;
+  fatigue_level: number;
+  rpe: number;
+  sleep_hours: number;
+  notes?: string | null;
+};
+
+export type InjuryReportInput = {
+  injury_type: string;
+  body_part: 'ankle' | 'knee' | 'shoulder' | 'back' | 'wrist' | 'elbow' | 'hip' | 'other';
+  severity: 'mild' | 'moderate' | 'severe';
+  occurred_at: string;
+  reported_by: number;
+  notes?: string | null;
+};
+
+export type InjuryLog = InjuryReportInput & {
+  id: number;
+  player_id: number;
+  recovered_at?: string | null;
+  days_missed?: number | null;
+  created_at?: string | null;
+};
+
 const defaultApiBase = Platform.select({
   android: 'http://10.0.2.2:5001/api',
   default: 'http://localhost:5001/api',
@@ -123,6 +160,25 @@ export function updateTrainingAssignmentStatus(assignmentId: number | string, st
   return apiRequest<TrainingAssignment>(`/training-assignments/${assignmentId}/status`, {
     method: 'PATCH',
     body: JSON.stringify({ status }),
+  });
+}
+
+export function listPlayerWellnessCheckIns(playerId: number | string, month?: string) {
+  const suffix = month ? `?month=${encodeURIComponent(month)}` : '';
+  return apiRequest<WellnessCheckIn[]>(`/players/${playerId}/wellness-checkins${suffix}`);
+}
+
+export function submitPlayerWellnessCheckIn(playerId: number | string, body: WellnessCheckInInput) {
+  return apiRequest<WellnessCheckIn>(`/players/${playerId}/wellness-checkins`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function reportPlayerInjury(playerId: number | string, body: InjuryReportInput) {
+  return apiRequest<InjuryLog>(`/players/${playerId}/injuries`, {
+    method: 'POST',
+    body: JSON.stringify(body),
   });
 }
 

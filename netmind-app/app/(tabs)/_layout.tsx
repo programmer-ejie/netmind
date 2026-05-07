@@ -26,7 +26,6 @@ const navItems = [
   { title: 'My Stats', route: '/(tabs)/stats', icon: 'bar-chart' },
   { title: 'Wellness', route: '/(tabs)/wellness', icon: 'favorite' },
   { title: 'Training Tasks', route: '/(tabs)/training', icon: 'assignment' },
-  { title: 'Report Injury', route: '/(tabs)/injury', icon: 'health-and-safety' },
   { title: 'Activity', route: '/(tabs)/activity', icon: 'timeline' },
   { title: 'Profile', route: '/(tabs)/profile', icon: 'person' },
   { title: 'Settings', route: '/(tabs)/settings', icon: 'settings' },
@@ -130,8 +129,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="injury"
           options={{
-            title: 'Injury',
-            tabBarIcon: ({ color }) => <MaterialIcons name="health-and-safety" size={24} color={color} />,
+            href: null,
           }}
         />
         <Tabs.Screen

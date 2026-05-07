@@ -27,12 +27,6 @@ export default function DashboardScreen() {
           title="Log fatigue, RPE, sleep"
           variant="outline"
         />
-        <PrimaryButton
-          icon="health-and-safety"
-          onPress={() => router.push('/(tabs)/injury')}
-          title="Report injury"
-          variant="outline"
-        />
       </View>
 
       <SectionTitle>Recent activity</SectionTitle>

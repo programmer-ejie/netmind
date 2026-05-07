@@ -190,6 +190,19 @@ const tables = {
     ],
     filterFields: ["user_id", "session_type", "match_id", "match_number", "season_id", "action_type", "result", "injury_status"],
   },
+  "wellness-checkins": {
+    table: "wellness_checkins",
+    fields: [
+      "player_id",
+      "checkin_date",
+      "fatigue_level",
+      "rpe",
+      "sleep_hours",
+      "notes",
+    ],
+    filterFields: ["player_id", "checkin_date"],
+    searchFields: ["notes"],
+  },
   "attendance-logs": {
     table: "attendance_logs",
     fields: [

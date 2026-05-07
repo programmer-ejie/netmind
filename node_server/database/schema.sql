@@ -221,6 +221,20 @@ CREATE TABLE IF NOT EXISTS performance_logs (
   CONSTRAINT fk_performance_logs_season FOREIGN KEY (season_id) REFERENCES seasons(id)
 );
 
+CREATE TABLE IF NOT EXISTS wellness_checkins (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  player_id INT NOT NULL,
+  checkin_date DATE NOT NULL,
+  fatigue_level TINYINT NOT NULL CHECK (fatigue_level BETWEEN 1 AND 10),
+  rpe TINYINT NOT NULL CHECK (rpe BETWEEN 1 AND 10),
+  sleep_hours DECIMAL(4,1) NOT NULL CHECK (sleep_hours BETWEEN 0 AND 24),
+  notes TEXT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_player_checkin_date (player_id, checkin_date),
+  CONSTRAINT fk_wellness_checkins_player FOREIGN KEY (player_id) REFERENCES users(id)
+);
+
 CREATE TABLE IF NOT EXISTS attendance_logs (
   id INT PRIMARY KEY AUTO_INCREMENT,
   player_id INT NOT NULL,
