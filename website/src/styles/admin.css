@@ -3485,6 +3485,10 @@
   margin-bottom: 24px;
 }
 
+.admin-wellness-section-card {
+  margin-top: 24px;
+}
+
 .admin-wellness-chart-card {
   min-height: 320px;
 }
@@ -3655,16 +3659,76 @@
   font-weight: 800;
 }
 
-.admin-wellness-table .admin-native-table {
-  min-width: 940px;
+.admin-wellness-log-list {
+  display: grid;
+  gap: 12px;
 }
 
-.admin-wellness-table .admin-native-table th {
-  background: color-mix(in oklab, var(--admin-soft) 62%, #ffffff);
+.admin-wellness-log-card {
+  min-width: 0;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--admin-soft) 36%, #ffffff);
+  display: grid;
+  grid-template-columns: minmax(180px, 0.8fr) minmax(0, 1.8fr);
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
 }
 
-.admin-wellness-table .admin-native-table td:first-child {
+.admin-wellness-log-player,
+.admin-wellness-log-metrics > span {
+  min-width: 0;
+}
+
+.admin-wellness-log-player strong,
+.admin-wellness-log-player small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.admin-wellness-log-player strong {
+  color: var(--admin-dark);
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.admin-wellness-log-player small,
+.admin-wellness-log-metrics small {
+  color: var(--admin-muted);
+  font-size: 12px;
   font-weight: 800;
+}
+
+.admin-wellness-log-metrics {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.admin-wellness-log-metrics > span {
+  min-height: 58px;
+  border: 1px solid color-mix(in oklab, var(--admin-border) 76%, transparent);
+  border-radius: 8px;
+  background: var(--admin-card);
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 5px;
+  padding: 9px 10px;
+}
+
+.admin-wellness-log-metrics strong {
+  color: var(--admin-link);
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.admin-wellness-log-metrics .admin-badge {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .admin-dark .admin-wellness-metric-icon {
@@ -3673,7 +3737,8 @@
 
 .admin-dark .admin-wellness-metric strong,
 .admin-dark .admin-wellness-bar-row strong,
-.admin-dark .admin-wellness-roster-card strong {
+.admin-dark .admin-wellness-roster-card strong,
+.admin-dark .admin-wellness-log-player strong {
   color: #ffffff;
 }
 
@@ -3681,8 +3746,99 @@
   background: linear-gradient(180deg, color-mix(in oklab, var(--admin-card) 86%, var(--admin-soft)), var(--admin-card));
 }
 
-.admin-dark .admin-wellness-table .admin-native-table th {
-  background: color-mix(in oklab, var(--admin-card) 84%, var(--admin-soft));
+.admin-dark .admin-wellness-log-card {
+  background: color-mix(in oklab, var(--admin-card) 78%, var(--admin-soft));
+}
+
+.admin-dark .admin-wellness-log-metrics > span {
+  background: color-mix(in oklab, var(--admin-card) 88%, var(--admin-soft));
+}
+
+.admin-injury-report-list {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-injury-report-card {
+  min-width: 0;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--admin-light-warning) 34%, #ffffff);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.7fr);
+  gap: 14px;
+  padding: 14px;
+}
+
+.admin-injury-report-main,
+.admin-injury-report-meta,
+.admin-injury-report-meta > span {
+  min-width: 0;
+}
+
+.admin-injury-report-main strong,
+.admin-injury-report-main small,
+.admin-injury-report-main p {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.admin-injury-report-main strong {
+  color: var(--admin-dark);
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.admin-injury-report-main small,
+.admin-injury-report-meta small {
+  color: var(--admin-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.admin-injury-report-main p {
+  margin-top: 8px;
+  color: var(--admin-link);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.admin-injury-report-meta {
+  display: grid;
+  grid-template-columns: auto repeat(2, minmax(0, 1fr));
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-injury-report-meta > span {
+  min-height: 58px;
+  border: 1px solid color-mix(in oklab, var(--admin-warning) 22%, var(--admin-border));
+  border-radius: 8px;
+  background: var(--admin-card);
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  padding: 9px 10px;
+}
+
+.admin-injury-report-meta strong {
+  color: var(--admin-link);
+  font-size: 14px;
+  font-weight: 900;
+  text-transform: capitalize;
+}
+
+.admin-dark .admin-injury-report-card {
+  background: color-mix(in oklab, var(--admin-card) 76%, var(--admin-light-warning));
+}
+
+.admin-dark .admin-injury-report-main strong {
+  color: #ffffff;
+}
+
+.admin-dark .admin-injury-report-meta > span {
+  background: color-mix(in oklab, var(--admin-card) 88%, var(--admin-soft));
 }
 
 .admin-tutorial-link {
@@ -5587,6 +5743,14 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .admin-wellness-log-card {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-injury-report-card {
+    grid-template-columns: 1fr;
+  }
+
   .admin-profile-hero,
   .admin-profile-grid {
     grid-template-columns: 1fr;
@@ -5700,6 +5864,22 @@
 
   .admin-wellness-bar-value {
     white-space: normal;
+  }
+
+  .admin-wellness-log-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-wellness-log-metrics > span {
+    min-height: 54px;
+  }
+
+  .admin-injury-report-meta {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .admin-injury-report-meta .admin-badge {
+    grid-column: 1 / -1;
   }
 
   .admin-modal-backdrop {

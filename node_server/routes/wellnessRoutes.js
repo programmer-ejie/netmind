@@ -84,6 +84,46 @@ router.get("/players/:playerId/wellness-checkins", asyncHandler(async (req, res)
   res.json(rows);
 }));
 
+router.get("/wellness-checkins", asyncHandler(async (req, res) => {
+  await ensureWellnessTable();
+
+  const params = [];
+  const filters = [];
+
+  if (req.query.player_id) {
+    filters.push("player_id = ?");
+    params.push(req.query.player_id);
+  }
+
+  if (req.query.month) {
+    filters.push("DATE_FORMAT(checkin_date, '%Y-%m') = ?");
+    params.push(req.query.month);
+  }
+
+  const whereSql = filters.length ? `WHERE ${filters.join(" AND ")}` : "";
+  const limit = Math.max(1, Math.min(Number(req.query.limit) || 500, 1000));
+
+  const rows = await query(
+    `SELECT
+      id,
+      player_id,
+      DATE_FORMAT(checkin_date, '%Y-%m-%d') AS checkin_date,
+      fatigue_level,
+      rpe,
+      sleep_hours,
+      notes,
+      created_at,
+      updated_at
+    FROM wellness_checkins
+    ${whereSql}
+    ORDER BY checkin_date DESC, updated_at DESC
+    LIMIT ${limit}`,
+    params
+  );
+
+  res.json(rows);
+}));
+
 router.post("/players/:playerId/wellness-checkins", asyncHandler(async (req, res) => {
   await ensureWellnessTable();
 
