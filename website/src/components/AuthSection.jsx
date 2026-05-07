@@ -111,10 +111,20 @@ const AuthSection = () => {
         password: form.password,
       })
 
+      const role = payload.user?.role
+
+      if (!['coach', 'trainer'].includes(role)) {
+        setStatusModal({
+          status: 'error',
+          message: 'Account not found or registered for the website. Please use a coach or trainer account.',
+        })
+        return
+      }
+
       saveUser(payload.user)
       localStorage.setItem('netmind_token', payload.token)
       setStatusModal(null)
-      window.location.hash = payload.user?.role === 'trainer' ? 'trainer' : 'coach'
+      window.location.hash = role === 'trainer' ? 'trainer' : 'coach'
     } catch (error) {
       setStatusModal({
         status: 'error',

@@ -28,7 +28,7 @@ import AdminTeams from './pages/admin/AdminTeams'
 import AdminTrainers from './pages/admin/AdminTrainers'
 import AdminTraining from './pages/admin/AdminTraining'
 import AdminWellness from './pages/admin/AdminWellness'
-import { readSavedUser } from './lib/api'
+import { clearSavedUser, readSavedUser } from './lib/api'
 
 const getRoute = () => {
   const hash = window.location.hash || ''
@@ -108,6 +108,14 @@ function App() {
 
   if (route.area === 'coach') {
     const currentUser = readSavedUser()
+    const currentRole = currentUser?.role
+
+    if (!['coach', 'trainer'].includes(currentRole)) {
+      clearSavedUser()
+      window.location.hash = 'auth'
+      return null
+    }
+
     const expectedBase = currentUser?.role === 'trainer' ? 'trainer' : 'coach'
 
     if (currentUser?.role && route.base !== expectedBase) {
