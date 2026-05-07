@@ -37,6 +37,24 @@ export type TeamMember = {
   player_id: number;
 };
 
+export type TrainingAssignment = {
+  id: number;
+  player_id: number;
+  assigned_by: number;
+  drill_id?: number | null;
+  drill_name?: string | null;
+  category?: string | null;
+  difficulty?: string | null;
+  focus_area?: string | null;
+  drill_description?: string | null;
+  target_reps?: number | string | null;
+  target_success_rate?: number | string | null;
+  due_date?: string | null;
+  status?: 'pending' | 'in_progress' | 'completed' | 'overdue' | 'cancelled' | string;
+  completed_at?: string | null;
+  created_at?: string | null;
+};
+
 const defaultApiBase = Platform.select({
   android: 'http://10.0.2.2:5001/api',
   default: 'http://localhost:5001/api',
@@ -94,6 +112,17 @@ export function updateResource<T>(resource: string, id: number | string, body: R
   return apiRequest<T>(`/${resource}/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(body),
+  });
+}
+
+export function listPlayerTrainingAssignments(playerId: number | string) {
+  return apiRequest<TrainingAssignment[]>(`/players/${playerId}/training-assignments`);
+}
+
+export function updateTrainingAssignmentStatus(assignmentId: number | string, status: TrainingAssignment['status']) {
+  return apiRequest<TrainingAssignment>(`/training-assignments/${assignmentId}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
   });
 }
 

@@ -134,7 +134,6 @@ function App() {
       'players',
       'player-stats',
       'training',
-      'attendance',
       'wellness',
       'analytics',
       'settings',

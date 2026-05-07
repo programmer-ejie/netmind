@@ -2,11 +2,13 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { PropsWithChildren } from 'react';
 import {
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   View,
   type PressableProps,
+  type StyleProp,
   type ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,14 +19,29 @@ import { useNetmindTheme } from '@/contexts/netmind-theme';
 export function Screen({
   title,
   subtitle,
+  refreshing = false,
+  onRefresh,
   children,
-}: PropsWithChildren<{ title: string; subtitle?: string }>) {
+}: PropsWithChildren<{
+  title: string;
+  subtitle?: string;
+  refreshing?: boolean;
+  onRefresh?: () => void;
+}>) {
   const { colors } = useNetmindTheme();
 
   return (
     <SafeAreaView edges={['left', 'right']} style={[styles.safeArea, { backgroundColor: colors.wash }]}>
       <ScrollView
         contentContainerStyle={styles.screen}
+        refreshControl={onRefresh ? (
+          <RefreshControl
+            colors={[colors.court]}
+            onRefresh={onRefresh}
+            refreshing={refreshing}
+            tintColor={colors.court}
+          />
+        ) : undefined}
         showsVerticalScrollIndicator={false}
         style={{ backgroundColor: colors.wash }}>
         <View style={styles.header}>
@@ -38,7 +55,7 @@ export function Screen({
   );
 }
 
-export function Card({ children, style }: PropsWithChildren<{ style?: ViewStyle }>) {
+export function Card({ children, style }: PropsWithChildren<{ style?: StyleProp<ViewStyle> }>) {
   const { colors, isDark } = useNetmindTheme();
 
   return (

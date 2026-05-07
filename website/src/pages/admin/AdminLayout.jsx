@@ -2,7 +2,6 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   BarChart3,
   Bell,
-  ClipboardCheck,
   Dumbbell,
   Home,
   LogOut,
@@ -123,7 +122,6 @@ const trainerSidebarGroups = [
     items: [
       { href: '#trainer/players', icon: UsersRound, label: 'My Players' },
       { href: '#trainer/training', icon: Dumbbell, label: 'Training Hub' },
-      { href: '#trainer/attendance', icon: ClipboardCheck, label: 'Training Schedule' },
       { href: '#trainer/wellness', icon: HeartPulse, label: 'Wellness Log' },
     ],
   },
