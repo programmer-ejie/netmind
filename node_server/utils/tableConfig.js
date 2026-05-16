@@ -139,9 +139,11 @@ const tables = {
       "team_id",
       "session_type",
       "session_date",
+      "description",
       "created_by",
     ],
     filterFields: ["team_id", "session_type", "session_date", "created_by"],
+    searchFields: ["description"],
   },
   "training-schedule-qr-tokens": {
     table: "training_schedule_qr_tokens",

@@ -144,9 +144,13 @@ const AdminPlayers = ({ currentPath = '#coach/players' }) => {
   }, [memberships])
 
   const load = async () => {
+    const teamParams = {
+      limit: 100,
+      ...(currentUser?.role === 'coach' && currentUser?.id ? { coach_id: currentUser.id } : {}),
+    }
     const [playerRows, teamRows, memberRows, trainerLinkRows] = await Promise.all([
       listResource('players'),
-      listResource('teams', { limit: 100 }),
+      listResource('teams', teamParams),
       listResource('team-members', { limit: 100 }),
       isTrainerView ? listResource('team-trainers', { limit: 100 }) : Promise.resolve([]),
     ])
@@ -166,9 +170,13 @@ const AdminPlayers = ({ currentPath = '#coach/players' }) => {
       return
     }
 
-    setPlayers(playerRows)
+    const coachTeamIds = new Set(teamRows.map((team) => String(team.id)))
+    const scopedMemberships = memberRows.filter((membership) => coachTeamIds.has(String(membership.team_id)))
+    const scopedPlayerIds = new Set(scopedMemberships.map((membership) => String(membership.player_id)))
+
+    setPlayers(playerRows.filter((player) => scopedPlayerIds.has(String(player.id))))
     setTeams(teamRows)
-    setMemberships(memberRows)
+    setMemberships(scopedMemberships)
   }
 
   const createPlayer = async (event) => {

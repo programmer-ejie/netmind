@@ -159,6 +159,7 @@ CREATE TABLE IF NOT EXISTS training_schedules (
   team_id INT NOT NULL,
   session_type ENUM('match', 'training', 'conditioning') NOT NULL DEFAULT 'training',
   session_date DATE NOT NULL,
+  description TEXT NULL,
   created_by INT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_training_schedules_team FOREIGN KEY (team_id) REFERENCES teams(id),

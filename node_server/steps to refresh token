@@ -1,3 +1,0 @@
-npm run drive:auth-url
-
-npm run drive:exchange-code -- "{the code}"

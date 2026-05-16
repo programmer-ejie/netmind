@@ -1,0 +1,9 @@
+
+// to get the code
+npm run drive:auth-url
+
+//to get the new refresh token
+npm run drive:exchange-code -- "{the code}"
+
+//to test the connection and token refresh, you can run the following command which will attempt to upload a test file to Google Drive using the OAuth credentials: 
+npm run drive:test-oauth

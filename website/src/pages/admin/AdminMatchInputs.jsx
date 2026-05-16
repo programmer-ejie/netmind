@@ -100,14 +100,14 @@ const AdminMatchInputs = ({ matchId, matchNumber, currentPath = `#coach/matches/
   const canScoreTeamOne = String(teamOne?.coach_id) === String(currentUser?.id)
   const canScoreTeamTwo = String(teamTwo?.coach_id) === String(currentUser?.id)
   const visibleRosterTeams = useMemo(() => {
-    if (!match || match.match_type !== 'friendly') return []
+    if (!match) return []
 
     return [
-      teamOne && String(teamOne.coach_id) === String(currentUser?.id)
-        ? { ...teamOne, label: 'Team 1' }
+      teamOne
+        ? { ...teamOne, label: 'Team 1', canInput: String(teamOne.coach_id) === String(currentUser?.id) }
         : null,
-      teamTwo && String(teamTwo.coach_id) === String(currentUser?.id)
-        ? { ...teamTwo, label: 'Team 2' }
+      teamTwo
+        ? { ...teamTwo, label: 'Team 2', canInput: String(teamTwo.coach_id) === String(currentUser?.id) }
       : null,
     ].filter(Boolean)
   }, [currentUser?.id, match, teamOne, teamTwo])
@@ -155,9 +155,7 @@ const AdminMatchInputs = ({ matchId, matchNumber, currentPath = `#coach/matches/
       const scoreRows = await listResource('match-scores', { match_id: matchId, limit: 100, sortBy: 'match_number', sortDir: 'asc' })
       const teamOne = teamRows.find((team) => String(team.id) === String(matchRow.team_id))
       const teamTwo = teamRows.find((team) => team.team_name === matchRow.opponent_name)
-      const rosterTeams = matchRow.match_type === 'friendly'
-        ? [teamOne, teamTwo].filter((team) => team && String(team.coach_id) === String(currentUser?.id))
-        : []
+      const rosterTeams = [teamOne, teamTwo].filter(Boolean)
       const rosterRows = await Promise.all(
         rosterTeams.map(async (team) => [team.id, await apiRequest(`/teams/${team.id}/members`)]),
       )
@@ -178,6 +176,31 @@ const AdminMatchInputs = ({ matchId, matchNumber, currentPath = `#coach/matches/
 
     load().catch((err) => setError(err.message))
   }, [currentUser?.id, matchId, matchNumber])
+
+  useEffect(() => {
+    const missingTeams = visibleRosterTeams.filter((team) => team.id && !teamRosters[team.id])
+    if (!missingTeams.length) return
+
+    let alive = true
+
+    Promise.all(
+      missingTeams.map(async (team) => [team.id, await apiRequest(`/teams/${team.id}/members`)]),
+    )
+      .then((rows) => {
+        if (!alive) return
+        setTeamRosters((current) => ({
+          ...current,
+          ...Object.fromEntries(rows),
+        }))
+      })
+      .catch((err) => {
+        if (alive) setError(err.message)
+      })
+
+    return () => {
+      alive = false
+    }
+  }, [teamRosters, visibleRosterTeams])
 
   const increaseStat = async (stat) => {
     if (!selectedPlayer) return
@@ -369,7 +392,9 @@ const AdminMatchInputs = ({ matchId, matchNumber, currentPath = `#coach/matches/
             </button>
             <span className="admin-match-input-icon"><Swords size={22} /></span>
             <div>
-              <p className="admin-kicker">Practice Input Sheet</p>
+              <p className="admin-kicker">
+                {match?.match_type === 'friendly' ? 'Practice Input Sheet' : 'Match Input Sheet'}
+              </p>
               <h2>{matchTitle}</h2>
               <small>
                 {match
@@ -440,12 +465,20 @@ const AdminMatchInputs = ({ matchId, matchNumber, currentPath = `#coach/matches/
             const players = teamRosters[team.id] || []
 
             return (
-              <AdminCard className="admin-match-roster-card" key={`${team.label}-${team.id}`}>
+              <AdminCard
+                className={`admin-match-roster-card ${team.canInput ? 'can-input' : 'view-only'}`}
+                key={`${team.label}-${team.id}`}
+                style={{ '--team-accent': team.team_color || '#12aabd' }}
+              >
                 <div className="admin-card-header admin-match-roster-header">
                   <div>
                     <p className="admin-kicker">{team.label}</p>
                     <h2>{team.team_name}</h2>
-                    <p className="admin-muted">{players.length} players available for input tracking.</p>
+                    <p className="admin-muted">
+                      {team.canInput
+                        ? `${players.length} players available for input tracking.`
+                        : `${players.length} players - opponent view only.`}
+                    </p>
                   </div>
                   {getTeamLogoSrc(team) ? (
                     <img className="admin-match-roster-logo" src={getTeamLogoSrc(team)} alt="" aria-hidden="true" />
@@ -461,9 +494,13 @@ const AdminMatchInputs = ({ matchId, matchNumber, currentPath = `#coach/matches/
                     {players.map((player) => (
                       <button
                         type="button"
-                        className="admin-match-player"
+                        className={`admin-match-player ${team.canInput ? '' : 'disabled'}`}
                         key={player.player_id}
-                        onClick={() => setSelectedPlayer({ ...player, team_label: team.label, team_name: team.team_name })}
+                        disabled={!team.canInput}
+                        onClick={() => {
+                          if (!team.canInput) return
+                          setSelectedPlayer({ ...player, team_label: team.label, team_name: team.team_name })
+                        }}
                       >
                         <b>{player.jersey_number || initials(player.name)}</b>
                         <span>

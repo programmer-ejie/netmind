@@ -37,6 +37,22 @@ const normalizeSessionType = (value = '') => String(value).toLowerCase()
 const isPracticeSession = (value) => ['practice', 'training', 'drill', 'friendly'].includes(normalizeSessionType(value))
 const isActualSession = (value) => ['match', 'game', 'actual', 'league', 'tournament', 'playoff'].includes(normalizeSessionType(value))
 const pct = (value, total) => (total ? Math.round((Number(value || 0) / total) * 100) : 0)
+const sumLogValues = (logs) => logs.reduce((sum, log) => sum + Number(log.value || 1), 0)
+const listAllResource = async (resource, params = {}) => {
+  const limit = params.limit || 100
+  const rows = []
+  let page = 1
+
+  while (true) {
+    const pageRows = await listResource(resource, { ...params, limit, page })
+    rows.push(...pageRows)
+
+    if (pageRows.length < limit) break
+    page += 1
+  }
+
+  return rows
+}
 const isScoreComplete = (score) => (
   score?.team_score !== null && score?.team_score !== undefined
   && score?.opponent_score !== null && score?.opponent_score !== undefined
@@ -49,55 +65,62 @@ const getScoreResult = (score) => {
   return 'draw'
 }
 
-const resolveMatchFromScores = (match, scores) => {
+const buildSetResultsForMatch = (match, scores, perspectiveTeam = null, teams = []) => {
+  const isPrimaryTeam = !perspectiveTeam || String(match.team_id) === String(perspectiveTeam.id)
+  const isOpponentTeam = perspectiveTeam && match.opponent_name === perspectiveTeam.team_name
+
+  if (perspectiveTeam && !isPrimaryTeam && !isOpponentTeam) return []
+
+  const readTeamScore = (score) => Number(isOpponentTeam ? score.opponent_score : score.team_score)
+  const readOpponentScore = (score) => Number(isOpponentTeam ? score.team_score : score.opponent_score)
+  const resultForPerspective = (score) => {
+    if (!isScoreComplete(score)) return null
+
+    const teamScore = readTeamScore(score)
+    const opponentScore = readOpponentScore(score)
+    if (teamScore > opponentScore) return 'win'
+    if (teamScore < opponentScore) return 'loss'
+    return 'draw'
+  }
+  const orientedMatch = {
+    ...match,
+    team_id: perspectiveTeam?.id || match.team_id,
+    opponent_name: isOpponentTeam ? getName(teams, match.team_id, `Team #${match.team_id}`) : match.opponent_name,
+  }
   const completeScores = scores
     .filter(isScoreComplete)
     .sort((a, b) => Number(a.match_number || 1) - Number(b.match_number || 1))
-  const latestScore = completeScores[completeScores.length - 1]
-  const fallbackScore = isScoreComplete(match)
-    ? {
-      team_score: match.team_score,
-      opponent_score: match.opponent_score,
-      match_number: 1,
-    }
-    : null
-  const scoreForSingleMatch = latestScore || fallbackScore
-  const bestOf = Number(match.best_of || 1)
 
-  if (!scoreForSingleMatch) {
-    return {
-      ...match,
-      resolved_result: match.result || null,
-      resolved_team_score: match.team_score,
-      resolved_opponent_score: match.opponent_score,
-    }
+  if (completeScores.length) {
+    return completeScores.map((score) => ({
+      ...orientedMatch,
+      row_key: `${match.id}-${perspectiveTeam?.id || match.team_id}-${score.id || score.match_number}`,
+      set_number: Number(score.match_number || 1),
+      resolved_result: resultForPerspective(score),
+      resolved_team_score: readTeamScore(score),
+      resolved_opponent_score: readOpponentScore(score),
+    }))
   }
 
-  if (bestOf <= 1) {
-    const result = getScoreResult(scoreForSingleMatch)
-
-    return {
-      ...match,
-      resolved_result: result,
-      resolved_team_score: result === 'win' ? 1 : 0,
-      resolved_opponent_score: result === 'loss' ? 1 : 0,
-    }
+  if (isScoreComplete(match)) {
+    return [{
+      ...orientedMatch,
+      row_key: `${match.id}-${perspectiveTeam?.id || match.team_id}-match`,
+      set_number: 1,
+      resolved_result: resultForPerspective(match),
+      resolved_team_score: readTeamScore(match),
+      resolved_opponent_score: readOpponentScore(match),
+    }]
   }
 
-  const winsNeeded = Math.floor(bestOf / 2) + 1
-  const setWins = completeScores.reduce((acc, score) => {
-    const result = getScoreResult(score)
-    if (result === 'win') return { ...acc, team: acc.team + 1 }
-    if (result === 'loss') return { ...acc, opponent: acc.opponent + 1 }
-    return acc
-  }, { team: 0, opponent: 0 })
-
-  return {
-    ...match,
-    resolved_result: setWins.team >= winsNeeded ? 'win' : setWins.opponent >= winsNeeded ? 'loss' : match.result || null,
-    resolved_team_score: setWins.team,
-    resolved_opponent_score: setWins.opponent,
-  }
+  return [{
+    ...orientedMatch,
+    row_key: `${match.id}-${perspectiveTeam?.id || match.team_id}-scheduled`,
+    set_number: null,
+    resolved_result: null,
+    resolved_team_score: null,
+    resolved_opponent_score: null,
+  }]
 }
 
 const formatWinner = (match) => {
@@ -190,7 +213,7 @@ const RadarChart = ({ data }) => {
   const radius = 126
   const values = data.map((item) => Number(item.value) || 0)
   const max = Math.max(...values, 1)
-  const safeData = data.slice(0, 8)
+  const safeData = data
   const angleFor = (index) => ((Math.PI * 2) / safeData.length) * index - Math.PI / 2
   const pointFor = (index, scale = 1) => {
     const angle = angleFor(index)
@@ -328,16 +351,16 @@ const AdminAnalytics = ({ currentPath = '#coach/analytics' }) => {
     const load = async () => {
       try {
         const [players, teamMembers, teamTrainers, teams, matches, matchScores, rankings, attendance, comparisons, logs] = await Promise.all([
-          listResource('players'),
-          listResource('team-members', { limit: 100 }),
-          listResource('team-trainers', { limit: 100 }),
-          listResource('teams', { limit: 100 }),
-          listResource('matches', { limit: 100, sortBy: 'match_date', sortDir: 'asc' }),
-          listResource('match-scores', { limit: 100, sortBy: 'match_number', sortDir: 'asc' }),
-          listResource('team-rankings', { limit: 100 }),
-          listResource('attendance-logs', { limit: 100 }),
-          listResource('player-comparisons', { limit: 100 }),
-          listResource('performance-logs', { limit: 100 }),
+          listAllResource('players'),
+          listAllResource('team-members'),
+          listAllResource('team-trainers'),
+          listAllResource('teams'),
+          listAllResource('matches', { sortBy: 'match_date', sortDir: 'asc' }),
+          listAllResource('match-scores', { sortBy: 'match_number', sortDir: 'asc' }),
+          listAllResource('team-rankings'),
+          listAllResource('attendance-logs'),
+          listAllResource('player-comparisons'),
+          listAllResource('performance-logs'),
         ])
 
         if (alive) setState({ players, teamMembers, teamTrainers, teams, matches, matchScores, rankings, attendance, comparisons, logs, loading: false, error: '' })
@@ -363,8 +386,7 @@ const AdminAnalytics = ({ currentPath = '#coach/analytics' }) => {
       return state.teams.filter((team) => assignedTeamIds.has(String(team.id)))
     }
 
-    const owned = state.teams.filter((team) => String(team.coach_id) === String(currentUser?.id))
-    return owned.length ? owned : state.teams
+    return state.teams.filter((team) => String(team.coach_id) === String(currentUser?.id))
   }, [currentUser?.id, currentUser?.role, state.teamTrainers, state.teams])
 
   const allCoachTeamIds = useMemo(() => new Set(coachTeams.map((team) => String(team.id))), [coachTeams])
@@ -382,6 +404,8 @@ const AdminAnalytics = ({ currentPath = '#coach/analytics' }) => {
   ), [coachTeams, selectedTeamId])
 
   const coachTeamIds = useMemo(() => new Set(selectedTeams.map((team) => String(team.id))), [selectedTeams])
+  const coachTeamNames = useMemo(() => new Set(selectedTeams.map((team) => team.team_name)), [selectedTeams])
+  const allCoachTeamNames = useMemo(() => new Set(coachTeams.map((team) => team.team_name)), [coachTeams])
 
   const playerTeamIdById = useMemo(() => {
     const pairs = state.teamMembers
@@ -404,12 +428,16 @@ const AdminAnalytics = ({ currentPath = '#coach/analytics' }) => {
   ), [coachPlayerIds, state.players])
 
   const scopedMatches = useMemo(() => (
-    state.matches.filter((match) => coachTeamIds.has(String(match.team_id)))
-  ), [coachTeamIds, state.matches])
+    state.matches.filter((match) => (
+      coachTeamIds.has(String(match.team_id)) || coachTeamNames.has(match.opponent_name)
+    ))
+  ), [coachTeamIds, coachTeamNames, state.matches])
 
   const allScopedMatches = useMemo(() => (
-    state.matches.filter((match) => allCoachTeamIds.has(String(match.team_id)))
-  ), [allCoachTeamIds, state.matches])
+    state.matches.filter((match) => (
+      allCoachTeamIds.has(String(match.team_id)) || allCoachTeamNames.has(match.opponent_name)
+    ))
+  ), [allCoachTeamIds, allCoachTeamNames, state.matches])
 
   const scoreRowsByMatch = useMemo(() => (
     state.matchScores.reduce((acc, score) => {
@@ -435,9 +463,11 @@ const AdminAnalytics = ({ currentPath = '#coach/analytics' }) => {
     ))
   ), [activeView, allScopedMatches])
 
-  const resolvedMatches = useMemo(() => (
-    visibleMatches.map((match) => resolveMatchFromScores(match, scoreRowsByMatch[String(match.id)] || []))
-  ), [scoreRowsByMatch, visibleMatches])
+  const visibleSetResults = useMemo(() => (
+    visibleMatches.flatMap((match) => (
+      selectedTeams.flatMap((team) => buildSetResultsForMatch(match, scoreRowsByMatch[String(match.id)] || [], team, state.teams))
+    ))
+  ), [scoreRowsByMatch, selectedTeams, state.teams, visibleMatches])
 
   const visibleMatchIds = useMemo(() => new Set(visibleMatches.map((match) => String(match.id))), [visibleMatches])
   const allVisibleMatchIds = useMemo(() => new Set(allVisibleMatches.map((match) => String(match.id))), [allVisibleMatches])
@@ -475,9 +505,11 @@ const AdminAnalytics = ({ currentPath = '#coach/analytics' }) => {
     state.rankings.filter((ranking) => allCoachTeamIds.has(String(ranking.team_id)))
   ), [allCoachTeamIds, state.rankings])
 
-  const resolvedAllVisibleMatches = useMemo(() => (
-    allVisibleMatches.map((match) => resolveMatchFromScores(match, scoreRowsByMatch[String(match.id)] || []))
-  ), [allVisibleMatches, scoreRowsByMatch])
+  const allVisibleSetResults = useMemo(() => (
+    allVisibleMatches.flatMap((match) => (
+      coachTeams.flatMap((team) => buildSetResultsForMatch(match, scoreRowsByMatch[String(match.id)] || [], team, state.teams))
+    ))
+  ), [allVisibleMatches, coachTeams, scoreRowsByMatch, state.teams])
 
   const visibleComparisons = useMemo(() => (
     state.comparisons.filter((comparison) => coachTeamIds.has(String(comparison.team_id)))
@@ -488,31 +520,37 @@ const AdminAnalytics = ({ currentPath = '#coach/analytics' }) => {
     const rankings = parseRankings(comparison?.rankings)
 
     if (rankings.length) {
-      return rankings
+      const rows = rankings
         .filter((row) => !coachPlayerIds.size || coachPlayerIds.has(String(row.player_id)))
-        .slice(0, 8)
         .map((row) => ({
         label: row.name || `#${row.player_id}`,
         value: Number(row[metric]) || Number(row.average_value) || Number(row.total_logs) || 0,
       }))
+
+      return rows.some((row) => row.value > 0)
+        ? rows.sort((a, b) => b.value - a.value)
+        : []
     }
 
     const grouped = coachPlayers.map((player) => {
       const logs = visibleLogs.filter((log) => String(log.user_id) === String(player.id))
-      const positives = logs.filter((log) => goodResults.has(log.result)).length
-      const errors = logs.filter((log) => log.result === 'error').length
-      const avg = logs.reduce((sum, log) => sum + (Number(log.value) || 0), 0) / Math.max(logs.length, 1)
+      const total = sumLogValues(logs)
+      const positives = sumLogValues(logs.filter((log) => goodResults.has(log.result)))
+      const errors = sumLogValues(logs.filter((log) => log.result === 'error'))
+      const avg = total / Math.max(logs.length, 1)
       const values = {
         positive_results: positives,
         average_value: avg,
         errors,
-        total_logs: logs.length,
+        total_logs: total,
       }
 
       return { label: player.name, value: values[metric] || 0 }
     })
 
-    return grouped.sort((a, b) => b.value - a.value).slice(0, 8)
+    return grouped.some((player) => player.value > 0)
+      ? grouped.sort((a, b) => b.value - a.value)
+      : []
   }, [coachPlayerIds, coachPlayers, metric, visibleComparisons, visibleLogs])
 
   const attendanceStats = useMemo(() => {
@@ -525,12 +563,12 @@ const AdminAnalytics = ({ currentPath = '#coach/analytics' }) => {
   }, [visibleAttendance])
 
   const resultStats = useMemo(() => buildPie(
-    resolvedMatches.reduce((acc, match) => {
-      const key = match.resolved_result || 'scheduled'
+    visibleSetResults.reduce((acc, setResult) => {
+      const key = setResult.resolved_result || 'scheduled'
       acc[key] = (acc[key] || 0) + 1
       return acc
     }, {}),
-  ), [resolvedMatches])
+  ), [visibleSetResults])
 
   const resultNote = useMemo(() => {
     const wins = resultStats.segments.find((item) => item.label === 'win')?.value || 0
@@ -538,50 +576,51 @@ const AdminAnalytics = ({ currentPath = '#coach/analytics' }) => {
     const draws = resultStats.segments.find((item) => item.label === 'draw')?.value || 0
     const pending = resultStats.segments.find((item) => item.label === 'scheduled')?.value || 0
 
-    if (wins > losses) return `Positive record so far: ${wins} win${wins === 1 ? '' : 's'} against ${losses} loss${losses === 1 ? '' : 'es'}.`
-    if (losses > wins) return `Needs review: ${losses} loss${losses === 1 ? '' : 'es'} against ${wins} win${wins === 1 ? '' : 's'}.`
-    if (wins || losses) return `Balanced record: ${wins} win${wins === 1 ? '' : 's'} and ${losses} loss${losses === 1 ? '' : 'es'}.`
-    if (draws) return `${draws} draw${draws === 1 ? '' : 's'} recorded for this view.`
-    if (pending) return `${pending} match${pending === 1 ? '' : 'es'} waiting for final scores.`
+    if (wins > losses) return `Positive set record so far: ${wins} win${wins === 1 ? '' : 's'} against ${losses} loss${losses === 1 ? '' : 'es'}.`
+    if (losses > wins) return `Needs review: ${losses} set loss${losses === 1 ? '' : 'es'} against ${wins} win${wins === 1 ? '' : 's'}.`
+    if (wins || losses) return `Balanced set record: ${wins} win${wins === 1 ? '' : 's'} and ${losses} loss${losses === 1 ? '' : 'es'}.`
+    if (draws) return `${draws} set draw${draws === 1 ? '' : 's'} recorded for this view.`
+    if (pending) return `${pending} set${pending === 1 ? '' : 's'} waiting for final scores.`
     return 'No result trend available yet.'
   }, [resultStats.segments])
 
   const teamPerformance = useMemo(() => selectedTeams.map((team) => {
-    const matches = resolvedMatches.filter((match) => String(match.team_id) === String(team.id))
-    const wins = matches.filter((match) => match.resolved_result === 'win').length
-    const losses = matches.filter((match) => match.resolved_result === 'loss').length
-    const draws = matches.filter((match) => match.resolved_result === 'draw').length
-    const pointsFor = matches.reduce((sum, match) => sum + Number(match.resolved_team_score || 0), 0)
-    const pointsAgainst = matches.reduce((sum, match) => sum + Number(match.resolved_opponent_score || 0), 0)
+    const sets = visibleSetResults.filter((setResult) => String(setResult.team_id) === String(team.id))
+    const wins = sets.filter((setResult) => setResult.resolved_result === 'win').length
+    const losses = sets.filter((setResult) => setResult.resolved_result === 'loss').length
+    const draws = sets.filter((setResult) => setResult.resolved_result === 'draw').length
+    const pointsFor = sets.reduce((sum, setResult) => sum + Number(setResult.resolved_team_score || 0), 0)
+    const pointsAgainst = sets.reduce((sum, setResult) => sum + Number(setResult.resolved_opponent_score || 0), 0)
 
     return {
       ...team,
-      matches: matches.length,
+      sets: sets.length,
       wins,
       losses,
       draws,
-      winRate: pct(wins, matches.length),
+      winRate: pct(wins, sets.length),
       pointDiff: pointsFor - pointsAgainst,
     }
-  }).sort((a, b) => b.winRate - a.winRate || b.pointDiff - a.pointDiff), [selectedTeams, resolvedMatches])
+  }).sort((a, b) => b.winRate - a.winRate || b.pointDiff - a.pointDiff), [selectedTeams, visibleSetResults])
 
   const computedRankings = useMemo(() => (
     coachTeams
       .map((team) => {
-        const matches = resolvedAllVisibleMatches.filter((match) => String(match.team_id) === String(team.id))
-        const wins = matches.filter((match) => match.resolved_result === 'win').length
-        const losses = matches.filter((match) => match.resolved_result === 'loss').length
-        const pointsFor = matches.reduce((sum, match) => sum + Number(match.resolved_team_score || 0), 0)
-        const pointsAgainst = matches.reduce((sum, match) => sum + Number(match.resolved_opponent_score || 0), 0)
+        const sets = allVisibleSetResults.filter((setResult) => String(setResult.team_id) === String(team.id))
+        const wins = sets.filter((setResult) => setResult.resolved_result === 'win').length
+        const losses = sets.filter((setResult) => setResult.resolved_result === 'loss').length
+        const pointsFor = sets.reduce((sum, setResult) => sum + Number(setResult.resolved_team_score || 0), 0)
+        const pointsAgainst = sets.reduce((sum, setResult) => sum + Number(setResult.resolved_opponent_score || 0), 0)
 
         return {
           id: `computed-${team.id}`,
           team_id: team.id,
           ranking_position: 0,
           wins,
-          set_wins: pointsFor,
+          set_wins: wins,
+          points_for: pointsFor,
           losses,
-          win_percentage: pct(wins, matches.length),
+          win_percentage: pct(wins, sets.length),
           point_difference: pointsFor - pointsAgainst,
           calculated_at: null,
           computed: true,
@@ -594,7 +633,7 @@ const AdminAnalytics = ({ currentPath = '#coach/analytics' }) => {
         || Number(b.point_difference || 0) - Number(a.point_difference || 0)
       ))
       .map((ranking, index) => ({ ...ranking, ranking_position: index + 1 }))
-  ), [coachTeams, resolvedAllVisibleMatches])
+  ), [allVisibleSetResults, coachTeams])
 
   const rankingRows = allVisibleRankings.length ? allVisibleRankings : computedRankings
 
@@ -623,22 +662,26 @@ const AdminAnalytics = ({ currentPath = '#coach/analytics' }) => {
   const teamStatInputTotal = teamStatLineSeries.reduce((sum, team) => sum + team.total, 0)
 
   const latestWinners = useMemo(() => (
-    resolvedMatches
-      .map((match) => ({ ...match, allTeams: selectedTeams }))
+    visibleSetResults
+      .map((setResult) => ({ ...setResult, allTeams: selectedTeams }))
       .slice()
-      .sort((a, b) => new Date(b.match_date || 0) - new Date(a.match_date || 0) || Number(b.id) - Number(a.id))
+      .sort((a, b) => (
+        new Date(b.match_date || 0) - new Date(a.match_date || 0)
+        || Number(b.id) - Number(a.id)
+        || Number(b.set_number || 0) - Number(a.set_number || 0)
+      ))
       .slice(0, 8)
-  ), [resolvedMatches, selectedTeams])
+  ), [selectedTeams, visibleSetResults])
 
   const totals = useMemo(() => {
-    const wins = resolvedMatches.filter((match) => match.resolved_result === 'win').length
+    const wins = visibleSetResults.filter((setResult) => setResult.resolved_result === 'win').length
     return {
       teams: selectedTeams.length,
       players: coachPlayers.length,
-      matches: resolvedMatches.length,
-      winRate: pct(wins, resolvedMatches.length),
+      sets: visibleSetResults.length,
+      winRate: pct(wins, visibleSetResults.length),
     }
-  }, [coachPlayers.length, resolvedMatches, selectedTeams.length])
+  }, [coachPlayers.length, selectedTeams.length, visibleSetResults])
 
   return (
     <AdminLayout title="Analytics" currentPath={currentPath}>
@@ -685,7 +728,7 @@ const AdminAnalytics = ({ currentPath = '#coach/analytics' }) => {
 
       <div className="admin-stat-grid">
         <StatCard icon={Users} label={`${roleLabel} Players`} value={moneylessNumber(totals.players)} />
-        <StatCard icon={Swords} label={activeView === 'practice' ? 'Practice Matches' : 'Actual Matches'} value={moneylessNumber(totals.matches)} tone="secondary" />
+        <StatCard icon={Swords} label={activeView === 'practice' ? 'Practice Sets' : 'Actual Sets'} value={moneylessNumber(totals.sets)} tone="secondary" />
         <StatCard icon={Trophy} label="Win Rate" value={`${totals.winRate}%`} tone="success" />
         <StatCard icon={ClipboardCheck} label="Attendance Logs" value={moneylessNumber(visibleAttendance.length)} tone="success" />
       </div>
@@ -711,7 +754,7 @@ const AdminAnalytics = ({ currentPath = '#coach/analytics' }) => {
         <AdminCard className="admin-activity-card admin-analytics-card admin-analytics-side-card">
           <div className="admin-card-header">
             <h2>Match Results</h2>
-            <StatusBadge tone="secondary">{resultStats.total} matches</StatusBadge>
+            <StatusBadge tone="secondary">{resultStats.total} sets</StatusBadge>
           </div>
           {resultStats.total ? (
             <div className="admin-pie-wrap">
@@ -794,8 +837,8 @@ const AdminAnalytics = ({ currentPath = '#coach/analytics' }) => {
             <table className="admin-native-table">
               <thead>
                 <tr>
-                  <th>Team</th>
-                  <th>Matches</th>
+                 <th>Team</th>
+                  <th>Sets</th>
                   <th>Wins</th>
                   <th>Losses</th>
                   <th>Draws</th>
@@ -807,7 +850,7 @@ const AdminAnalytics = ({ currentPath = '#coach/analytics' }) => {
                 {teamPerformance.map((team) => (
                   <tr key={team.id}>
                     <td>{team.team_name}</td>
-                    <td>{team.matches}</td>
+                    <td>{team.sets}</td>
                     <td>{team.wins}</td>
                     <td>{team.losses}</td>
                     <td>{team.draws}</td>
@@ -824,8 +867,8 @@ const AdminAnalytics = ({ currentPath = '#coach/analytics' }) => {
         <AdminCard className="admin-table-card admin-analytics-card admin-analytics-table-card">
           <div className="admin-card-header">
             <div>
-              <h2>Latest Winners</h2>
-              <p className="admin-muted">Winner is calculated from the newest saved score input.</p>
+              <h2>Latest Set Winners</h2>
+              <p className="admin-muted">Winner is calculated from each saved set score.</p>
             </div>
             <Trophy size={21} />
           </div>
@@ -842,8 +885,11 @@ const AdminAnalytics = ({ currentPath = '#coach/analytics' }) => {
               </thead>
               <tbody>
                 {latestWinners.map((match) => (
-                  <tr key={match.id}>
-                    <td>{getName(selectedTeams, match.team_id)} vs {match.opponent_name}</td>
+                  <tr key={match.row_key || match.id}>
+                    <td>
+                      {getName(selectedTeams, match.team_id)} vs {match.opponent_name}
+                      {match.set_number ? ` - Set ${match.set_number}` : ''}
+                    </td>
                     <td>{formatDate(match.match_date)}</td>
                     <td>{formatResolvedScore(match)}</td>
                     <td>{formatWinner(match)}</td>

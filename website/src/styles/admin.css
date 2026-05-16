@@ -2108,6 +2108,58 @@
 
 .admin-table {
   overflow-x: auto;
+  scrollbar-color: color-mix(in oklab, var(--admin-primary) 54%, var(--admin-muted)) transparent;
+  scrollbar-width: thin;
+  scrollbar-gutter: stable;
+}
+
+.admin-table::-webkit-scrollbar {
+  height: 10px;
+}
+
+.admin-table::-webkit-scrollbar-track {
+  margin-inline: 18px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--admin-soft) 62%, transparent);
+}
+
+.admin-table::-webkit-scrollbar-thumb {
+  min-width: 80px;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--admin-primary) 80%, #ffffff),
+    color-mix(in oklab, var(--admin-secondary) 80%, #ffffff)
+  );
+  background-clip: padding-box;
+}
+
+.admin-table::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(90deg, var(--admin-primary), var(--admin-secondary));
+  background-clip: padding-box;
+}
+
+.admin-dark .admin-table {
+  scrollbar-color: color-mix(in oklab, var(--admin-primary) 72%, #2a3851) transparent;
+}
+
+.admin-dark .admin-table::-webkit-scrollbar-track {
+  background: color-mix(in oklab, #0f1724 72%, var(--admin-card));
+}
+
+.admin-dark .admin-table::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--admin-primary) 64%, #2a3851),
+    color-mix(in oklab, var(--admin-secondary) 70%, #2a3851)
+  );
+  background-clip: padding-box;
+}
+
+.admin-dark .admin-table::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(90deg, var(--admin-primary), var(--admin-secondary));
+  background-clip: padding-box;
 }
 
 .admin-schedule-header-card {
@@ -2128,24 +2180,35 @@
   position: relative;
   overflow: hidden;
   display: grid;
-  gap: 16px;
-  min-height: 220px;
-  padding: 20px;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 20px;
+  min-height: 230px;
+  padding: 28px 30px 24px;
   border: 1px solid color-mix(in oklab, var(--admin-border) 84%, transparent);
   border-radius: 8px;
   background: var(--admin-card);
-  box-shadow: 0 14px 30px rgba(47, 64, 80, 0.07);
+  box-shadow: 0 18px 44px rgba(47, 64, 80, 0.09);
 }
 
 .admin-schedule-card::after {
   content: '';
   position: absolute;
-  top: -54px;
+  top: -42px;
   right: -42px;
-  width: 190px;
-  height: 122px;
-  border-bottom-left-radius: 60px;
-  background: color-mix(in oklab, var(--admin-primary) 8%, #ffffff);
+  width: 170px;
+  height: 170px;
+  border-radius: 999px;
+  border-top: 0;
+  background:
+    radial-gradient(circle, color-mix(in oklab, var(--admin-primary) 12%, transparent), transparent 70%);
+  pointer-events: none;
+}
+
+.admin-schedule-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-top: 4px solid color-mix(in oklab, var(--admin-primary) 72%, #ffffff);
   pointer-events: none;
 }
 
@@ -2156,42 +2219,37 @@
 
 .admin-schedule-card-top {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
 }
 
-.admin-schedule-session,
 .admin-schedule-date {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  min-height: 28px;
-  padding: 0 10px;
-  border-radius: 999px;
-  font-size: 12px;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-size: 13px;
   font-weight: 900;
-  line-height: 1;
-}
-
-.admin-schedule-session {
-  background: var(--admin-light-primary);
-  color: var(--admin-primary);
-  text-transform: capitalize;
+  line-height: 1.2;
 }
 
 .admin-schedule-date {
-  background: color-mix(in oklab, var(--admin-soft) 74%, #ffffff);
+  flex: 0 0 auto;
+  background: color-mix(in oklab, var(--admin-soft) 72%, var(--admin-card));
   color: var(--admin-muted);
   white-space: nowrap;
 }
 
 .admin-schedule-team {
   display: grid;
-  grid-template-columns: 70px minmax(0, 1fr);
+  grid-template-columns: 74px minmax(0, 1fr);
   align-items: center;
   gap: 16px;
   min-width: 0;
+  padding: 4px 0 2px;
 }
 
 .admin-schedule-team > div {
@@ -2208,12 +2266,13 @@
 }
 
 .admin-schedule-logo {
-  width: 70px;
-  height: 70px;
+  width: 74px;
+  height: 74px;
   border-radius: 8px;
   object-fit: cover;
-  border: 1px solid color-mix(in oklab, var(--admin-primary) 14%, var(--admin-border));
-  box-shadow: 0 10px 20px rgba(47, 64, 80, 0.07);
+  border: 1px solid color-mix(in oklab, var(--admin-primary) 24%, var(--admin-border));
+  background: color-mix(in oklab, var(--admin-soft) 70%, var(--admin-card));
+  box-shadow: 0 12px 24px rgba(47, 64, 80, 0.09);
 }
 
 .admin-schedule-logo.fallback {
@@ -2228,25 +2287,25 @@
 .admin-schedule-card h3 {
   max-width: 100%;
   margin: 0;
-  overflow: hidden;
   color: var(--admin-link);
-  font-size: 24px;
+  font-size: clamp(20px, 2.2vw, 24px);
   font-weight: 800;
-  line-height: 1.15;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.12;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .admin-schedule-actions {
   display: flex;
+  justify-content: flex-start;
   gap: 10px;
-  padding-top: 14px;
+  padding-top: 16px;
   border-top: 1px solid var(--admin-border);
 }
 
 .admin-schedule-actions .admin-button {
   width: 40px;
-  min-height: 38px;
+  min-height: 42px;
   padding: 0;
 }
 
@@ -2546,7 +2605,7 @@
 }
 
 .admin-matches-table .admin-native-table {
-  min-width: 860px;
+  min-width: 1060px;
 }
 
 .admin-matches-table .admin-native-table th {
@@ -2559,13 +2618,15 @@
 .admin-matches-table .admin-native-table td {
   padding-top: 18px;
   padding-bottom: 18px;
+  white-space: nowrap;
 }
 
 .admin-match-versus {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  white-space: nowrap;
 }
 
 .admin-match-click-row {
@@ -2962,6 +3023,97 @@
   color: #ffffff;
 }
 
+.admin-dark .admin-match-number-card {
+  border-color: rgba(18, 170, 189, 0.16);
+  background:
+    linear-gradient(135deg, rgba(18, 170, 189, 0.12), transparent 36%),
+    var(--admin-card);
+}
+
+.admin-dark .admin-match-number-header h2,
+.admin-dark .admin-match-number-title {
+  color: #ffffff;
+}
+
+.admin-dark .admin-match-number-option {
+  border-color: rgba(148, 163, 184, 0.18);
+  background:
+    linear-gradient(180deg, rgba(22, 35, 54, 0.98), rgba(15, 27, 43, 0.98));
+  color: var(--admin-primary);
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.2);
+}
+
+.admin-dark .admin-match-number-option:not([aria-disabled='true']):hover,
+.admin-dark .admin-match-number-option:focus-visible {
+  background:
+    linear-gradient(180deg, rgba(24, 41, 63, 0.98), rgba(17, 31, 50, 0.98));
+  box-shadow: 0 20px 42px rgba(18, 170, 189, 0.12);
+}
+
+.admin-dark .admin-match-number-option b {
+  background: rgba(18, 170, 189, 0.14);
+  color: var(--admin-primary);
+  box-shadow: inset 0 0 0 1px rgba(18, 170, 189, 0.22);
+}
+
+.admin-dark .admin-match-number-status {
+  background: rgba(18, 170, 189, 0.14);
+  color: var(--admin-primary);
+}
+
+.admin-dark .admin-match-number-option small,
+.admin-dark .admin-match-number-option em {
+  color: var(--admin-muted);
+}
+
+.admin-dark .admin-match-number-option.locked {
+  background:
+    repeating-linear-gradient(-45deg, transparent 0 10px, rgba(148, 163, 184, 0.05) 10px 20px),
+    linear-gradient(180deg, rgba(20, 31, 48, 0.94), rgba(13, 24, 39, 0.94));
+  color: #90a0b6;
+}
+
+.admin-dark .admin-match-number-option.locked b {
+  background: rgba(148, 163, 184, 0.1);
+  color: #8fa0b4;
+}
+
+.admin-dark .admin-match-number-option.locked .admin-match-number-status {
+  background: rgba(148, 163, 184, 0.12);
+  color: #a8b5c7;
+}
+
+.admin-dark .admin-match-number-option.locked .admin-match-number-title {
+  color: #d9e4ef;
+}
+
+.admin-dark .admin-match-number-option.locked::after {
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  background: #07111f;
+  color: #e5edf6;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
+}
+
+.admin-dark .admin-match-number-option.waiting {
+  background:
+    linear-gradient(180deg, rgba(22, 35, 54, 0.96), rgba(15, 27, 43, 0.96));
+  color: #a8b5c7;
+}
+
+.admin-dark .admin-match-number-option.waiting b {
+  background: rgba(18, 170, 189, 0.1);
+}
+
+.admin-dark .admin-match-number-option.waiting .admin-match-number-status {
+  background: rgba(245, 158, 11, 0.14);
+  color: #f7bd52;
+}
+
+.admin-dark .admin-match-number-option.scored .admin-match-number-status {
+  background: rgba(16, 185, 129, 0.14);
+  color: #34d399;
+}
+
 .admin-match-roster-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3006,6 +3158,37 @@
 
 .admin-match-roster-card {
   min-height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.admin-match-roster-card.view-only {
+  border-color: color-mix(in oklab, var(--team-accent, var(--admin-warning)) 36%, var(--admin-border));
+  background:
+    linear-gradient(135deg, color-mix(in oklab, var(--team-accent, var(--admin-warning)) 10%, transparent), transparent 42%),
+    var(--admin-card);
+}
+
+.admin-match-roster-card.view-only::before {
+  content: 'View only';
+  min-height: 28px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  position: absolute;
+  left: 20px;
+  top: 18px;
+  z-index: 1;
+  background: color-mix(in oklab, var(--team-accent, var(--admin-warning)) 16%, var(--admin-card));
+  color: color-mix(in oklab, var(--team-accent, var(--admin-warning)) 72%, var(--admin-link));
+  padding: 0 12px;
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.admin-match-roster-card.view-only .admin-match-roster-header {
+  padding-top: 44px;
 }
 
 .admin-match-roster-header {
@@ -3054,6 +3237,18 @@
 .admin-match-player:hover {
   border-color: color-mix(in oklab, var(--admin-primary) 34%, var(--admin-border));
   background: color-mix(in oklab, var(--admin-primary) 7%, transparent);
+}
+
+.admin-match-player.disabled,
+.admin-match-player:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.admin-match-player.disabled:hover,
+.admin-match-player:disabled:hover {
+  border-color: var(--admin-border);
+  background: transparent;
 }
 
 .admin-match-player:focus-visible {
@@ -3107,6 +3302,11 @@
 .admin-match-player:focus-visible i {
   opacity: 1;
   transform: translateX(1px);
+}
+
+.admin-match-player.disabled i,
+.admin-match-player:disabled i {
+  display: none;
 }
 
 .admin-offcanvas-backdrop {
@@ -3321,6 +3521,31 @@
   color: var(--admin-primary);
   font-size: 12px;
   font-weight: 950;
+}
+
+.admin-dark .admin-score-confirm-icon {
+  background: rgba(245, 158, 11, 0.14);
+  color: #f8b932;
+}
+
+.admin-dark .admin-score-confirm-summary {
+  border-color: rgba(148, 163, 184, 0.22);
+  background:
+    linear-gradient(180deg, rgba(22, 35, 54, 0.98), rgba(14, 25, 40, 0.98));
+}
+
+.admin-dark .admin-score-confirm-summary span {
+  color: #c7d4e4;
+}
+
+.admin-dark .admin-score-confirm-summary strong {
+  background: rgba(18, 170, 189, 0.14);
+  color: #ffffff;
+  box-shadow: inset 0 0 0 1px rgba(18, 170, 189, 0.2);
+}
+
+.admin-dark .admin-score-confirm-summary b {
+  color: var(--admin-primary);
 }
 
 .admin-score-confirm-actions {

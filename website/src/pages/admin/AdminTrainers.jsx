@@ -11,7 +11,7 @@ import AdminLayout, {
   formatDate,
   initials,
 } from './AdminLayout'
-import { API_BASE, deleteResource, listResource, registerTrainerWithTemporaryPassword, updateResource } from '../../lib/api'
+import { API_BASE, apiRequest, deleteResource, listResource, readSavedUser, registerTrainerWithTemporaryPassword, updateResource } from '../../lib/api'
 
 const blankTrainer = { name: '', email: '' }
 
@@ -33,6 +33,7 @@ const TrainerAvatar = ({ trainer }) => {
 }
 
 const AdminTrainers = ({ currentPath = '#coach/trainers' }) => {
+  const currentUser = readSavedUser()
   const [trainers, setTrainers] = useState([])
   const [teams, setTeams] = useState([])
   const [links, setLinks] = useState([])
@@ -57,16 +58,25 @@ const AdminTrainers = ({ currentPath = '#coach/trainers' }) => {
   }, [links])
 
   const load = async () => {
-    const [trainerRows, teamRows, linkRows, coachRows] = await Promise.all([
+    const teamParams = {
+      limit: 100,
+      ...(currentUser?.role === 'coach' && currentUser?.id ? { coach_id: currentUser.id } : {}),
+    }
+    const [trainerRows, teamRows, linkRows, coachLinkRows, coachRows] = await Promise.all([
       listResource('trainers'),
-      listResource('teams', { limit: 100 }),
+      listResource('teams', teamParams),
       listResource('team-trainers', { limit: 100 }),
+      currentUser?.id ? listResource('coach-trainers', { coach_id: currentUser.id, limit: 100 }) : Promise.resolve([]),
       listResource('coaches'),
     ])
+    const scopedTeamIds = new Set(teamRows.map((team) => String(team.id)))
+    const scopedLinks = linkRows.filter((link) => scopedTeamIds.has(String(link.team_id)))
+    const scopedTrainerIds = new Set(scopedLinks.map((link) => String(link.trainer_id)))
+    coachLinkRows.forEach((link) => scopedTrainerIds.add(String(link.trainer_id)))
 
-    setTrainers(trainerRows)
+    setTrainers(trainerRows.filter((trainer) => scopedTrainerIds.has(String(trainer.id))))
     setTeams(teamRows)
-    setLinks(linkRows)
+    setLinks(scopedLinks)
     setCoaches(coachRows)
   }
 
@@ -80,12 +90,48 @@ const AdminTrainers = ({ currentPath = '#coach/trainers' }) => {
     try {
       setError('')
       setCreatingTrainer(true)
-      await registerTrainerWithTemporaryPassword(createForm)
+      let trainer = await registerTrainerWithTemporaryPassword({
+        ...createForm,
+        coach_id: currentUser?.id || null,
+      })
+
+      if (currentUser?.id && trainer?.id) {
+        await apiRequest(`/coaches/${currentUser.id}/trainers`, {
+          method: 'POST',
+          body: { trainer_id: trainer.id },
+        })
+      }
+
       setCreateForm(blankTrainer)
       setCreateModal(false)
       await load()
     } catch (err) {
-      setError(err.message)
+      if (err.message !== 'Email is already registered' || !currentUser?.id) {
+        setError(err.message)
+        return
+      }
+
+      try {
+        const existingTrainers = await listResource('trainers')
+        const trainer = existingTrainers.find((item) => (
+          item.email?.toLowerCase() === createForm.email.trim().toLowerCase()
+        ))
+
+        if (!trainer) {
+          setError('Email is already registered, but it is not a trainer account.')
+          return
+        }
+
+        await apiRequest(`/coaches/${currentUser.id}/trainers`, {
+          method: 'POST',
+          body: { trainer_id: trainer.id },
+        })
+        setCreateForm(blankTrainer)
+        setCreateModal(false)
+        await load()
+      } catch (linkError) {
+        setError(linkError.message)
+      }
     } finally {
       setCreatingTrainer(false)
     }

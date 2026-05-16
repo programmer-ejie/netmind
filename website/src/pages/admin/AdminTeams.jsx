@@ -63,16 +63,28 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
   }, [trainerLinks, trainers])
 
   const load = async () => {
-    const [teamRows, coachRows, trainerRows, trainerLinkRows] = await Promise.all([
-      listResource('teams', { limit: 100, sortDir: 'asc' }),
+    const teamParams = {
+      limit: 100,
+      sortDir: 'asc',
+      ...(currentUser?.role === 'coach' && currentUser?.id ? { coach_id: currentUser.id } : {}),
+    }
+    const [teamRows, coachRows, trainerRows, trainerLinkRows, coachTrainerRows] = await Promise.all([
+      listResource('teams', teamParams),
       listResource('coaches'),
       listResource('trainers'),
       listResource('team-trainers', { limit: 100 }),
+      currentUser?.id ? listResource('coach-trainers', { coach_id: currentUser.id, limit: 100 }) : Promise.resolve([]),
     ])
+    const scopedTeamIds = new Set(teamRows.map((team) => String(team.id)))
+    const scopedTrainerIds = new Set(coachTrainerRows.map((link) => String(link.trainer_id)))
+    const scopedTrainerLinks = trainerLinkRows.filter((link) => scopedTeamIds.has(String(link.team_id)))
+
+    scopedTrainerLinks.forEach((link) => scopedTrainerIds.add(String(link.trainer_id)))
+
     setTeams(teamRows)
     setCoaches(coachRows)
-    setTrainers(trainerRows)
-    setTrainerLinks(trainerLinkRows)
+    setTrainers(trainerRows.filter((trainer) => scopedTrainerIds.has(String(trainer.id))))
+    setTrainerLinks(scopedTrainerLinks)
   }
 
   useEffect(() => {
@@ -126,6 +138,12 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
           assigned_by: currentUser?.id || assigningTeam.coach_id || availableOwners[0]?.id || 1,
         },
       })
+      if (currentUser?.id) {
+        await apiRequest(`/coaches/${currentUser.id}/trainers`, {
+          method: 'POST',
+          body: { trainer_id: selectedTrainer },
+        })
+      }
       setAssignModal(false)
       setAssigningTeam(null)
       setSelectedTrainer('')
@@ -154,6 +172,10 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
         })
 
         if (form.trainer_id) {
+          await apiRequest(`/coaches/${coachId}/trainers`, {
+            method: 'POST',
+            body: { trainer_id: form.trainer_id },
+          })
           await apiRequest(`/teams/${createdTeam.id}/trainers`, {
             method: 'POST',
             body: {
@@ -373,10 +395,11 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
                 value={selectedTrainer}
                 onChange={(event) => setSelectedTrainer(event.target.value)}
               >
-                <option value="">Select available trainer</option>
+                <option value="" disabled hidden>Select trainer</option>
                 {availableTrainers.map((trainer) => (
                   <option key={trainer.id} value={trainer.id}>{trainer.name}</option>
                 ))}
+                {!availableTrainers.length && <option value="" disabled>No connected trainers</option>}
               </AdminSelect>
             </AdminField>
 

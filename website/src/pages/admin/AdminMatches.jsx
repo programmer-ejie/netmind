@@ -7,7 +7,6 @@ import AdminLayout, {
   AdminInput,
   AdminModal,
   AdminSelect,
-  AdminTextarea,
   EmptyState,
   StatusBadge,
   formatDate,
@@ -16,7 +15,6 @@ import AdminLayout, {
 import { createResource, deleteResource, listResource, readSavedUser, updateResource } from '../../lib/api'
 
 const actualMatchTypes = ['league', 'tournament', 'playoff']
-const results = ['win', 'loss', 'draw']
 const bestOfLabels = {
   1: 'Best of One',
   3: 'Best of Three',
@@ -34,12 +32,7 @@ const blankMatch = {
   match_date: '',
   best_of: '1',
   is_home: true,
-  result: '',
-  team_score: '',
-  opponent_score: '',
-  season_id: '',
   match_type: 'friendly',
-  notes: '',
 }
 
 const AdminMatches = ({ currentPath = '#coach/matches' }) => {
@@ -47,12 +40,14 @@ const AdminMatches = ({ currentPath = '#coach/matches' }) => {
   const [matches, setMatches] = useState([])
   const [matchScores, setMatchScores] = useState([])
   const [teams, setTeams] = useState([])
-  const [seasons, setSeasons] = useState([])
   const [activeView, setActiveView] = useState('practice')
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(blankMatch)
   const [error, setError] = useState('')
+  const ownedTeams = useMemo(() => (
+    teams.filter((team) => String(team.coach_id) === String(currentUser?.id))
+  ), [currentUser?.id, teams])
 
   const practiceMatches = useMemo(
     () => matches.filter((match) => match.match_type === 'friendly'),
@@ -69,10 +64,10 @@ const AdminMatches = ({ currentPath = '#coach/matches' }) => {
   const teamOneOptions = useMemo(
     () => (
       isActualMatchForm
-        ? teams
-        : teams.filter((team) => team.team_name !== form.opponent_name)
+        ? ownedTeams
+        : ownedTeams.filter((team) => team.team_name !== form.opponent_name)
     ),
-    [form.opponent_name, isActualMatchForm, teams],
+    [form.opponent_name, isActualMatchForm, ownedTeams],
   )
   const getOpponentTeamsForMatchType = (matchType) => (
     actualMatchTypes.includes(matchType)
@@ -143,17 +138,21 @@ const AdminMatches = ({ currentPath = '#coach/matches' }) => {
   }
 
   const load = async () => {
-    const [matchRows, scoreRows, teamRows, seasonRows] = await Promise.all([
+    const [matchRows, scoreRows, teamRows] = await Promise.all([
       listResource('matches', { limit: 100, sortBy: 'match_date', sortDir: 'asc' }),
       listResource('match-scores', { limit: 100, sortBy: 'match_number', sortDir: 'asc' }),
       listResource('teams', { limit: 100 }),
-      listResource('seasons', { limit: 100 }),
     ])
+    const ownedTeamRows = teamRows.filter((team) => String(team.coach_id) === String(currentUser?.id))
+    const ownedTeamIds = new Set(ownedTeamRows.map((team) => String(team.id)))
+    const ownedTeamNames = new Set(ownedTeamRows.map((team) => team.team_name))
+    const scopedMatches = matchRows.filter((match) => (
+      ownedTeamIds.has(String(match.team_id)) || ownedTeamNames.has(match.opponent_name)
+    ))
 
-    setMatches(matchRows)
+    setMatches(scopedMatches)
     setMatchScores(scoreRows)
     setTeams(teamRows)
-    setSeasons(seasonRows)
   }
 
   useEffect(() => {
@@ -164,8 +163,7 @@ const AdminMatches = ({ currentPath = '#coach/matches' }) => {
     setEditing(null)
     setForm({
       ...blankMatch,
-      team_id: teams[0]?.id || '',
-      season_id: seasons[0]?.id || '',
+      team_id: ownedTeams[0]?.id || '',
       match_type: view === 'practice' ? 'friendly' : 'league',
     })
     setActiveView(view)
@@ -180,12 +178,7 @@ const AdminMatches = ({ currentPath = '#coach/matches' }) => {
       match_date: match.match_date ? String(match.match_date).slice(0, 10) : '',
       best_of: match.best_of ? String(match.best_of) : '1',
       is_home: Boolean(match.is_home),
-      result: match.result || '',
-      team_score: match.team_score ?? '',
-      opponent_score: match.opponent_score ?? '',
-      season_id: match.season_id || '',
       match_type: match.match_type || 'friendly',
-      notes: match.notes || '',
     })
     setActiveView(match.match_type === 'friendly' ? 'practice' : 'actual')
     setModalOpen(true)
@@ -200,12 +193,7 @@ const AdminMatches = ({ currentPath = '#coach/matches' }) => {
       match_date: form.match_date,
       best_of: Number(form.best_of),
       is_home: Boolean(form.is_home),
-      result: form.result || null,
-      team_score: form.team_score === '' ? null : Number(form.team_score),
-      opponent_score: form.opponent_score === '' ? null : Number(form.opponent_score),
-      season_id: form.season_id || null,
       match_type: form.match_type,
-      notes: form.notes || null,
     }
 
     try {
@@ -351,7 +339,7 @@ const AdminMatches = ({ currentPath = '#coach/matches' }) => {
                 <span><Swords size={24} /></span>
                 <strong>No {activeView === 'practice' ? 'practice' : 'actual'} matches yet</strong>
                 <p>
-                  Add a match to start tracking opponents, scores, results, and post-game notes.
+                  Add a match to start tracking teams, opponents, and match schedules.
                 </p>
                 <AdminButton type="button" onClick={() => openCreate(activeView)}>
                   <Plus size={16} />
@@ -384,7 +372,7 @@ const AdminMatches = ({ currentPath = '#coach/matches' }) => {
             <Info size={18} />
             <p>
               {isActualMatchForm
-                ? 'Actual matches include official match type, season, scores, result, and notes for analytics.'
+                ? 'Actual matches only need teams, date, best-of format, and official match type.'
                 : 'Practice matches only need the team, opponent, date, and home/away status for quick scheduling.'}
             </p>
           </div>
@@ -435,13 +423,6 @@ const AdminMatches = ({ currentPath = '#coach/matches' }) => {
                   {actualMatchTypes.map((type) => <option key={type}>{type}</option>)}
                 </AdminSelect>
               </AdminField>
-
-              <AdminField label="Season">
-                <AdminSelect value={form.season_id} onChange={(event) => setForm((current) => ({ ...current, season_id: event.target.value }))}>
-                  <option value="">No season</option>
-                  {seasons.map((season) => <option key={season.id} value={season.id}>{season.season_name}</option>)}
-                </AdminSelect>
-              </AdminField>
             </>
           )}
 
@@ -453,30 +434,6 @@ const AdminMatches = ({ currentPath = '#coach/matches' }) => {
             />
             Home match
           </label>
-
-          {isActualMatchForm && (
-            <>
-              <div className="admin-form-grid">
-                <AdminField label="Team Score">
-                  <AdminInput type="number" min="0" value={form.team_score} onChange={(event) => setForm((current) => ({ ...current, team_score: event.target.value }))} />
-                </AdminField>
-                <AdminField label="Opponent Score">
-                  <AdminInput type="number" min="0" value={form.opponent_score} onChange={(event) => setForm((current) => ({ ...current, opponent_score: event.target.value }))} />
-                </AdminField>
-              </div>
-
-              <AdminField label="Result">
-                <AdminSelect value={form.result} onChange={(event) => setForm((current) => ({ ...current, result: event.target.value }))}>
-                  <option value="">Not played</option>
-                  {results.map((result) => <option key={result}>{result}</option>)}
-                </AdminSelect>
-              </AdminField>
-
-              <AdminField label="Notes">
-                <AdminTextarea value={form.notes} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} />
-              </AdminField>
-            </>
-          )}
 
           <div className="admin-form-actions">
             <AdminButton type="button" variant="secondary" onClick={() => setModalOpen(false)}>Cancel</AdminButton>

@@ -172,6 +172,7 @@ function App() {
       'players',
       'player-stats',
       'training',
+      'attendance',
       'wellness',
       'analytics',
       'settings',
@@ -182,6 +183,11 @@ function App() {
 
     if (route.page === 'players' && currentUser?.role !== 'trainer') {
       window.location.hash = 'coach/teams'
+      return null
+    }
+
+    if (route.page === 'attendance' && currentUser?.role !== 'trainer') {
+      window.location.hash = 'coach'
       return null
     }
 

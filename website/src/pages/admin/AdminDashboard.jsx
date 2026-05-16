@@ -151,8 +151,12 @@ const AdminDashboard = ({ currentPath = '#coach' }) => {
 
     const load = async () => {
       try {
+        const teamParams = {
+          limit: 100,
+          ...(currentUser?.role === 'coach' && currentUser?.id ? { coach_id: currentUser.id } : {}),
+        }
         const [teams, players, trainers, teamMembers, teamTrainers, logs, assignments, attendance] = await Promise.all([
-          listResource('teams', { limit: 100 }),
+          listResource('teams', teamParams),
           listResource('players'),
           listResource('trainers'),
           listResource('team-members', { limit: 100 }),
@@ -174,11 +178,15 @@ const AdminDashboard = ({ currentPath = '#coach' }) => {
     return () => {
       alive = false
     }
-  }, [])
+  }, [currentUser?.id, currentUser?.role])
 
   const isTrainerDashboard = currentUser?.role === 'trainer'
   const scopedTeamIds = useMemo(() => {
-    if (!isTrainerDashboard) return new Set(state.teams.map((team) => String(team.id)))
+    if (!isTrainerDashboard) {
+      return new Set(state.teams
+        .filter((team) => String(team.coach_id) === String(currentUser?.id))
+        .map((team) => String(team.id)))
+    }
 
     return new Set(state.teamTrainers
       .filter((link) => String(link.trainer_id) === String(currentUser?.id))
@@ -188,12 +196,10 @@ const AdminDashboard = ({ currentPath = '#coach' }) => {
     state.teams.filter((team) => scopedTeamIds.has(String(team.id)))
   ), [scopedTeamIds, state.teams])
   const scopedPlayerIds = useMemo(() => new Set(
-    isTrainerDashboard
-      ? state.teamMembers
-        .filter((member) => scopedTeamIds.has(String(member.team_id)))
-        .map((member) => String(member.player_id))
-      : state.players.map((player) => String(player.id)),
-  ), [isTrainerDashboard, scopedTeamIds, state.players, state.teamMembers])
+    state.teamMembers
+      .filter((member) => scopedTeamIds.has(String(member.team_id)))
+      .map((member) => String(member.player_id)),
+  ), [scopedTeamIds, state.teamMembers])
   const scopedPlayers = useMemo(() => (
     state.players.filter((player) => scopedPlayerIds.has(String(player.id)))
   ), [scopedPlayerIds, state.players])
@@ -202,7 +208,9 @@ const AdminDashboard = ({ currentPath = '#coach' }) => {
       ? state.teamTrainers
         .filter((link) => scopedTeamIds.has(String(link.team_id)))
         .map((link) => String(link.trainer_id))
-      : state.trainers.map((trainer) => String(trainer.id)),
+      : state.teamTrainers
+        .filter((link) => scopedTeamIds.has(String(link.team_id)))
+        .map((link) => String(link.trainer_id)),
   ), [isTrainerDashboard, scopedTeamIds, state.teamTrainers, state.trainers])
   const scopedTrainers = useMemo(() => (
     state.trainers.filter((trainer) => scopedTrainerIds.has(String(trainer.id)))

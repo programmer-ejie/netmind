@@ -13,7 +13,7 @@ import AdminLayout, {
   initials,
   positions,
 } from './AdminLayout'
-import { API_BASE, apiRequest, getResource, listResource, registerPlayerWithTemporaryPassword } from '../../lib/api'
+import { API_BASE, apiRequest, getResource, listResource, readSavedUser, registerPlayerWithTemporaryPassword } from '../../lib/api'
 
 const blankPlayer = {
   name: '',
@@ -27,6 +27,7 @@ const getTeamLogoSrc = (team) => (
 )
 
 const AdminTeamDetails = ({ teamId, currentPath = '#coach/teams' }) => {
+  const currentUser = readSavedUser()
   const [team, setTeam] = useState(null)
   const [players, setPlayers] = useState([])
   const [assignedTrainers, setAssignedTrainers] = useState([])
@@ -50,23 +51,27 @@ const AdminTeamDetails = ({ teamId, currentPath = '#coach/teams' }) => {
     [assignedTrainers],
   )
   const availableTrainers = trainers.filter((trainer) => !assignedTrainerIds.has(String(trainer.id)))
-  const assignedBy = coaches[0]?.id || team?.coach_id || 1
+  const assignedBy = currentUser?.id || team?.coach_id || coaches[0]?.id || 1
 
   const load = async () => {
     if (!teamId) return
 
-    const [teamRow, memberRows, trainerRows, allTrainers, coachRows] = await Promise.all([
-      getResource('teams', teamId),
+    const teamRow = await getResource('teams', teamId)
+    const coachId = currentUser?.id || teamRow.coach_id
+    const [memberRows, trainerRows, allTrainers, coachRows, coachTrainerRows] = await Promise.all([
       apiRequest(`/teams/${teamId}/members`),
       apiRequest(`/teams/${teamId}/trainers`),
       listResource('trainers'),
       listResource('coaches'),
+      coachId ? listResource('coach-trainers', { coach_id: coachId, limit: 100 }) : Promise.resolve([]),
     ])
+    const scopedTrainerIds = new Set(coachTrainerRows.map((link) => String(link.trainer_id)))
+    trainerRows.forEach((link) => scopedTrainerIds.add(String(link.trainer_id)))
 
     setTeam(teamRow)
     setPlayers(memberRows)
     setAssignedTrainers(trainerRows)
-    setTrainers(allTrainers)
+    setTrainers(allTrainers.filter((trainer) => scopedTrainerIds.has(String(trainer.id))))
     setCoaches(coachRows)
     setSelectedTrainer('')
   }
@@ -80,6 +85,12 @@ const AdminTeamDetails = ({ teamId, currentPath = '#coach/teams' }) => {
     if (!selectedTrainer) return
 
     try {
+      if (assignedBy) {
+        await apiRequest(`/coaches/${assignedBy}/trainers`, {
+          method: 'POST',
+          body: { trainer_id: selectedTrainer },
+        })
+      }
       await apiRequest(`/teams/${teamId}/trainers`, {
         method: 'POST',
         body: { trainer_id: selectedTrainer, assigned_by: assignedBy },
@@ -226,10 +237,11 @@ const AdminTeamDetails = ({ teamId, currentPath = '#coach/teams' }) => {
                 value={selectedTrainer}
                 onChange={(event) => setSelectedTrainer(event.target.value)}
               >
-                <option value="">Select available trainer</option>
+                <option value="" disabled hidden>Select trainer</option>
                 {availableTrainers.map((trainer) => (
                   <option key={trainer.id} value={trainer.id}>{trainer.name}</option>
                 ))}
+                {!availableTrainers.length && <option value="" disabled>No connected trainers</option>}
               </AdminSelect>
             </AdminField>
             <AdminButton type="submit">

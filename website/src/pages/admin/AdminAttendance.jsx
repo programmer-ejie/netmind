@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import QRCode from 'qrcode'
-import { CalendarDays, ClipboardCheck, Clock3, Info, Plus, QrCode } from 'lucide-react'
+import { CalendarDays, ClipboardCheck, Info, Plus, QrCode } from 'lucide-react'
 import AdminLayout, {
   AdminButton,
   AdminCard,
@@ -8,6 +8,7 @@ import AdminLayout, {
   AdminInput,
   AdminModal,
   AdminSelect,
+  AdminTextarea,
   EmptyState,
   formatDate,
   getName,
@@ -15,12 +16,11 @@ import AdminLayout, {
 } from './AdminLayout'
 import { API_BASE, apiRequest, createResource, listResource, readSavedUser } from '../../lib/api'
 
-const sessionTypes = ['training', 'conditioning', 'match']
-
 const blankSchedule = {
   team_id: '',
   session_type: 'training',
   session_date: new Date().toISOString().slice(0, 10),
+  description: '',
 }
 
 const getTeamLogoSrc = (team) => {
@@ -49,9 +49,13 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
   }, [teams])
 
   const load = async () => {
+    const teamParams = {
+      limit: 100,
+      ...(currentUser?.role === 'coach' && currentUser?.id ? { coach_id: currentUser.id } : {}),
+    }
     const [scheduleRows, teamRows, trainerLinkRows] = await Promise.all([
       listResource('training-schedules', { limit: 100 }),
-      listResource('teams', { limit: 100 }),
+      listResource('teams', teamParams),
       isTrainerView ? listResource('team-trainers', { limit: 100 }) : Promise.resolve([]),
     ])
 
@@ -67,7 +71,8 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
       return
     }
 
-    setSchedules(scheduleRows)
+    const coachTeamIds = new Set(teamRows.map((team) => String(team.id)))
+    setSchedules(scheduleRows.filter((schedule) => coachTeamIds.has(String(schedule.team_id))))
     setTeams(teamRows)
   }
 
@@ -86,6 +91,7 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
     try {
       await createResource('training-schedules', {
         ...form,
+        session_type: 'training',
         created_by: currentUser?.id || null,
       })
       setModalOpen(false)
@@ -174,10 +180,6 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
             return (
               <article className="admin-schedule-card" key={schedule.id}>
                 <div className="admin-schedule-card-top">
-                  <span className="admin-schedule-session">
-                    <Clock3 size={14} />
-                    {schedule.session_type || 'training'}
-                  </span>
                   <span className="admin-schedule-date">
                     <CalendarDays size={15} />
                     {formatDate(schedule.session_date)}
@@ -214,7 +216,7 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
                   </AdminButton>
                   <AdminButton
                     variant="secondary"
-                    onClick={() => { window.location.hash = `trainer/attendance/${schedule.id}/check` }}
+                    onClick={() => { window.location.hash = `${isTrainerView ? 'trainer' : 'coach'}/attendance/${schedule.id}/check` }}
                     aria-label={`Check attendance for ${teamName}`}
                   >
                     <ClipboardCheck size={17} />
@@ -231,7 +233,7 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
         <form className="admin-form admin-form-grid" onSubmit={createSchedule}>
           <div className="admin-password-tip admin-form-span">
             <Info size={18} />
-            <p>Select the team, choose the session type, then set the training date before saving the schedule.</p>
+            <p>Select the team, add a short description, then set the training date before saving the schedule.</p>
           </div>
 
           <AdminField label="Team">
@@ -240,13 +242,15 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
               {teams.map((team) => <option key={team.id} value={team.id}>{team.team_name}</option>)}
             </AdminSelect>
           </AdminField>
-          <AdminField label="Session">
-            <AdminSelect value={form.session_type} onChange={(event) => setForm((current) => ({ ...current, session_type: event.target.value }))}>
-              {sessionTypes.map((type) => <option key={type}>{type}</option>)}
-            </AdminSelect>
-          </AdminField>
           <AdminField label="Date">
             <AdminInput required type="date" value={form.session_date} onChange={(event) => setForm((current) => ({ ...current, session_date: event.target.value }))} />
+          </AdminField>
+          <AdminField label="Description" className="admin-form-span">
+            <AdminTextarea
+              placeholder="Input schedule details"
+              value={form.description}
+              onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
+            />
           </AdminField>
           <div className="admin-form-actions admin-form-span">
             <AdminButton type="button" variant="secondary" onClick={() => setModalOpen(false)}>Cancel</AdminButton>

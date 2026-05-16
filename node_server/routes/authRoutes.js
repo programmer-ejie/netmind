@@ -139,6 +139,7 @@ router.post(
   [
     body("name").trim().notEmpty().withMessage("Name is required"),
     body("email").isEmail().withMessage("Valid email is required"),
+    body("coach_id").optional({ nullable: true }).isInt().withMessage("Coach ID must be a number"),
   ],
   asyncHandler(async (req, res) => {
     const startedAt = performance.now();
@@ -151,11 +152,30 @@ router.post(
 
     const name = req.body.name.trim();
     const email = req.body.email.trim().toLowerCase();
+    const coachId = req.body.coach_id || null;
     const dbCheckStartedAt = performance.now();
-    const existing = await query("SELECT id FROM users WHERE email = ?", [email]);
+    const existing = await query(
+      "SELECT id, name, email, role, position, jersey_number, age, birthdate, location, profile_picture_url, profile_picture_file_id, is_active, created_at FROM users WHERE email = ?",
+      [email]
+    );
     dbCheckMs = Math.round(performance.now() - dbCheckStartedAt);
 
     if (existing.length) {
+      if (existing[0].role === "trainer" && coachId) {
+        await query(
+          `INSERT INTO coach_trainers (coach_id, trainer_id)
+          VALUES (?, ?)
+          ON DUPLICATE KEY UPDATE created_at = CURRENT_TIMESTAMP`,
+          [coachId, existing[0].id]
+        );
+
+        authTiming("register-trainer:linked-existing", startedAt, { db_check_ms: dbCheckMs });
+        return res.json({
+          message: "Trainer account already exists and is now linked to this coach.",
+          user: existing[0],
+        });
+      }
+
       authTiming("register-trainer:duplicate", startedAt, { db_check_ms: dbCheckMs });
       throw new ApiError(409, "Email is already registered");
     }
@@ -180,6 +200,15 @@ router.post(
         [result.insertId]
       );
       user = rows[0];
+
+      if (coachId) {
+        await connection.execute(
+          `INSERT INTO coach_trainers (coach_id, trainer_id)
+          VALUES (?, ?)
+          ON DUPLICATE KEY UPDATE created_at = CURRENT_TIMESTAMP`,
+          [coachId, user.id]
+        );
+      }
 
       await connection.commit();
       dbInsertMs = Math.round(performance.now() - dbInsertStartedAt);
