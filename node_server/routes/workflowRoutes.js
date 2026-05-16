@@ -946,7 +946,13 @@ router.get("/training-schedules/:scheduleId/attendance-check", asyncHandler(asyn
 
 router.get("/attendance-qr/:token", asyncHandler(async (req, res) => {
   const rows = await query(
-    `SELECT qr.*, ts.team_id, ts.session_type, ts.session_date
+    `SELECT
+      qr.*,
+      DATE_FORMAT(qr.expires_at, '%Y-%m-%dT%H:%i:%s.000Z') AS expires_at_iso,
+      qr.expires_at <= UTC_TIMESTAMP() AS expired,
+      ts.team_id,
+      ts.session_type,
+      ts.session_date
     FROM training_schedule_qr_tokens qr
     JOIN training_schedules ts ON ts.id = qr.training_schedule_id
     WHERE qr.token = ?
@@ -959,15 +965,13 @@ router.get("/attendance-qr/:token", asyncHandler(async (req, res) => {
     throw new ApiError(404, "QR token not found");
   }
 
-  const expired = new Date(record.expires_at).getTime() <= Date.now();
-
   res.json({
     training_schedule_id: record.training_schedule_id,
     team_id: record.team_id,
     session_type: record.session_type,
     session_date: record.session_date,
-    expires_at: record.expires_at,
-    expired,
+    expires_at: record.expires_at_iso,
+    expired: Boolean(record.expired),
   });
 }));
 
@@ -977,7 +981,12 @@ router.post("/attendance-qr/:token/check-in", asyncHandler(async (req, res) => {
   }
 
   const rows = await query(
-    `SELECT qr.*, ts.team_id, ts.session_type, ts.session_date
+    `SELECT
+      qr.*,
+      qr.expires_at <= UTC_TIMESTAMP() AS expired,
+      ts.team_id,
+      ts.session_type,
+      ts.session_date
     FROM training_schedule_qr_tokens qr
     JOIN training_schedules ts ON ts.id = qr.training_schedule_id
     WHERE qr.token = ?
@@ -990,7 +999,7 @@ router.post("/attendance-qr/:token/check-in", asyncHandler(async (req, res) => {
     throw new ApiError(404, "QR token not found");
   }
 
-  if (new Date(record.expires_at).getTime() <= Date.now()) {
+  if (Number(record.expired)) {
     throw new ApiError(410, "QR token has expired");
   }
 

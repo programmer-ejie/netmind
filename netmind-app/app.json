@@ -39,6 +39,12 @@
           }
         }
       ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow NetMind to use the camera to scan attendance QR codes."
+        }
+      ],
       "@react-native-community/datetimepicker"
     ],
     "experiments": {

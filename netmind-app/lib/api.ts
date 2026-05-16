@@ -117,6 +117,29 @@ export type InjuryLog = InjuryReportInput & {
   created_at?: string | null;
 };
 
+export type AttendanceQrInfo = {
+  training_schedule_id: number;
+  team_id: number;
+  session_type: string;
+  session_date: string;
+  expires_at: string;
+  expired: boolean;
+};
+
+export type AttendanceLog = {
+  id: number;
+  player_id: number;
+  team_id: number;
+  session_type: string;
+  match_id?: number | null;
+  session_date: string;
+  status: string;
+  late_minutes?: number | string | null;
+  reason?: string | null;
+  marked_by?: number | string | null;
+  created_at?: string | null;
+};
+
 export type PerformanceReflectionInput = {
   session_type: 'match';
   match_id: number;
@@ -273,6 +296,17 @@ export function reportPlayerInjury(playerId: number | string, body: InjuryReport
   return apiRequest<InjuryLog>(`/players/${playerId}/injuries`, {
     method: 'POST',
     body: JSON.stringify(body),
+  });
+}
+
+export function getAttendanceQrInfo(token: string) {
+  return apiRequest<AttendanceQrInfo>(`/attendance-qr/${encodeURIComponent(token)}`);
+}
+
+export function checkInWithAttendanceQr(token: string, playerId: number | string) {
+  return apiRequest<AttendanceLog>(`/attendance-qr/${encodeURIComponent(token)}/check-in`, {
+    method: 'POST',
+    body: JSON.stringify({ player_id: playerId, marked_by: playerId }),
   });
 }
 

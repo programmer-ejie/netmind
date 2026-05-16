@@ -29,6 +29,7 @@ const navItems = [
   { title: 'My Stats', route: '/(tabs)/stats', icon: 'bar-chart' },
   { title: 'Wellness', route: '/(tabs)/wellness', icon: 'favorite' },
   { title: 'Training Tasks', route: '/(tabs)/training', icon: 'assignment' },
+  { title: 'Attendance', route: '/(tabs)/attendance', icon: 'qr-code-scanner' },
   { title: 'Activity', route: '/(tabs)/activity', icon: 'timeline' },
   { title: 'Profile', route: '/(tabs)/profile', icon: 'person' },
   { title: 'Settings', route: '/(tabs)/settings', icon: 'settings' },
@@ -37,12 +38,13 @@ const navItems = [
 const tabIcons: Record<string, keyof typeof MaterialIcons.glyphMap> = {
   dashboard: 'dashboard',
   performance: 'edit-note',
+  attendance: 'qr-code-scanner',
   wellness: 'favorite',
   training: 'assignment',
   profile: 'person',
   settings: 'settings',
 };
-const bottomTabNames = new Set(['dashboard', 'performance', 'wellness', 'training', 'profile', 'settings']);
+const bottomTabNames = new Set(['dashboard', 'performance', 'wellness', 'attendance', 'training', 'profile', 'settings']);
 const darkNavColors = {
   surface: '#0B3442',
   accent: '#27D3E2',
@@ -122,6 +124,13 @@ export default function TabLayout() {
           options={{
             title: 'Wellness',
             tabBarIcon: ({ color }) => <MaterialIcons name="favorite" size={24} color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="attendance"
+          options={{
+            title: 'Scan',
+            tabBarIcon: ({ color }) => <MaterialIcons name="qr-code-scanner" size={25} color={color} />,
           }}
         />
         <Tabs.Screen
