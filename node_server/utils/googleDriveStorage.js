@@ -1,7 +1,7 @@
 const { google } = require("googleapis");
 const { Readable } = require("stream");
 
-function getDriveClient() {
+function getOAuthDriveClient() {
   const required = ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REFRESH_TOKEN", "GOOGLE_REDIRECT_URI"];
   const missing = required.filter((key) => !process.env[key]);
 
@@ -17,6 +17,31 @@ function getDriveClient() {
 
   auth.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
   return google.drive({ version: "v3", auth });
+}
+
+function getServiceAccountDriveClient() {
+  const required = ["GOOGLE_SERVICE_ACCOUNT_EMAIL", "GOOGLE_PRIVATE_KEY"];
+  const missing = required.filter((key) => !process.env[key]);
+
+  if (missing.length) {
+    throw new Error(`Missing Google Drive service account env: ${missing.join(", ")}`);
+  }
+
+  const auth = new google.auth.JWT({
+    email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+    key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+    scopes: ["https://www.googleapis.com/auth/drive"],
+  });
+
+  return google.drive({ version: "v3", auth });
+}
+
+function getDriveClient() {
+  if (process.env.GOOGLE_DRIVE_AUTH_MODE === "service_account") {
+    return getServiceAccountDriveClient();
+  }
+
+  return getOAuthDriveClient();
 }
 
 async function uploadBufferToDrive({ buffer, fileName, mimeType, folderId }) {

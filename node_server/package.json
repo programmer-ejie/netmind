@@ -11,6 +11,7 @@
     "drive:auth-url": "node scripts/googleDriveAuthUrl.js",
     "drive:exchange-code": "node scripts/googleDriveExchangeCode.js",
     "drive:test-oauth": "node scripts/testGoogleDriveOAuth.js",
+    "drive:test-service-account": "node scripts/testGoogleDriveServiceAccount.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
