@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, BarChart3, Edit3, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, BarChart3, ChevronLeft, ChevronRight, Edit3, Plus, Trash2 } from 'lucide-react'
 import AdminLayout, {
   AdminButton,
   AdminCard,
@@ -25,6 +25,7 @@ const blankCreate = {
   jersey_number: '',
   team_id: '',
 }
+const PLAYERS_PER_PAGE = 4
 
 const buildActionRadar = (actions = [], logs = []) => {
   const totals = new Map()
@@ -137,12 +138,18 @@ const AdminPlayers = ({ currentPath = '#coach/players' }) => {
   const [editForm, setEditForm] = useState(null)
   const [stats, setStats] = useState(null)
   const [error, setError] = useState('')
+  const [playersPage, setPlayersPage] = useState(1)
 
   const teamByPlayer = useMemo(() => {
     const map = new Map()
     memberships.forEach((membership) => map.set(String(membership.player_id), membership.team_id))
     return map
   }, [memberships])
+  const totalPlayersPages = Math.max(1, Math.ceil(players.length / PLAYERS_PER_PAGE))
+  const visiblePlayers = useMemo(() => {
+    const start = (playersPage - 1) * PLAYERS_PER_PAGE
+    return players.slice(start, start + PLAYERS_PER_PAGE)
+  }, [players, playersPage])
 
   const load = useCallback(async () => {
     const teamParams = {
@@ -275,6 +282,10 @@ const AdminPlayers = ({ currentPath = '#coach/players' }) => {
       loadPlayerStats(statsPlayerId).catch((err) => setError(err.message))
     }
   }, [isStatsPage, load, loadPlayerStats, statsPlayerId])
+
+  useEffect(() => {
+    setPlayersPage((current) => Math.min(Math.max(current, 1), totalPlayersPages))
+  }, [totalPlayersPages])
 
   const renderStatsContent = () => (
     <>
@@ -473,7 +484,7 @@ const AdminPlayers = ({ currentPath = '#coach/players' }) => {
               </tr>
             </thead>
             <tbody>
-              {players.map((player) => (
+              {visiblePlayers.map((player) => (
                 <tr key={player.id}>
                   <td>
                     <span className="admin-player">
@@ -514,6 +525,27 @@ const AdminPlayers = ({ currentPath = '#coach/players' }) => {
             </tbody>
           </table>
           {!players.length && <EmptyState>No player accounts yet.</EmptyState>}
+          <div className="admin-pagination" aria-label="Players pagination">
+            <button
+              type="button"
+              className="admin-pagination-button"
+              aria-label="Previous players page"
+              disabled={playersPage <= 1}
+              onClick={() => setPlayersPage((current) => Math.max(1, current - 1))}
+            >
+              <ChevronLeft size={17} />
+            </button>
+            <span>Page {playersPage} of {totalPlayersPages}</span>
+            <button
+              type="button"
+              className="admin-pagination-button"
+              aria-label="Next players page"
+              disabled={playersPage >= totalPlayersPages}
+              onClick={() => setPlayersPage((current) => Math.min(totalPlayersPages, current + 1))}
+            >
+              <ChevronRight size={17} />
+            </button>
+          </div>
         </div>
       </AdminCard>
 

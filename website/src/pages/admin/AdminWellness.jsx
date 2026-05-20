@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Activity, AlertTriangle, Moon, Zap } from 'lucide-react'
+import { Activity, AlertTriangle, ChevronLeft, ChevronRight, Moon, Zap } from 'lucide-react'
 import AdminLayout, {
   AdminCard,
   AdminSelect,
@@ -18,6 +18,7 @@ const average = (rows, key) => {
 }
 
 const formatAverage = (value) => (value ? value.toFixed(1) : '-')
+const WELLNESS_ROWS_PER_PAGE = 4
 
 const dateKey = (value) => {
   if (!value) return ''
@@ -165,6 +166,8 @@ const AdminWellness = ({ currentPath = '#trainer/wellness' }) => {
   const [players, setPlayers] = useState([])
   const [targetPlayerId, setTargetPlayerId] = useState('')
   const [error, setError] = useState('')
+  const [checkinsPage, setCheckinsPage] = useState(1)
+  const [injuriesPage, setInjuriesPage] = useState(1)
 
   const load = useCallback(async () => {
     const [checkInRows, injuryRows, playerRows, memberRows, trainerLinkRows] = await Promise.all([
@@ -240,6 +243,28 @@ const AdminWellness = ({ currentPath = '#trainer/wellness' }) => {
       ? logs.filter((log) => String(log.player_id) === String(targetPlayerId))
       : logs
   ), [logs, targetPlayerId])
+  const totalCheckinsPages = Math.max(1, Math.ceil(tableLogs.length / WELLNESS_ROWS_PER_PAGE))
+  const visibleTableLogs = useMemo(() => {
+    const start = (checkinsPage - 1) * WELLNESS_ROWS_PER_PAGE
+    return tableLogs.slice(start, start + WELLNESS_ROWS_PER_PAGE)
+  }, [checkinsPage, tableLogs])
+  const totalInjuryPages = Math.max(1, Math.ceil(injuries.length / WELLNESS_ROWS_PER_PAGE))
+  const visibleInjuries = useMemo(() => {
+    const start = (injuriesPage - 1) * WELLNESS_ROWS_PER_PAGE
+    return injuries.slice(start, start + WELLNESS_ROWS_PER_PAGE)
+  }, [injuries, injuriesPage])
+
+  useEffect(() => {
+    setCheckinsPage(1)
+  }, [targetPlayerId])
+
+  useEffect(() => {
+    setCheckinsPage((current) => Math.min(Math.max(current, 1), totalCheckinsPages))
+  }, [totalCheckinsPages])
+
+  useEffect(() => {
+    setInjuriesPage((current) => Math.min(Math.max(current, 1), totalInjuryPages))
+  }, [totalInjuryPages])
 
   return (
     <AdminLayout title="Wellness Log" currentPath={currentPath}>
@@ -287,7 +312,7 @@ const AdminWellness = ({ currentPath = '#trainer/wellness' }) => {
               </tr>
             </thead>
             <tbody>
-              {tableLogs.map((log) => {
+              {visibleTableLogs.map((log) => {
                 const risk = getRiskLevel(log)
 
                 return (
@@ -312,6 +337,27 @@ const AdminWellness = ({ currentPath = '#trainer/wellness' }) => {
             </tbody>
           </table>
           {!tableLogs.length && <EmptyState>No wellness logs for this player yet.</EmptyState>}
+          <div className="admin-pagination" aria-label="Recovery check-ins pagination">
+            <button
+              type="button"
+              className="admin-pagination-button"
+              aria-label="Previous recovery check-ins page"
+              disabled={checkinsPage <= 1}
+              onClick={() => setCheckinsPage((current) => Math.max(1, current - 1))}
+            >
+              <ChevronLeft size={17} />
+            </button>
+            <span>Page {checkinsPage} of {totalCheckinsPages}</span>
+            <button
+              type="button"
+              className="admin-pagination-button"
+              aria-label="Next recovery check-ins page"
+              disabled={checkinsPage >= totalCheckinsPages}
+              onClick={() => setCheckinsPage((current) => Math.min(totalCheckinsPages, current + 1))}
+            >
+              <ChevronRight size={17} />
+            </button>
+          </div>
         </div>
       </AdminCard>
 
@@ -335,7 +381,7 @@ const AdminWellness = ({ currentPath = '#trainer/wellness' }) => {
               </tr>
             </thead>
             <tbody>
-              {injuries.map((injury) => (
+              {visibleInjuries.map((injury) => (
                 <tr key={injury.id}>
                   <td>{formatDate(injury.occurred_at || injury.created_at)}</td>
                   <td>
@@ -354,6 +400,27 @@ const AdminWellness = ({ currentPath = '#trainer/wellness' }) => {
             </tbody>
           </table>
           {!injuries.length && <EmptyState>No injury reports yet.</EmptyState>}
+          <div className="admin-pagination" aria-label="Injury reports pagination">
+            <button
+              type="button"
+              className="admin-pagination-button"
+              aria-label="Previous injury reports page"
+              disabled={injuriesPage <= 1}
+              onClick={() => setInjuriesPage((current) => Math.max(1, current - 1))}
+            >
+              <ChevronLeft size={17} />
+            </button>
+            <span>Page {injuriesPage} of {totalInjuryPages}</span>
+            <button
+              type="button"
+              className="admin-pagination-button"
+              aria-label="Next injury reports page"
+              disabled={injuriesPage >= totalInjuryPages}
+              onClick={() => setInjuriesPage((current) => Math.min(totalInjuryPages, current + 1))}
+            >
+              <ChevronRight size={17} />
+            </button>
+          </div>
         </div>
       </AdminCard>
 

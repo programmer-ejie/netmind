@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { CalendarCheck2, ClipboardList, Edit3, Info, Plus, Swords, Trash2, Trophy } from 'lucide-react'
+import { CalendarCheck2, ChevronLeft, ChevronRight, ClipboardList, Edit3, Info, Plus, Swords, Trash2, Trophy } from 'lucide-react'
 import AdminLayout, {
   AdminButton,
   AdminCard,
@@ -15,19 +15,38 @@ import AdminLayout, {
 import { apiRequest, createResource, deleteResource, listResource, readSavedUser, updateResource } from '../../lib/api'
 
 const actualMatchTypes = ['league', 'tournament', 'playoff']
+const MATCHES_PER_PAGE = 5
+const MATCHES_TAB_STORAGE_KEY = 'netmind:matches-active-tab'
+const matchTabs = new Set(['practice', 'actual'])
 const bestOfLabels = {
   1: 'Best of One',
   3: 'Best of Three',
   5: 'Best of Five',
 }
+const statusFilterOptions = [
+  { value: 'all', label: 'All statuses' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'scored', label: 'Scored' },
+]
 
 const countLabel = (count, singular, plural = `${singular}s`) => (
   `${count} ${count === 1 ? singular : plural}`
 )
 const totalSets = (rows) => rows.reduce((sum, match) => sum + Number(match.best_of || 1), 0)
+const sortMatchesDesc = (rows) => (
+  rows.slice().sort((a, b) => (
+    new Date(b.match_date || 0) - new Date(a.match_date || 0)
+    || Number(b.id || 0) - Number(a.id || 0)
+  ))
+)
 const mergeTeams = (...groups) => (
   [...new Map(groups.flat().filter(Boolean).map((team) => [String(team.id), team])).values()]
 )
+
+const getSavedMatchesTab = () => {
+  const saved = window.localStorage.getItem(MATCHES_TAB_STORAGE_KEY)
+  return matchTabs.has(saved) ? saved : 'practice'
+}
 
 const blankMatch = {
   team_id: '',
@@ -44,7 +63,10 @@ const AdminMatches = ({ currentPath = '#coach/matches' }) => {
   const [matchScores, setMatchScores] = useState([])
   const [teams, setTeams] = useState([])
   const [opponentTeamOptions, setOpponentTeamOptions] = useState([])
-  const [activeView, setActiveView] = useState('practice')
+  const [activeView, setActiveView] = useState(getSavedMatchesTab)
+  const [practicePage, setPracticePage] = useState(1)
+  const [actualPage, setActualPage] = useState(1)
+  const [statusFilter, setStatusFilter] = useState('all')
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(blankMatch)
@@ -54,16 +76,49 @@ const AdminMatches = ({ currentPath = '#coach/matches' }) => {
   ), [currentUser?.id, teams])
 
   const practiceMatches = useMemo(
-    () => matches.filter((match) => match.match_type === 'friendly'),
+    () => sortMatchesDesc(matches.filter((match) => match.match_type === 'friendly')),
     [matches],
   )
 
   const actualMatches = useMemo(
-    () => matches.filter((match) => actualMatchTypes.includes(match.match_type)),
+    () => sortMatchesDesc(matches.filter((match) => actualMatchTypes.includes(match.match_type))),
     [matches],
   )
 
-  const visibleMatches = activeView === 'practice' ? practiceMatches : actualMatches
+  const getWinner = (score) => {
+    if (
+      score?.team_score === null || score?.team_score === undefined
+      || score?.opponent_score === null || score?.opponent_score === undefined
+    ) return null
+
+    if (Number(score.team_score) > Number(score.opponent_score)) return 'team'
+    if (Number(score.team_score) < Number(score.opponent_score)) return 'opponent'
+    return null
+  }
+  const isMatchScored = useCallback((match) => {
+    const bestOf = Number(match.best_of || 1)
+    const scores = matchScores.filter((score) => String(score.match_id) === String(match.id))
+
+    if (bestOf <= 1) {
+      return Boolean(getWinner(scores.find((item) => Number(item.match_number) === 1) || match))
+    }
+
+    return scores.some((score) => getWinner(score))
+  }, [matchScores])
+  const tabMatches = activeView === 'practice' ? practiceMatches : actualMatches
+  const visibleMatches = useMemo(() => (
+    tabMatches.filter((match) => {
+      if (statusFilter === 'scored') return isMatchScored(match)
+      if (statusFilter === 'pending') return !isMatchScored(match)
+      return true
+    })
+  ), [isMatchScored, statusFilter, tabMatches])
+  const activePage = activeView === 'practice' ? practicePage : actualPage
+  const totalMatchPages = Math.max(1, Math.ceil(visibleMatches.length / MATCHES_PER_PAGE))
+  const pagedMatches = useMemo(() => {
+    const start = (activePage - 1) * MATCHES_PER_PAGE
+    return visibleMatches.slice(start, start + MATCHES_PER_PAGE)
+  }, [activePage, visibleMatches])
   const isActualMatchForm = actualMatchTypes.includes(form.match_type)
   const teamOneOptions = useMemo(
     () => (
@@ -108,16 +163,6 @@ const AdminMatches = ({ currentPath = '#coach/matches' }) => {
   }
 
   const formatBestOf = (value) => bestOfLabels[Number(value)] || 'Best of One'
-  const getWinner = (score) => {
-    if (
-      score?.team_score === null || score?.team_score === undefined
-      || score?.opponent_score === null || score?.opponent_score === undefined
-    ) return null
-
-    if (Number(score.team_score) > Number(score.opponent_score)) return 'team'
-    if (Number(score.team_score) < Number(score.opponent_score)) return 'opponent'
-    return null
-  }
   const formatSeriesResult = (match) => {
     const bestOf = Number(match.best_of || 1)
     const scores = matchScores.filter((score) => String(score.match_id) === String(match.id))
@@ -165,6 +210,36 @@ const AdminMatches = ({ currentPath = '#coach/matches' }) => {
   useEffect(() => {
     load().catch((err) => setError(err.message))
   }, [load])
+
+  useEffect(() => {
+    window.localStorage.setItem(MATCHES_TAB_STORAGE_KEY, activeView)
+  }, [activeView])
+
+  useEffect(() => {
+    setPracticePage((current) => Math.min(Math.max(current, 1), Math.max(1, Math.ceil(practiceMatches.length / MATCHES_PER_PAGE))))
+  }, [practiceMatches.length])
+
+  useEffect(() => {
+    setActualPage((current) => Math.min(Math.max(current, 1), Math.max(1, Math.ceil(actualMatches.length / MATCHES_PER_PAGE))))
+  }, [actualMatches.length])
+
+  const goToPreviousMatchPage = () => {
+    if (activeView === 'practice') {
+      setPracticePage((current) => Math.max(1, current - 1))
+      return
+    }
+
+    setActualPage((current) => Math.max(1, current - 1))
+  }
+
+  const goToNextMatchPage = () => {
+    if (activeView === 'practice') {
+      setPracticePage((current) => Math.min(totalMatchPages, current + 1))
+      return
+    }
+
+    setActualPage((current) => Math.min(totalMatchPages, current + 1))
+  }
 
   const openCreate = (view = activeView) => {
     setEditing(null)
@@ -274,6 +349,30 @@ const AdminMatches = ({ currentPath = '#coach/matches' }) => {
             </div>
           </div>
           <div className="admin-card-actions">
+            <div className="admin-match-status-filter">
+              <span>Status</span>
+              <details className="admin-match-status-menu">
+                <summary>
+                  {statusFilterOptions.find((option) => option.value === statusFilter)?.label || 'All statuses'}
+                  <ChevronRight size={15} />
+                </summary>
+                <div>
+                  {statusFilterOptions.map((option) => (
+                    <button
+                      type="button"
+                      className={option.value === statusFilter ? 'active' : ''}
+                      key={option.value}
+                      onClick={(event) => {
+                        setStatusFilter(option.value)
+                        event.currentTarget.closest('details')?.removeAttribute('open')
+                      }}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </details>
+            </div>
             <div className="admin-segmented" role="tablist" aria-label="Match view">
               <button
                 type="button"
@@ -290,9 +389,8 @@ const AdminMatches = ({ currentPath = '#coach/matches' }) => {
                 Actual
               </button>
             </div>
-            <AdminButton onClick={() => openCreate(activeView)}>
-              <Plus size={17} />
-              Add Match
+            <AdminButton className="admin-matches-add-button admin-success-action-button" onClick={() => openCreate(activeView)} aria-label="Add match" title="Add match">
+              <Plus size={38} />
             </AdminButton>
           </div>
         </div>
@@ -311,7 +409,7 @@ const AdminMatches = ({ currentPath = '#coach/matches' }) => {
                 </tr>
               </thead>
               <tbody>
-                {visibleMatches.map((match) => {
+                {pagedMatches.map((match) => {
                   const canManageMatch = ownedTeams.some((team) => String(team.id) === String(match.team_id))
 
                   return (
@@ -356,6 +454,27 @@ const AdminMatches = ({ currentPath = '#coach/matches' }) => {
                 })}
               </tbody>
             </table>
+            <div className="admin-pagination admin-matches-pagination" aria-label={`${activeView === 'practice' ? 'Practice' : 'Actual'} matches pagination`}>
+              <button
+                type="button"
+                className="admin-pagination-button"
+                aria-label="Previous matches page"
+                disabled={activePage <= 1}
+                onClick={goToPreviousMatchPage}
+              >
+                <ChevronLeft size={17} />
+              </button>
+              <span>Page {activePage} of {totalMatchPages}</span>
+              <button
+                type="button"
+                className="admin-pagination-button"
+                aria-label="Next matches page"
+                disabled={activePage >= totalMatchPages}
+                onClick={goToNextMatchPage}
+              >
+                <ChevronRight size={17} />
+              </button>
+            </div>
           </div>
         ) : (
           <div className="admin-matches-empty-wrap">

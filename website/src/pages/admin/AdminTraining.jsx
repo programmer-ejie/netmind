@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, Edit3, ExternalLink, Info, Plus, Trash2, X } from 'lucide-react'
+import { AlertTriangle, ChevronLeft, ChevronRight, Edit3, ExternalLink, Info, Plus, Trash2, X } from 'lucide-react'
 import AdminLayout, {
   AdminButton,
   AdminCard,
@@ -36,10 +36,18 @@ const blankAssignment = {
   due_date: '',
   focus_area: '',
 }
+const TRAINING_ROWS_PER_PAGE = 4
+const TRAINING_TAB_STORAGE_KEY = 'netmind:training-active-tab'
+const trainingTabs = new Set(['drills', 'assignments'])
 
 const getDisplayUrl = (url) => {
   if (!url) return ''
   return /^https?:\/\//i.test(url) ? url : `https://${url}`
+}
+
+const getSavedTrainingTab = () => {
+  const saved = window.localStorage.getItem(TRAINING_TAB_STORAGE_KEY)
+  return trainingTabs.has(saved) ? saved : 'drills'
 }
 
 const formatStatusLabel = (status = 'pending') => status
@@ -64,13 +72,15 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
   const [coaches, setCoaches] = useState([])
   const [drillModal, setDrillModal] = useState(false)
   const [assignModal, setAssignModal] = useState(false)
-  const [activeView, setActiveView] = useState('drills')
+  const [activeView, setActiveView] = useState(getSavedTrainingTab)
   const [editingDrill, setEditingDrill] = useState(null)
   const [deleteDrill, setDeleteDrill] = useState(null)
   const [deletingDrill, setDeletingDrill] = useState(false)
   const [drillForm, setDrillForm] = useState(blankDrill)
   const [assignmentForm, setAssignmentForm] = useState(blankAssignment)
   const [error, setError] = useState('')
+  const [drillsPage, setDrillsPage] = useState(1)
+  const [assignmentsPage, setAssignmentsPage] = useState(1)
 
   const assignedBy = currentUser?.id || coaches[0]?.id || 1
   const drillMap = useMemo(() => new Map(drills.map((drill) => [String(drill.id), drill])), [drills])
@@ -79,6 +89,16 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
     pending: assignments.filter((assignment) => (assignment.status || 'pending') === 'pending').length,
     completed: assignments.filter((assignment) => assignment.status === 'completed').length,
   }), [assignments])
+  const totalDrillPages = Math.max(1, Math.ceil(drills.length / TRAINING_ROWS_PER_PAGE))
+  const totalAssignmentPages = Math.max(1, Math.ceil(assignments.length / TRAINING_ROWS_PER_PAGE))
+  const visibleDrills = useMemo(() => {
+    const start = (drillsPage - 1) * TRAINING_ROWS_PER_PAGE
+    return drills.slice(start, start + TRAINING_ROWS_PER_PAGE)
+  }, [drills, drillsPage])
+  const visibleAssignments = useMemo(() => {
+    const start = (assignmentsPage - 1) * TRAINING_ROWS_PER_PAGE
+    return assignments.slice(start, start + TRAINING_ROWS_PER_PAGE)
+  }, [assignments, assignmentsPage])
 
   const load = useCallback(async () => {
     const [drillRows, assignmentRows, playerRows, coachRows, memberRows, trainerLinkRows] = await Promise.all([
@@ -126,6 +146,18 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
   useEffect(() => {
     load().catch((err) => setError(err.message))
   }, [load])
+
+  useEffect(() => {
+    window.localStorage.setItem(TRAINING_TAB_STORAGE_KEY, activeView)
+  }, [activeView])
+
+  useEffect(() => {
+    setDrillsPage((current) => Math.min(Math.max(current, 1), totalDrillPages))
+  }, [totalDrillPages])
+
+  useEffect(() => {
+    setAssignmentsPage((current) => Math.min(Math.max(current, 1), totalAssignmentPages))
+  }, [totalAssignmentPages])
 
   const openCreateDrill = () => {
     setEditingDrill(null)
@@ -282,11 +314,10 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
                 </tr>
               </thead>
               <tbody>
-                {drills.map((drill) => (
+                {visibleDrills.map((drill) => (
                   <tr key={drill.id}>
                     <td>
                       <strong>{drill.drill_name}</strong>
-                      <small className="admin-block-muted">{drill.target_metric || 'General skill'}</small>
                     </td>
                     <td>{drill.category}</td>
                     <td><StatusBadge tone="secondary">{drill.difficulty}</StatusBadge></td>
@@ -331,6 +362,27 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
                 </div>
               </EmptyState>
             )}
+            <div className="admin-pagination" aria-label="Drills pagination">
+              <button
+                type="button"
+                className="admin-pagination-button"
+                aria-label="Previous drills page"
+                disabled={drillsPage <= 1}
+                onClick={() => setDrillsPage((current) => Math.max(1, current - 1))}
+              >
+                <ChevronLeft size={17} />
+              </button>
+              <span>Page {drillsPage} of {totalDrillPages}</span>
+              <button
+                type="button"
+                className="admin-pagination-button"
+                aria-label="Next drills page"
+                disabled={drillsPage >= totalDrillPages}
+                onClick={() => setDrillsPage((current) => Math.min(totalDrillPages, current + 1))}
+              >
+                <ChevronRight size={17} />
+              </button>
+            </div>
           </div>
         ) : (
           <div className="admin-assignment-panel">
@@ -360,20 +412,13 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
                 </tr>
               </thead>
               <tbody>
-                {assignments.map((assignment) => (
+                {visibleAssignments.map((assignment) => (
                   <tr key={assignment.id}>
                     <td>
                       <strong>{getName(players, assignment.player_id)}</strong>
-                      <small className="admin-block-muted">{assignment.focus_area || 'Assigned player'}</small>
                     </td>
                     <td>
                       <strong>{drillMap.get(String(assignment.drill_id))?.drill_name || assignment.focus_area}</strong>
-                      <small className="admin-block-muted">
-                        {[
-                          assignment.target_reps ? `${assignment.target_reps} reps` : '',
-                          assignment.target_success_rate ? `${assignment.target_success_rate}% target` : '',
-                        ].filter(Boolean).join(' - ') || 'No target metrics set'}
-                      </small>
                     </td>
                     <td>{formatDate(assignment.due_date)}</td>
                     <td>
@@ -396,6 +441,27 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
                 </div>
               </EmptyState>
             )}
+            <div className="admin-pagination" aria-label="Training assignments pagination">
+              <button
+                type="button"
+                className="admin-pagination-button"
+                aria-label="Previous assignments page"
+                disabled={assignmentsPage <= 1}
+                onClick={() => setAssignmentsPage((current) => Math.max(1, current - 1))}
+              >
+                <ChevronLeft size={17} />
+              </button>
+              <span>Page {assignmentsPage} of {totalAssignmentPages}</span>
+              <button
+                type="button"
+                className="admin-pagination-button"
+                aria-label="Next assignments page"
+                disabled={assignmentsPage >= totalAssignmentPages}
+                onClick={() => setAssignmentsPage((current) => Math.min(totalAssignmentPages, current + 1))}
+              >
+                <ChevronRight size={17} />
+              </button>
+            </div>
             </div>
           </div>
         )}

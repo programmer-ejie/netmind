@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   BarChart3,
   Bell,
@@ -292,6 +292,15 @@ export const AdminLayout = ({ children, title, kicker, currentPath }) => {
     markRead,
     unreadCount,
   } = useNotifications()
+  const latestMenuNotifications = useMemo(() => (
+    [...notifications]
+      .sort((a, b) => {
+        const bTime = b.created_at ? new Date(b.created_at).getTime() : 0
+        const aTime = a.created_at ? new Date(a.created_at).getTime() : 0
+        return bTime - aTime || Number(b.id || 0) - Number(a.id || 0)
+      })
+      .slice(0, 5)
+  ), [notifications])
   const headerProfileImage = getHeaderProfileImage(headerProfile, headerPreview)
   const role = getUserRole(headerProfile)
   const sidebarGroupsForUser = getSidebarGroupsForUser(headerProfile)
@@ -468,7 +477,7 @@ export const AdminLayout = ({ children, title, kicker, currentPath }) => {
                       <span>{notificationsConnected ? 'Live' : `${unreadCount} unread`}</span>
                     </div>
 
-                    {notifications.slice(0, 5).map((item) => (
+                    {latestMenuNotifications.map((item) => (
                       <button
                         type="button"
                         className={`admin-notification-item ${item.is_read ? '' : 'unread'}`}

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ClipboardCheck, PieChart, Swords, Trophy, Users } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ClipboardCheck, PieChart, Swords, Trophy, Users } from 'lucide-react'
 import AdminLayout, {
   AdminCard,
   AdminField,
@@ -24,6 +24,7 @@ const metricOptions = [
 const goodResults = new Set(['kill', 'ace', 'perfect', 'assist', 'stuff'])
 const actualMatchTypes = ['league', 'tournament', 'playoff']
 const chartColors = ['#12aabd', '#ff6692', '#36c76c', '#ffb900', '#635bff', '#2f4050']
+const ANALYTICS_TABLE_ROWS_PER_PAGE = 5
 const statLineMetrics = [
   { key: 'kill', label: 'Kills' },
   { key: 'ace', label: 'Aces' },
@@ -297,17 +298,31 @@ const AnalyticsSkeleton = () => (
       ))}
     </div>
     <div className="admin-grid admin-page-grid">
-      {Array.from({ length: 4 }).map((_, index) => (
-        <AdminCard
-          className={`admin-analytics-card ${index % 2 === 0 ? 'admin-analytics-primary-card' : 'admin-analytics-side-card'}`}
-          key={`analytics-card-skeleton-${index}`}
-        >
-          <div className="admin-skeleton-list">
-            {Array.from({ length: 6 }).map((__, itemIndex) => <span key={`analytics-card-line-${index}-${itemIndex}`} />)}
-          </div>
-        </AdminCard>
-      ))}
-      <AdminCard className="admin-table-card admin-analytics-card admin-analytics-table-card">
+      {Array.from({ length: 4 }).map((_, index) => {
+        const isPrimaryCard = index % 2 === 0
+
+        return (
+          <AdminCard
+            className={`admin-analytics-card admin-analytics-skeleton-card ${
+              isPrimaryCard
+                ? 'admin-chart-card admin-analytics-primary-card'
+                : 'admin-activity-card admin-analytics-side-card'
+            }`}
+            key={`analytics-card-skeleton-${index}`}
+          >
+            <div className="admin-skeleton-list admin-analytics-skeleton-header">
+              <span />
+              <span />
+            </div>
+            <div className={isPrimaryCard ? 'admin-skeleton-bars' : 'admin-analytics-side-skeleton'}>
+              {isPrimaryCard
+                ? Array.from({ length: 8 }).map((__, itemIndex) => <span key={`analytics-card-bar-${index}-${itemIndex}`} />)
+                : Array.from({ length: 5 }).map((__, itemIndex) => <span key={`analytics-card-line-${index}-${itemIndex}`} />)}
+            </div>
+          </AdminCard>
+        )
+      })}
+      <AdminCard className="admin-table-card admin-analytics-card admin-analytics-table-card admin-analytics-skeleton-card">
         <div className="admin-skeleton-list">
           {Array.from({ length: 6 }).map((_, index) => <span key={`analytics-table-line-${index}`} />)}
         </div>
@@ -323,6 +338,8 @@ const AdminAnalytics = ({ currentPath = '#coach/analytics' }) => {
   const [activeView, setActiveView] = useState('practice')
   const [selectedTeamId, setSelectedTeamId] = useState('')
   const [metric, setMetric] = useState('positive_results')
+  const [winnersPage, setWinnersPage] = useState(1)
+  const [rankingsPage, setRankingsPage] = useState(1)
   const [state, setState] = useState({
     players: [],
     teamMembers: [],
@@ -629,6 +646,17 @@ const AdminAnalytics = ({ currentPath = '#coach/analytics' }) => {
   ), [allVisibleSetResults, coachTeams])
 
   const rankingRows = allVisibleRankings.length ? allVisibleRankings : computedRankings
+  const sortedRankingRows = useMemo(() => (
+    rankingRows
+      .slice()
+      .sort((a, b) => (
+        Number(b.wins || 0) - Number(a.wins || 0)
+        || Number(b.set_wins || 0) - Number(a.set_wins || 0)
+        || Number(b.win_percentage || 0) - Number(a.win_percentage || 0)
+        || Number(b.point_difference || 0) - Number(a.point_difference || 0)
+        || Number(a.ranking_position || 0) - Number(b.ranking_position || 0)
+      ))
+  ), [rankingRows])
 
   const teamStatLineSeries = useMemo(() => (
     coachTeams
@@ -663,8 +691,25 @@ const AdminAnalytics = ({ currentPath = '#coach/analytics' }) => {
         || Number(b.id) - Number(a.id)
         || Number(b.set_number || 0) - Number(a.set_number || 0)
       ))
-      .slice(0, 8)
   ), [selectedTeams, visibleSetResults])
+  const totalWinnersPages = Math.max(1, Math.ceil(latestWinners.length / ANALYTICS_TABLE_ROWS_PER_PAGE))
+  const visibleLatestWinners = useMemo(() => {
+    const start = (winnersPage - 1) * ANALYTICS_TABLE_ROWS_PER_PAGE
+    return latestWinners.slice(start, start + ANALYTICS_TABLE_ROWS_PER_PAGE)
+  }, [latestWinners, winnersPage])
+  const totalRankingPages = Math.max(1, Math.ceil(sortedRankingRows.length / ANALYTICS_TABLE_ROWS_PER_PAGE))
+  const visibleRankingRows = useMemo(() => {
+    const start = (rankingsPage - 1) * ANALYTICS_TABLE_ROWS_PER_PAGE
+    return sortedRankingRows.slice(start, start + ANALYTICS_TABLE_ROWS_PER_PAGE)
+  }, [rankingsPage, sortedRankingRows])
+
+  useEffect(() => {
+    setWinnersPage((current) => Math.min(Math.max(current, 1), totalWinnersPages))
+  }, [totalWinnersPages])
+
+  useEffect(() => {
+    setRankingsPage((current) => Math.min(Math.max(current, 1), totalRankingPages))
+  }, [totalRankingPages])
 
   const totals = useMemo(() => {
     const wins = visibleSetResults.filter((setResult) => setResult.resolved_result === 'win').length
@@ -877,7 +922,7 @@ const AdminAnalytics = ({ currentPath = '#coach/analytics' }) => {
                 </tr>
               </thead>
               <tbody>
-                {latestWinners.map((match) => (
+                {visibleLatestWinners.map((match) => (
                   <tr key={match.row_key || match.id}>
                     <td>
                       {getName(selectedTeams, match.team_id)} vs {match.opponent_name}
@@ -894,6 +939,27 @@ const AdminAnalytics = ({ currentPath = '#coach/analytics' }) => {
               </tbody>
             </table>
             {!latestWinners.length && <EmptyState>No matches yet.</EmptyState>}
+            <div className="admin-pagination" aria-label="Latest set winners pagination">
+              <button
+                type="button"
+                className="admin-pagination-button"
+                aria-label="Previous set winners page"
+                disabled={winnersPage <= 1}
+                onClick={() => setWinnersPage((current) => Math.max(1, current - 1))}
+              >
+                <ChevronLeft size={17} />
+              </button>
+              <span>Page {winnersPage} of {totalWinnersPages}</span>
+              <button
+                type="button"
+                className="admin-pagination-button"
+                aria-label="Next set winners page"
+                disabled={winnersPage >= totalWinnersPages}
+                onClick={() => setWinnersPage((current) => Math.min(totalWinnersPages, current + 1))}
+              >
+                <ChevronRight size={17} />
+              </button>
+            </div>
           </div>
         </AdminCard>
 
@@ -921,16 +987,7 @@ const AdminAnalytics = ({ currentPath = '#coach/analytics' }) => {
                 </tr>
               </thead>
               <tbody>
-                {rankingRows
-                  .slice()
-                  .sort((a, b) => (
-                    Number(b.wins || 0) - Number(a.wins || 0)
-                    || Number(b.set_wins || 0) - Number(a.set_wins || 0)
-                    || Number(b.win_percentage || 0) - Number(a.win_percentage || 0)
-                    || Number(b.point_difference || 0) - Number(a.point_difference || 0)
-                    || Number(a.ranking_position || 0) - Number(b.ranking_position || 0)
-                  ))
-                  .map((ranking) => (
+                {visibleRankingRows.map((ranking) => (
                     <tr key={ranking.id}>
                       <td>#{ranking.ranking_position}</td>
                       <td>{getName(coachTeams, ranking.team_id)}</td>
@@ -945,6 +1002,27 @@ const AdminAnalytics = ({ currentPath = '#coach/analytics' }) => {
               </tbody>
             </table>
             {!rankingRows.length && <EmptyState>No team rankings yet.</EmptyState>}
+            <div className="admin-pagination" aria-label="Team rankings pagination">
+              <button
+                type="button"
+                className="admin-pagination-button"
+                aria-label="Previous team rankings page"
+                disabled={rankingsPage <= 1}
+                onClick={() => setRankingsPage((current) => Math.max(1, current - 1))}
+              >
+                <ChevronLeft size={17} />
+              </button>
+              <span>Page {rankingsPage} of {totalRankingPages}</span>
+              <button
+                type="button"
+                className="admin-pagination-button"
+                aria-label="Next team rankings page"
+                disabled={rankingsPage >= totalRankingPages}
+                onClick={() => setRankingsPage((current) => Math.min(totalRankingPages, current + 1))}
+              >
+                <ChevronRight size={17} />
+              </button>
+            </div>
           </div>
         </AdminCard>
       </div>

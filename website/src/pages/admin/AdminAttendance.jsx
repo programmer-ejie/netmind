@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import QRCode from 'qrcode'
-import { CalendarDays, ClipboardCheck, Info, Plus, QrCode } from 'lucide-react'
+import { CalendarDays, ChevronLeft, ChevronRight, ClipboardCheck, Info, Plus, QrCode } from 'lucide-react'
 import AdminLayout, {
   AdminButton,
   AdminCard,
@@ -23,6 +23,7 @@ const blankSchedule = {
   session_date: toLocalDateKey(),
   description: '',
 }
+const SCHEDULES_PER_PAGE = 3
 
 const isPastSchedule = (schedule) => {
   const sessionDate = toLocalDateKey(schedule?.session_date)
@@ -48,12 +49,18 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
   const [remainingSeconds, setRemainingSeconds] = useState(0)
   const [failedLogoIds, setFailedLogoIds] = useState(() => new Set())
   const [error, setError] = useState('')
+  const [schedulePage, setSchedulePage] = useState(1)
 
   const teamById = useMemo(() => {
     const map = new Map()
     teams.forEach((team) => map.set(String(team.id), team))
     return map
   }, [teams])
+  const totalSchedulePages = Math.max(1, Math.ceil(schedules.length / SCHEDULES_PER_PAGE))
+  const visibleSchedules = useMemo(() => {
+    const start = (schedulePage - 1) * SCHEDULES_PER_PAGE
+    return schedules.slice(start, start + SCHEDULES_PER_PAGE)
+  }, [schedulePage, schedules])
 
   const load = useCallback(async () => {
     const teamParams = {
@@ -86,6 +93,10 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
   useEffect(() => {
     load().catch((err) => setError(err.message))
   }, [load])
+
+  useEffect(() => {
+    setSchedulePage((current) => Math.min(Math.max(current, 1), totalSchedulePages))
+  }, [totalSchedulePages])
 
   const openCreate = () => {
     setForm(blankSchedule)
@@ -210,7 +221,7 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
 
       <AdminCard className="admin-dashboard-card admin-schedule-list-card">
         <div className="admin-schedule-grid">
-          {schedules.map((schedule) => {
+          {visibleSchedules.map((schedule) => {
             const team = teamById.get(String(schedule.team_id))
             const teamName = team?.team_name || getName(teams, schedule.team_id, 'Team')
             const logoSrc = getTeamLogoSrc(team)
@@ -273,6 +284,27 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
           })}
         </div>
         {!schedules.length && <EmptyState>No training schedules yet.</EmptyState>}
+        <div className="admin-pagination" aria-label="Training schedule pagination">
+          <button
+            type="button"
+            className="admin-pagination-button"
+            aria-label="Previous schedule page"
+            disabled={schedulePage <= 1}
+            onClick={() => setSchedulePage((current) => Math.max(1, current - 1))}
+          >
+            <ChevronLeft size={17} />
+          </button>
+          <span>Page {schedulePage} of {totalSchedulePages}</span>
+          <button
+            type="button"
+            className="admin-pagination-button"
+            aria-label="Next schedule page"
+            disabled={schedulePage >= totalSchedulePages}
+            onClick={() => setSchedulePage((current) => Math.min(totalSchedulePages, current + 1))}
+          >
+            <ChevronRight size={17} />
+          </button>
+        </div>
       </AdminCard>
 
       <AdminModal open={modalOpen} title="Training Schedule" onClose={() => setModalOpen(false)}>

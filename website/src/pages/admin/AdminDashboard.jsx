@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ClipboardCheck, Shield, UserRound, Users } from 'lucide-react'
 import AdminLayout, {
   AdminCard,
+  AdminSelect,
   EmptyState,
   StatCard,
   StatusBadge,
@@ -11,6 +12,7 @@ import AdminLayout, {
 import { listResource, readSavedUser } from '../../lib/api'
 
 const areaColors = ['#12aabd', '#ff6692', '#36c76c', '#ffb900']
+const TOP_PLAYERS_LIMIT = 5
 const performanceMetrics = [
   { label: 'Kill', action_type: 'spike', result: 'kill' },
   { label: 'Stuff Block', action_type: 'block', result: 'stuff' },
@@ -152,6 +154,7 @@ const AdminDashboard = ({ currentPath = '#coach' }) => {
     loading: true,
     error: '',
   })
+  const [selectedTeamId, setSelectedTeamId] = useState('')
 
   useEffect(() => {
     let alive = true
@@ -188,7 +191,7 @@ const AdminDashboard = ({ currentPath = '#coach' }) => {
   }, [currentUser?.id, currentUser?.role])
 
   const isTrainerDashboard = currentUser?.role === 'trainer'
-  const scopedTeamIds = useMemo(() => {
+  const connectedTeamIds = useMemo(() => {
     if (!isTrainerDashboard) {
       return new Set(state.teams
         .filter((team) => String(team.coach_id) === String(currentUser?.id))
@@ -199,22 +202,32 @@ const AdminDashboard = ({ currentPath = '#coach' }) => {
       .filter((link) => String(link.trainer_id) === String(currentUser?.id))
       .map((link) => String(link.team_id)))
   }, [currentUser?.id, isTrainerDashboard, state.teamTrainers, state.teams])
+  const connectedTeams = useMemo(() => (
+    state.teams.filter((team) => connectedTeamIds.has(String(team.id)))
+  ), [connectedTeamIds, state.teams])
+  const activeTeamIds = useMemo(() => {
+    if (selectedTeamId && connectedTeamIds.has(String(selectedTeamId))) {
+      return new Set([String(selectedTeamId)])
+    }
+
+    return connectedTeamIds
+  }, [connectedTeamIds, selectedTeamId])
   const scopedTeams = useMemo(() => (
-    state.teams.filter((team) => scopedTeamIds.has(String(team.id)))
-  ), [scopedTeamIds, state.teams])
+    connectedTeams.filter((team) => activeTeamIds.has(String(team.id)))
+  ), [activeTeamIds, connectedTeams])
   const scopedPlayerIds = useMemo(() => new Set(
     state.teamMembers
-      .filter((member) => scopedTeamIds.has(String(member.team_id)))
+      .filter((member) => activeTeamIds.has(String(member.team_id)))
       .map((member) => String(member.player_id)),
-  ), [scopedTeamIds, state.teamMembers])
+  ), [activeTeamIds, state.teamMembers])
   const scopedPlayers = useMemo(() => (
     state.players.filter((player) => scopedPlayerIds.has(String(player.id)))
   ), [scopedPlayerIds, state.players])
   const scopedTrainerIds = useMemo(() => new Set(
     state.teamTrainers
-      .filter((link) => scopedTeamIds.has(String(link.team_id)))
+      .filter((link) => activeTeamIds.has(String(link.team_id)))
       .map((link) => String(link.trainer_id)),
-  ), [scopedTeamIds, state.teamTrainers])
+  ), [activeTeamIds, state.teamTrainers])
   const scopedTrainers = useMemo(() => (
     state.trainers.filter((trainer) => scopedTrainerIds.has(String(trainer.id)))
   ), [scopedTrainerIds, state.trainers])
@@ -223,9 +236,15 @@ const AdminDashboard = ({ currentPath = '#coach' }) => {
   ), [scopedPlayerIds, state.logs])
   const scopedAttendance = useMemo(() => (
     state.attendance.filter((item) => (
-      scopedPlayerIds.has(String(item.player_id)) || scopedTeamIds.has(String(item.team_id))
+      scopedPlayerIds.has(String(item.player_id)) || activeTeamIds.has(String(item.team_id))
     ))
-  ), [scopedPlayerIds, scopedTeamIds, state.attendance])
+  ), [activeTeamIds, scopedPlayerIds, state.attendance])
+
+  useEffect(() => {
+    if (selectedTeamId && !connectedTeamIds.has(String(selectedTeamId))) {
+      setSelectedTeamId('')
+    }
+  }, [connectedTeamIds, selectedTeamId])
 
   const performanceChartData = useMemo(() => {
     if (state.loading) return []
@@ -279,7 +298,7 @@ const AdminDashboard = ({ currentPath = '#coach' }) => {
         return { ...player, metrics, total }
       })
       .sort((a, b) => b.total - a.total)
-      .slice(0, 5)
+      .slice(0, TOP_PLAYERS_LIMIT)
   ), [scopedPlayers, scopedLogs])
 
   const playerScoreStats = useMemo(() => {
@@ -325,7 +344,19 @@ const AdminDashboard = ({ currentPath = '#coach' }) => {
             </>
           )}
         </div>
-        <div className="admin-dashboard-hero-stats">
+        <div className="admin-dashboard-hero-panel">
+          {!state.loading && (
+            <label className="admin-dashboard-team-filter">
+              <span>Team</span>
+              <AdminSelect value={selectedTeamId} onChange={(event) => setSelectedTeamId(event.target.value)}>
+                <option value="">All connected teams</option>
+                {connectedTeams.map((team) => (
+                  <option key={team.id} value={team.id}>{team.team_name}</option>
+                ))}
+              </AdminSelect>
+            </label>
+          )}
+          <div className="admin-dashboard-hero-stats">
           {state.loading ? (
             Array.from({ length: 2 }).map((_, index) => (
               <span className="admin-dashboard-hero-stat-skeleton" key={`hero-stat-skeleton-${index}`}>
@@ -345,6 +376,7 @@ const AdminDashboard = ({ currentPath = '#coach' }) => {
               </span>
             </>
           )}
+          </div>
         </div>
       </div>
 
@@ -425,7 +457,7 @@ const AdminDashboard = ({ currentPath = '#coach' }) => {
                 </tr>
               </thead>
               <tbody>
-                {state.loading && Array.from({ length: 4 }).map((_, index) => (
+                {state.loading && Array.from({ length: TOP_PLAYERS_LIMIT }).map((_, index) => (
                   <tr key={`loading-player-${index}`}>
                     <td><span className="admin-skeleton-line wide" /></td>
                     <td><span className="admin-skeleton-line" /></td>

@@ -1,6 +1,9 @@
-import { Bell, CheckCheck, Radio, SearchCheck } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Bell, CheckCheck, ChevronLeft, ChevronRight, Radio, SearchCheck } from 'lucide-react'
 import AdminLayout, { AdminButton, StatusBadge, formatDate } from './AdminLayout'
 import { useNotifications } from '../../lib/notifications'
+
+const NOTIFICATIONS_PER_PAGE = 5
 
 const formatTime = (value) => {
   if (!value) return ''
@@ -11,7 +14,17 @@ const formatTime = (value) => {
 
 export default function AdminNotifications({ currentPath }) {
   const { connected, items, loading, markAllRead, markRead, unreadCount } = useNotifications()
+  const [notificationsPage, setNotificationsPage] = useState(1)
   const readCount = Math.max(items.length - unreadCount, 0)
+  const totalNotificationPages = Math.max(1, Math.ceil(items.length / NOTIFICATIONS_PER_PAGE))
+  const visibleNotifications = useMemo(() => {
+    const start = (notificationsPage - 1) * NOTIFICATIONS_PER_PAGE
+    return items.slice(start, start + NOTIFICATIONS_PER_PAGE)
+  }, [items, notificationsPage])
+
+  useEffect(() => {
+    setNotificationsPage((current) => Math.min(Math.max(current, 1), totalNotificationPages))
+  }, [totalNotificationPages])
 
   return (
     <AdminLayout
@@ -61,26 +74,49 @@ export default function AdminNotifications({ currentPath }) {
             <p>Checking your latest team updates.</p>
           </div>
         ) : items.length ? (
-          items.map((item) => (
-            <button
-              type="button"
-              className={`admin-notification-row ${item.is_read ? '' : 'unread'}`}
-              key={item.id}
-              onClick={() => {
-                if (!item.is_read) markRead(item.id)
-              }}
-            >
-              <span className="admin-notification-row-icon">
-                <Bell size={18} />
-              </span>
-              <span className="admin-notification-row-copy">
-                <strong>{item.title}</strong>
-                <small>{item.body}</small>
-                <time>{formatTime(item.created_at)}</time>
-              </span>
-              {!item.is_read && <StatusBadge tone="warning">New</StatusBadge>}
-            </button>
-          ))
+          <>
+            {visibleNotifications.map((item) => (
+              <button
+                type="button"
+                className={`admin-notification-row ${item.is_read ? '' : 'unread'}`}
+                key={item.id}
+                onClick={() => {
+                  if (!item.is_read) markRead(item.id)
+                }}
+              >
+                <span className="admin-notification-row-icon">
+                  <Bell size={18} />
+                </span>
+                <span className="admin-notification-row-copy">
+                  <strong>{item.title}</strong>
+                  <small>{item.body}</small>
+                  <time>{formatTime(item.created_at)}</time>
+                </span>
+                {!item.is_read && <StatusBadge tone="warning">New</StatusBadge>}
+              </button>
+            ))}
+            <div className="admin-pagination" aria-label="Notifications pagination">
+              <button
+                type="button"
+                className="admin-pagination-button"
+                aria-label="Previous notifications page"
+                disabled={notificationsPage <= 1}
+                onClick={() => setNotificationsPage((current) => Math.max(1, current - 1))}
+              >
+                <ChevronLeft size={17} />
+              </button>
+              <span>Page {notificationsPage} of {totalNotificationPages}</span>
+              <button
+                type="button"
+                className="admin-pagination-button"
+                aria-label="Next notifications page"
+                disabled={notificationsPage >= totalNotificationPages}
+                onClick={() => setNotificationsPage((current) => Math.min(totalNotificationPages, current + 1))}
+              >
+                <ChevronRight size={17} />
+              </button>
+            </div>
+          </>
         ) : (
           <div className="admin-notifications-empty">
             <span className="admin-notifications-empty-icon">
