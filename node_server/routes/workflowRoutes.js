@@ -4,6 +4,11 @@ const crypto = require("crypto");
 const { pool, query } = require("../config/db");
 const asyncHandler = require("../utils/asyncHandler");
 const ApiError = require("../utils/apiError");
+const {
+  createNotifications,
+  getPlayerStaffRecipients,
+  getTeamNotificationRecipients,
+} = require("../src/services/notificationService");
 const { toLocalDateKey } = require("../utils/dateKeys");
 const { deletePlayerById } = require("../utils/playerDeletion");
 const { sendPasswordResetCodeEmail } = require("../utils/emailService");
@@ -831,7 +836,21 @@ router.post("/teams/:teamId/matches", asyncHandler(async (req, res) => {
     ]
   );
 
-  res.status(201).json(await getById("matches", result.insertId));
+  const match = await getById("matches", result.insertId);
+  await createNotifications({
+    actorId: req.user.id,
+    recipientIds: await getTeamNotificationRecipients(match.team_id, { includeCoach: true }),
+    type: "match.created",
+    title: "New match added",
+    body: `${req.user.name} added a match${match.opponent_name ? ` vs ${match.opponent_name}` : ""}.`,
+    data: {
+      matchId: match.id,
+      teamId: match.team_id,
+      matchDate: match.match_date,
+    },
+  });
+
+  res.status(201).json(match);
 }));
 
 router.patch("/matches/:matchId/score", asyncHandler(async (req, res) => {
@@ -848,7 +867,23 @@ router.patch("/matches/:matchId/score", asyncHandler(async (req, res) => {
     throw new ApiError(404, "Match not found");
   }
 
-  res.json(await getById("matches", req.params.matchId));
+  const match = await getById("matches", req.params.matchId);
+  await createNotifications({
+    actorId: req.user.id,
+    recipientIds: await getTeamNotificationRecipients(match.team_id, { includeCoach: true }),
+    type: "match.result.updated",
+    title: "Match result updated",
+    body: `${req.user.name} updated the result${match.opponent_name ? ` vs ${match.opponent_name}` : ""}: ${teamScore}-${opponentScore}.`,
+    data: {
+      matchId: match.id,
+      teamId: match.team_id,
+      result: match.result,
+      teamScore,
+      opponentScore,
+    },
+  });
+
+  res.json(match);
 }));
 
 router.post("/drills/:drillId/assign", asyncHandler(async (req, res) => {
@@ -873,7 +908,23 @@ router.post("/drills/:drillId/assign", asyncHandler(async (req, res) => {
     ]
   );
 
-  res.status(201).json(await getById("training_assignments", result.insertId));
+  const assignment = await getById("training_assignments", result.insertId);
+  const staffRecipientIds = await getPlayerStaffRecipients(assignment.player_id);
+
+  await createNotifications({
+    actorId: req.user.id,
+    recipientIds: [assignment.player_id, ...staffRecipientIds],
+    type: "drill.assigned",
+    title: "New drill assigned",
+    body: `${req.user.name} assigned ${drill.drill_name || "a drill"}.`,
+    data: {
+      assignmentId: assignment.id,
+      drillId: drill.id,
+      playerId: assignment.player_id,
+    },
+  });
+
+  res.status(201).json(assignment);
 }));
 
 router.get("/players/:playerId/training-assignments", asyncHandler(async (req, res) => {
@@ -945,7 +996,26 @@ router.post("/training-assignments/:assignmentId/logs", asyncHandler(async (req,
     ]
   );
 
-  res.status(201).json(await getById("drill_performance_logs", result.insertId));
+  const log = await getById("drill_performance_logs", result.insertId);
+  const staffRecipientIds = await getPlayerStaffRecipients(assignment.player_id);
+
+  await createNotifications({
+    actorId: req.user.id,
+    recipientIds: [assignment.player_id, ...staffRecipientIds, assignment.assigned_by],
+    type: req.user.role === "trainer" ? "trainer.feedback" : "drill.log.created",
+    title: req.user.role === "trainer" ? "Trainer feedback submitted" : "Drill log submitted",
+    body: req.user.role === "trainer"
+      ? `${req.user.name} submitted training feedback.`
+      : `${req.user.name} submitted a drill log.`,
+    data: {
+      assignmentId: assignment.id,
+      drillLogId: log.id,
+      playerId: assignment.player_id,
+      drillId: log.drill_id,
+    },
+  });
+
+  res.status(201).json(log);
 }));
 
 router.get("/players/:playerId/performance-logs", asyncHandler(async (req, res) => {
@@ -954,6 +1024,10 @@ router.get("/players/:playerId/performance-logs", asyncHandler(async (req, res) 
 }));
 
 router.post("/players/:playerId/performance-logs", asyncHandler(async (req, res) => {
+  if (req.body.session_type === "match" && req.body.action_type === "reflection" && !req.body.match_id) {
+    throw new ApiError(400, "match_id is required for match reflections");
+  }
+
   const isReflection = req.body.session_type === "match" && req.body.action_type === "reflection" && req.body.match_id;
   if (isReflection) {
     const existingRows = await query(
@@ -998,7 +1072,21 @@ router.post("/players/:playerId/performance-logs", asyncHandler(async (req, res)
         ]
       );
 
-      return res.json(await getById("performance_logs", existingRows[0].id));
+      const updatedLog = await getById("performance_logs", existingRows[0].id);
+      await createNotifications({
+        actorId: req.user.id,
+        recipientIds: await getPlayerStaffRecipients(req.params.playerId),
+        type: "performance.reflection.updated",
+        title: "Performance reflection updated",
+        body: `${req.user.name} updated a match performance reflection.`,
+        data: {
+          performanceLogId: updatedLog.id,
+          playerId: req.params.playerId,
+          matchId: updatedLog.match_id,
+        },
+      });
+
+      return res.json(updatedLog);
     }
   }
 
@@ -1027,7 +1115,24 @@ router.post("/players/:playerId/performance-logs", asyncHandler(async (req, res)
     ]
   );
 
-  res.status(201).json(await getById("performance_logs", result.insertId));
+  const performanceLog = await getById("performance_logs", result.insertId);
+
+  if (performanceLog.session_type === "match" && performanceLog.action_type === "reflection") {
+    await createNotifications({
+      actorId: req.user.id,
+      recipientIds: await getPlayerStaffRecipients(req.params.playerId),
+      type: "performance.reflection.created",
+      title: "Performance reflection submitted",
+      body: `${req.user.name} submitted a match performance reflection.`,
+      data: {
+        performanceLogId: performanceLog.id,
+        playerId: req.params.playerId,
+        matchId: performanceLog.match_id,
+      },
+    });
+  }
+
+  res.status(201).json(performanceLog);
 }));
 
 router.get("/matches/:matchId/performance-logs", asyncHandler(async (req, res) => {
@@ -1074,6 +1179,21 @@ router.post("/attendance-logs/bulk", asyncHandler(async (req, res) => {
     VALUES ${placeholders}`,
     flatValues
   );
+
+  const teamIds = [...new Set(req.body.logs.map((log) => log.team_id).filter(Boolean))];
+  for (const teamId of teamIds) {
+    await createNotifications({
+      actorId: req.user.id,
+      recipientIds: await getTeamNotificationRecipients(teamId, { includeCoach: true }),
+      type: "attendance.bulk.updated",
+      title: "Attendance updated",
+      body: `${req.user.name} updated attendance for ${req.body.logs.length} player${req.body.logs.length === 1 ? "" : "s"}.`,
+      data: {
+        teamId,
+        count: req.body.logs.length,
+      },
+    });
+  }
 
   res.status(201).json({ inserted: result.affectedRows });
 }));
@@ -1241,7 +1361,8 @@ router.post("/attendance-qr/:token/check-in", qrAttendanceCheckInLimiter, asyncH
   );
 
   if (existing.length) {
-    res.json(await getById("attendance_logs", existing[0].id));
+    const existingLog = await getById("attendance_logs", existing[0].id);
+    res.json(existingLog);
     return;
   }
 
@@ -1259,7 +1380,23 @@ router.post("/attendance-qr/:token/check-in", qrAttendanceCheckInLimiter, asyncH
     ]
   );
 
-  res.status(201).json(await getById("attendance_logs", result.insertId));
+  const attendanceLog = await getById("attendance_logs", result.insertId);
+  await createNotifications({
+    actorId: req.user.id,
+    recipientIds: [playerId, ...(await getPlayerStaffRecipients(playerId))],
+    type: "attendance.checked_in",
+    title: "Attendance check-in",
+    body: `${req.user.name} checked in for ${record.session_type || "training"}.`,
+    data: {
+      attendanceLogId: attendanceLog.id,
+      playerId,
+      teamId: record.team_id,
+      sessionDate: record.session_date,
+      sessionType: record.session_type,
+    },
+  });
+
+  res.status(201).json(attendanceLog);
 }));
 
 router.get("/teams/:teamId/attendance", asyncHandler(async (req, res) => {
@@ -1306,7 +1443,21 @@ router.post("/players/:playerId/injuries", asyncHandler(async (req, res) => {
     ]
   );
 
-  res.status(201).json(await getById("injury_logs", result.insertId));
+  const injury = await getById("injury_logs", result.insertId);
+  await createNotifications({
+    actorId: req.user.id,
+    recipientIds: [injury.player_id, ...(await getPlayerStaffRecipients(injury.player_id))],
+    type: "injury.created",
+    title: "Injury report added",
+    body: `${req.user.name} reported a ${injury.severity || ""} injury${injury.body_part ? ` (${injury.body_part})` : ""}.`,
+    data: {
+      injuryId: injury.id,
+      playerId: injury.player_id,
+      severity: injury.severity,
+    },
+  });
+
+  res.status(201).json(injury);
 }));
 
 router.patch("/injury-logs/:injuryId/recover", asyncHandler(async (req, res) => {
@@ -1320,7 +1471,21 @@ router.patch("/injury-logs/:injuryId/recover", asyncHandler(async (req, res) => 
     [recoveredAt, req.body.days_missed || null, recoveredAt, injury.id]
   );
 
-  res.json(await getById("injury_logs", req.params.injuryId));
+  const updatedInjury = await getById("injury_logs", req.params.injuryId);
+  await createNotifications({
+    actorId: req.user.id,
+    recipientIds: [updatedInjury.player_id, ...(await getPlayerStaffRecipients(updatedInjury.player_id))],
+    type: "injury.recovered",
+    title: "Injury marked recovered",
+    body: `${req.user.name} marked an injury as recovered.`,
+    data: {
+      injuryId: updatedInjury.id,
+      playerId: updatedInjury.player_id,
+      recoveredAt: updatedInjury.recovered_at,
+    },
+  });
+
+  res.json(updatedInjury);
 }));
 
 router.get("/teams/:teamId/lineups", asyncHandler(async (req, res) => {

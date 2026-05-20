@@ -607,6 +607,10 @@
   background: var(--admin-light-primary);
 }
 
+.admin-notification-item.unread {
+  background: rgba(25, 118, 210, 0.08);
+}
+
 .admin-notification-item strong,
 .admin-notification-item small {
   display: block;
@@ -628,6 +632,257 @@
 
 .admin-notification-item time {
   white-space: nowrap;
+}
+
+.admin-notification-all {
+  display: block;
+  border-radius: 8px;
+  padding: 10px;
+  color: var(--admin-primary);
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.admin-notification-all:hover {
+  background: var(--admin-light-primary);
+}
+
+.admin-notifications-shell {
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--admin-card);
+  box-shadow: var(--admin-shadow);
+}
+
+.admin-notifications-hero {
+  min-height: 112px;
+  border-bottom: 1px solid var(--admin-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 24px 28px;
+  background:
+    linear-gradient(135deg, color-mix(in oklab, var(--admin-primary) 10%, var(--admin-card)), transparent 62%),
+    var(--admin-card);
+}
+
+.admin-notifications-title {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.admin-notifications-hero-icon,
+.admin-notifications-empty-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  background: var(--admin-light-primary);
+  color: var(--admin-primary);
+}
+
+.admin-notifications-title h2 {
+  color: var(--admin-dark);
+  font-size: 22px;
+  line-height: 1.2;
+  font-weight: 850;
+}
+
+.admin-notifications-title p {
+  margin-top: 5px;
+  color: var(--admin-muted);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.admin-notifications-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-bottom: 1px solid var(--admin-border);
+  background: color-mix(in oklab, var(--admin-soft) 58%, var(--admin-card));
+}
+
+.admin-notifications-summary > div {
+  min-height: 82px;
+  display: grid;
+  align-content: center;
+  gap: 6px;
+  padding: 16px 28px;
+}
+
+.admin-notifications-summary > div + div {
+  border-left: 1px solid var(--admin-border);
+}
+
+.admin-notifications-summary span {
+  color: var(--admin-muted);
+  font-size: 12px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.admin-notifications-summary strong {
+  color: var(--admin-dark);
+  font-size: 24px;
+  line-height: 1;
+  font-weight: 850;
+}
+
+.admin-notifications-summary strong.online {
+  color: var(--admin-success);
+}
+
+.admin-notifications-page {
+  min-height: 280px;
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  padding: 20px;
+}
+
+.admin-notification-row {
+  width: 100%;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  background: color-mix(in oklab, var(--admin-card) 94%, var(--admin-soft));
+  text-align: left;
+  transition: 0.18s ease;
+}
+
+.admin-notification-row:hover {
+  border-color: color-mix(in oklab, var(--admin-primary) 34%, var(--admin-border));
+  transform: translateY(-1px);
+}
+
+.admin-notification-row.unread {
+  border-color: color-mix(in oklab, var(--admin-primary) 30%, var(--admin-border));
+  background: color-mix(in oklab, var(--admin-primary) 8%, var(--admin-card));
+}
+
+.admin-notification-row-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: var(--admin-light-primary);
+  color: var(--admin-primary);
+}
+
+.admin-notification-row-copy {
+  min-width: 0;
+}
+
+.admin-notification-row-copy strong,
+.admin-notification-row-copy small,
+.admin-notification-row-copy time {
+  display: block;
+}
+
+.admin-notification-row-copy strong {
+  color: var(--admin-dark);
+  font-size: 14px;
+  font-weight: 850;
+}
+
+.admin-notification-row-copy small,
+.admin-notification-row-copy time {
+  color: var(--admin-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.admin-notification-row-copy time {
+  margin-top: 3px;
+  font-weight: 800;
+}
+
+.admin-notifications-empty {
+  min-height: 220px;
+  border: 1px solid color-mix(in oklab, var(--admin-border) 76%, transparent);
+  border-radius: 10px;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 10px;
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--admin-soft) 48%, transparent), transparent),
+    color-mix(in oklab, var(--admin-card) 94%, var(--admin-soft));
+  padding: 28px;
+  text-align: center;
+}
+
+.admin-notifications-empty.compact {
+  min-height: 170px;
+}
+
+.admin-notifications-empty strong {
+  color: var(--admin-dark);
+  font-size: 18px;
+  font-weight: 850;
+}
+
+.admin-notifications-empty p {
+  max-width: 420px;
+  color: var(--admin-muted);
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 700;
+}
+
+.admin-dark .admin-notifications-title h2,
+.admin-dark .admin-notifications-summary strong,
+.admin-dark .admin-notification-row-copy strong,
+.admin-dark .admin-notifications-empty strong {
+  color: #ffffff;
+}
+
+@media (max-width: 760px) {
+  .admin-notifications-hero {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 20px;
+  }
+
+  .admin-notifications-hero .admin-button {
+    width: 100%;
+  }
+
+  .admin-notifications-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-notifications-summary > div {
+    min-height: 68px;
+    padding: 14px 20px;
+  }
+
+  .admin-notifications-summary > div + div {
+    border-left: 0;
+    border-top: 1px solid var(--admin-border);
+  }
+
+  .admin-notification-row {
+    grid-template-columns: 40px minmax(0, 1fr);
+  }
+
+  .admin-notification-row .admin-badge {
+    grid-column: 2;
+    justify-self: start;
+  }
 }
 
 .admin-dark .admin-notification-menu {

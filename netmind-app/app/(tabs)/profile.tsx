@@ -215,14 +215,11 @@ export default function ProfileScreen() {
     try {
       const updated = await updateResource<NetmindUser>('users', profile.id, {
         name: form.name,
-        email: profile.email,
-        role: profile.role || 'player',
-        position: profile.position || null,
+        position: form.position || null,
         jersey_number: form.jersey_number || null,
         age: calculateAge(form.birthdate),
         birthdate: form.birthdate || null,
         location: form.location || null,
-        is_active: profile.is_active ?? true,
       });
 
       await refreshProfile(updated);
@@ -369,7 +366,10 @@ export default function ProfileScreen() {
                 showsVerticalScrollIndicator={false}>
                 <EditField label="Name" value={form.name} onChangeText={(value) => updateForm('name', value)} />
                 <EditField editable={false} label="Gmail" value={profile?.email || ''} />
-                <PositionPicker value={form.position} />
+                <PositionPicker
+                  onChange={(value) => updateForm('position', value)}
+                  value={form.position}
+                />
                 <EditField keyboardType="number-pad" label="Jersey" value={form.jersey_number} onChangeText={(value) => updateForm('jersey_number', value)} />
                 <DateField
                   onOpen={openBirthdatePicker}
@@ -518,8 +518,10 @@ function DateField({
 }
 
 function PositionPicker({
+  onChange,
   value,
 }: {
+  onChange: (value: string) => void;
   value: string;
 }) {
   const { colors } = useNetmindTheme();
@@ -535,14 +537,13 @@ function PositionPicker({
             <Pressable
               accessibilityRole="button"
               accessibilityState={{ selected: active }}
-              disabled
               key={position}
+              onPress={() => onChange(position)}
               style={[
                 styles.positionOption,
                 {
                   backgroundColor: active ? colors.court : colors.courtSoft,
                   borderColor: active ? colors.court : colors.line,
-                  opacity: active ? 1 : 0.58,
                 },
               ]}>
               <Text style={[styles.positionOptionText, { color: active ? '#ffffff' : colors.ink }]}>
@@ -552,9 +553,6 @@ function PositionPicker({
           );
         })}
       </View>
-      <Text style={[styles.readOnlyHint, { color: colors.muted }]}>
-        Position is assigned by your coach or trainer.
-      </Text>
     </View>
   );
 }

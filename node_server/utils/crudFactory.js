@@ -8,6 +8,12 @@ const {
   canMutateRecord,
   isSelf,
 } = require("../middleware/authorization");
+const {
+  createNotifications,
+  getActorNetworkRecipients,
+  getTeamNotificationRecipients,
+  getPlayerStaffRecipients,
+} = require("../src/services/notificationService");
 
 const MAX_LIMIT = 100;
 const WRITE_ACTION_LABELS = {
@@ -352,6 +358,120 @@ function parsePaging(reqQuery) {
   return { page, limit, offset };
 }
 
+async function getTeamIdForMatch(matchId) {
+  if (!matchId) return null;
+  const rows = await query("SELECT team_id FROM matches WHERE id = ? LIMIT 1", [matchId]);
+  return rows[0]?.team_id || null;
+}
+
+async function notificationRecipientsForRecord(table, record, actor) {
+  if (!record) return [];
+
+  if (record.team_id) {
+    return getTeamNotificationRecipients(record.team_id, { includeCoach: true });
+  }
+
+  if (record.player_id) {
+    return [record.player_id, ...(await getPlayerStaffRecipients(record.player_id))];
+  }
+
+  if (record.user_id) {
+    return [record.user_id, ...(await getPlayerStaffRecipients(record.user_id))];
+  }
+
+  if (record.match_id) {
+    const teamId = await getTeamIdForMatch(record.match_id);
+    return teamId ? getTeamNotificationRecipients(teamId, { includeCoach: true }) : [];
+  }
+
+  if (table === "users" && ["trainer", "player"].includes(record.role)) {
+    if (record.role === "player") {
+      return [record.id, ...(await getPlayerStaffRecipients(record.id))];
+    }
+    return [record.id, ...(await getActorNetworkRecipients(actor))];
+  }
+
+  if (table === "drills") {
+    return getActorNetworkRecipients(actor);
+  }
+
+  return [];
+}
+
+function notificationContentForRecord(table, action, record, actor) {
+  const actorName = actor?.name || "A team member";
+  const actionText = {
+    created: "created",
+    updated: "updated",
+    deleted: "deleted",
+  }[action] || action;
+
+  const content = {
+    matches: {
+      title: action === "created" ? "New match added" : action === "deleted" ? "Match deleted" : "Match updated",
+      body: `${actorName} ${actionText} a match${record?.opponent_name ? ` vs ${record.opponent_name}` : ""}.`,
+      type: `match.${action}`,
+    },
+    match_scores: {
+      title: action === "deleted" ? "Match score deleted" : "Match result updated",
+      body: `${actorName} ${actionText} a match result.`,
+      type: `match.score.${action}`,
+    },
+    drills: {
+      title: action === "created" ? "New drill added" : action === "deleted" ? "Drill deleted" : "Drill updated",
+      body: `${actorName} ${actionText} ${record?.drill_name || "a drill"}.`,
+      type: `drill.${action}`,
+    },
+    training_schedules: {
+      title: action === "created" ? "Training schedule added" : action === "deleted" ? "Training schedule deleted" : "Training schedule changed",
+      body: `${actorName} ${actionText} ${record?.session_type || "a training session"}.`,
+      type: `schedule.${action}`,
+    },
+    attendance_logs: {
+      title: action === "deleted" ? "Attendance entry deleted" : "Attendance status updated",
+      body: `${actorName} ${actionText} an attendance status${record?.status ? `: ${record.status}` : ""}.`,
+      type: `attendance.${action}`,
+    },
+    injury_logs: {
+      title: action === "created" ? "Injury report added" : action === "deleted" ? "Injury report deleted" : "Injury report updated",
+      body: `${actorName} ${actionText} an injury report${record?.severity ? ` (${record.severity})` : ""}.`,
+      type: `injury.${action}`,
+    },
+    users: {
+      title: "Account updated",
+      body: `${actorName} updated ${record?.name || "an account"}.`,
+      type: `account.${action}`,
+    },
+  }[table];
+
+  return content || null;
+}
+
+async function notifyRecordChange(table, action, record, actor) {
+  const content = notificationContentForRecord(table, action, record, actor);
+  if (!content) return;
+
+  const recipientIds = await notificationRecipientsForRecord(table, record, actor);
+  if (!recipientIds.length) return;
+
+  await createNotifications({
+    actorId: actor.id,
+    recipientIds,
+    type: content.type,
+    title: content.title,
+    body: content.body,
+    data: {
+      action,
+      resource: table,
+      recordId: record.id,
+      playerId: record.player_id || record.user_id || (table === "users" && record.role === "player" ? record.id : undefined),
+      teamId: record.team_id,
+      matchId: record.match_id || (table === "matches" ? record.id : undefined),
+      drillId: table === "drills" ? record.id : record.drill_id,
+    },
+  });
+}
+
 function createCrudController(config) {
   return {
     async list(req, res) {
@@ -406,6 +526,8 @@ function createCrudController(config) {
       );
       const rows = await query(`SELECT ${toSelect(config)} FROM \`${config.table}\` WHERE id = ?`, [result.insertId]);
 
+      await notifyRecordChange(config.table, "created", rows[0], req.user);
+
       res.status(201).json(rows[0]);
     },
 
@@ -437,6 +559,8 @@ function createCrudController(config) {
       }
 
       const rows = await query(`SELECT ${toSelect(config)} FROM \`${config.table}\` WHERE id = ?`, [req.params.id]);
+      await notifyRecordChange(config.table, "updated", rows[0], req.user);
+
       res.json(rows[0]);
     },
 
@@ -447,11 +571,14 @@ function createCrudController(config) {
         throw new ApiError(403, "You do not have permission for this resource");
       }
 
+      const rows = await query(`SELECT ${toSelect(config)} FROM \`${config.table}\` WHERE id = ?`, [req.params.id]);
       const result = await query(`DELETE FROM \`${config.table}\` WHERE id = ?`, [req.params.id]);
 
       if (!result.affectedRows) {
         throw new ApiError(404, "Record not found");
       }
+
+      await notifyRecordChange(config.table, "deleted", rows[0], req.user);
 
       res.status(204).send();
     },

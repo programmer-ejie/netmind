@@ -23,6 +23,7 @@ import websiteLogo from '../../assets/website_logo.png'
 import fallbackProfilePhoto from '../../assets/default-profilepc.webp'
 import { API_BASE, clearSavedUser, readProfilePreview, readSavedUser } from '../../lib/api'
 import { parseDateInput } from '../../lib/dateKeys'
+import { useNotifications } from '../../lib/notifications'
 import { useThemeMode } from '../../lib/theme'
 
 export const positions = ['OH', 'OPP', 'MB', 'S', 'L']
@@ -103,6 +104,7 @@ const sidebarGroups = [
       { href: '#coach/matches', icon: Swords, label: 'Matches' },
       { href: '#coach/training', icon: Dumbbell, label: 'Training' },
       { href: '#coach/analytics', icon: BarChart3, label: 'Analytics' },
+      { href: '#coach/notifications', icon: Bell, label: 'Notifications' },
     ],
   },
   {
@@ -131,7 +133,10 @@ const trainerSidebarGroups = [
   },
   {
     label: 'Performance',
-    items: [{ href: '#trainer/analytics', icon: BarChart3, label: 'Analytics' }],
+    items: [
+      { href: '#trainer/analytics', icon: BarChart3, label: 'Analytics' },
+      { href: '#trainer/notifications', icon: Bell, label: 'Notifications' },
+    ],
   },
   {
     label: 'Utilities',
@@ -159,24 +164,6 @@ const normalizeActiveHash = (hash) => {
   if (hash.startsWith('#coach/player-stats')) return '#coach/players'
   return hash
 }
-
-const notifications = [
-  {
-    title: 'Training plan due',
-    body: '3 player assignments need review today.',
-    time: '10 min ago',
-  },
-  {
-    title: 'Roster update',
-    body: 'A player readiness note was added.',
-    time: '42 min ago',
-  },
-  {
-    title: 'Match analytics ready',
-    body: 'Latest team performance report is available.',
-    time: '1 hr ago',
-  },
-]
 
 export const AdminCard = ({ children, className = '' }) => (
   <div className={`admin-card ${className}`}>{children}</div>
@@ -299,6 +286,12 @@ export const AdminLayout = ({ children, title, kicker, currentPath }) => {
   const [headerProfile, setHeaderProfile] = useState(() => readSavedUser())
   const [headerPreview, setHeaderPreview] = useState(() => readProfilePreview())
   const { isDark, toggleTheme } = useThemeMode()
+  const {
+    connected: notificationsConnected,
+    items: notifications,
+    markRead,
+    unreadCount,
+  } = useNotifications()
   const headerProfileImage = getHeaderProfileImage(headerProfile, headerPreview)
   const role = getUserRole(headerProfile)
   const sidebarGroupsForUser = getSidebarGroupsForUser(headerProfile)
@@ -465,31 +458,37 @@ export const AdminLayout = ({ children, title, kicker, currentPath }) => {
                   type="button"
                 >
                   <Bell size={21} />
-                  <span className="admin-notification-dot" />
+                  {unreadCount > 0 && <span className="admin-notification-dot" />}
                 </button>
 
                 {notificationsOpen && (
                   <div className="admin-notification-menu" role="menu">
                     <div className="admin-notification-head">
                       <strong>Notifications</strong>
-                      <span>{notifications.length} new</span>
+                      <span>{notificationsConnected ? 'Live' : `${unreadCount} unread`}</span>
                     </div>
 
-                    {notifications.map((item) => (
+                    {notifications.slice(0, 5).map((item) => (
                       <button
                         type="button"
-                        className="admin-notification-item"
-                        key={item.title}
+                        className={`admin-notification-item ${item.is_read ? '' : 'unread'}`}
+                        key={item.id}
                         role="menuitem"
-                        onClick={closeNotifications}
+                        onClick={() => {
+                          if (!item.is_read) markRead(item.id)
+                          closeNotifications()
+                        }}
                       >
                         <span>
                           <strong>{item.title}</strong>
                           <small>{item.body}</small>
                         </span>
-                        <time>{item.time}</time>
+                        <time>{item.created_at ? new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</time>
                       </button>
                     ))}
+                    <a className="admin-notification-all" href={`${workspaceRoot}/notifications`} onClick={closeNotifications}>
+                      View all notifications
+                    </a>
                   </div>
                 )}
               </div>

@@ -162,6 +162,19 @@ export type PerformanceLog = PerformanceReflectionInput & {
   created_at?: string | null;
 };
 
+export type NetmindNotification = {
+  id: number;
+  recipient_user_id: number;
+  actor_user_id?: number | null;
+  type: string;
+  title: string;
+  body?: string | null;
+  data?: Record<string, unknown>;
+  is_read: boolean | number;
+  read_at?: string | null;
+  created_at?: string | null;
+};
+
 export type PlayerSummary = {
   player?: NetmindUser | null;
   actions?: Array<{
@@ -269,6 +282,31 @@ export function listResource<T>(resource: string, params: Record<string, string 
 export function updateResource<T>(resource: string, id: number | string, body: Record<string, unknown>) {
   return apiRequest<T>(`/${resource}/${id}`, {
     method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}
+
+export function listNotifications() {
+  return listResource<NetmindNotification>('notifications');
+}
+
+export function markNotificationRead(id: number | string) {
+  return apiRequest<NetmindNotification>(`/notifications/${id}/read`, {
+    method: 'PATCH',
+    body: JSON.stringify({}),
+  });
+}
+
+export function markAllNotificationsRead() {
+  return apiRequest<{ updated: number }>('/notifications/read-all', {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+}
+
+export function registerPushSubscription(body: { push_token: string; platform?: string }) {
+  return apiRequest<{ ok: boolean }>('/push-subscriptions', {
+    method: 'POST',
     body: JSON.stringify(body),
   });
 }

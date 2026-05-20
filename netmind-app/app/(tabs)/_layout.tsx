@@ -7,6 +7,7 @@ import { Tabs, router, usePathname, type Href } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
+  DeviceEventEmitter,
   Easing,
   Modal,
   Platform,
@@ -20,6 +21,12 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useNetmindTheme } from '@/contexts/netmind-theme';
+import {
+  connectNotificationSocket,
+  loadNotifications,
+  NOTIFICATION_UNREAD_COUNT_EVENT,
+  playRealtimeNotificationSound,
+} from '@/lib/notifications';
 
 const logoSource = require('@/assets/images/website_logo.png');
 
@@ -30,6 +37,7 @@ const navItems = [
   { title: 'Wellness', route: '/(tabs)/wellness', icon: 'favorite' },
   { title: 'Training Tasks', route: '/(tabs)/training', icon: 'assignment' },
   { title: 'Attendance', route: '/(tabs)/attendance', icon: 'qr-code-scanner' },
+  { title: 'Notifications', route: '/(tabs)/notifications', icon: 'notifications-none' },
   { title: 'Activity', route: '/(tabs)/activity', icon: 'timeline' },
   { title: 'Profile', route: '/(tabs)/profile', icon: 'person' },
   { title: 'Settings', route: '/(tabs)/settings', icon: 'settings' },
@@ -41,6 +49,7 @@ const tabIcons: Record<string, keyof typeof MaterialIcons.glyphMap> = {
   attendance: 'qr-code-scanner',
   wellness: 'favorite',
   training: 'assignment',
+  notifications: 'notifications-none',
   profile: 'person',
   settings: 'settings',
 };
@@ -138,6 +147,12 @@ export default function TabLayout() {
           options={{
             title: 'Tasks',
             tabBarIcon: ({ color }) => <MaterialIcons name="assignment" size={24} color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="notifications"
+          options={{
+            href: null,
           }}
         />
         <Tabs.Screen
@@ -288,6 +303,50 @@ function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 function AppHeader({ onOpenSidebar }: { onOpenSidebar: () => void }) {
   const { colors } = useNetmindTheme();
   const insets = useSafeAreaInsets();
+  const pathname = usePathname();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+
+    loadNotifications()
+      .then((notifications) => {
+        if (active) {
+          setUnreadCount(notifications.filter((item) => !item.is_read).length);
+        }
+      })
+      .catch(() => {
+        if (active) setUnreadCount(0);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [pathname]);
+
+  useEffect(() => {
+    const subscription = DeviceEventEmitter.addListener(
+      NOTIFICATION_UNREAD_COUNT_EVENT,
+      (nextUnreadCount: number) => {
+        setUnreadCount(Math.max(0, Number(nextUnreadCount) || 0));
+      },
+    );
+
+    let socket: Awaited<ReturnType<typeof connectNotificationSocket>> = null;
+    connectNotificationSocket((notification) => {
+      if (!notification.is_read) {
+        setUnreadCount((current) => current + 1);
+        playRealtimeNotificationSound(notification).catch(() => undefined);
+      }
+    }).then((nextSocket) => {
+      socket = nextSocket;
+    });
+
+    return () => {
+      subscription.remove();
+      socket?.disconnect();
+    };
+  }, []);
 
   return (
     <View
@@ -308,9 +367,12 @@ function AppHeader({ onOpenSidebar }: { onOpenSidebar: () => void }) {
         <Pressable
           accessibilityLabel="Notifications"
           accessibilityRole="button"
+          onPress={() => router.push('/(tabs)/notifications')}
           style={[styles.iconButton, { backgroundColor: colors.wash, borderColor: colors.line }]}>
           <MaterialIcons name="notifications-none" size={22} color={colors.court} />
-          <View style={[styles.notificationDot, { backgroundColor: colors.coral }]} />
+          {unreadCount > 0 ? (
+            <View style={[styles.notificationDot, { backgroundColor: colors.coral }]} />
+          ) : null}
         </Pressable>
         <Pressable
           accessibilityLabel="Open sidebar"

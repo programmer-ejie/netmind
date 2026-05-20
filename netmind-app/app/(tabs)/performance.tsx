@@ -161,7 +161,12 @@ export default function PerformanceScreen() {
   };
 
   const submitReflection = async () => {
-    if (!player?.id || !selectedMatch || saving) return;
+    if (saving) return;
+
+    if (!player?.id || !selectedMatch) {
+      setMessage('Unable to save. Please reopen the match reflection and try again.');
+      return;
+    }
 
     const effortLevel = Number(effort);
     const energyLevel = Number(energy);
@@ -327,8 +332,15 @@ export default function PerformanceScreen() {
 
               <ScrollView
                 contentContainerStyle={styles.modalContent}
+                keyboardDismissMode="interactive"
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}>
+                {message ? (
+                  <View style={[styles.modalNotice, { backgroundColor: colors.courtSoft, borderColor: colors.line }]}>
+                    <Text style={[styles.modalNoticeText, { color: colors.ink }]}>{message}</Text>
+                  </View>
+                ) : null}
+
                 <SectionTitle>Player reflection</SectionTitle>
                 <Card style={styles.formCard}>
                   <Field
@@ -398,15 +410,17 @@ export default function PerformanceScreen() {
                   value={notes}
                 />
 
-                {reflectionMode === 'create' ? (
+              </ScrollView>
+              {reflectionMode === 'create' ? (
+                <View style={[styles.modalFooter, { borderTopColor: colors.line, backgroundColor: colors.surface }]}>
                   <PrimaryButton
                     disabled={saving || !player?.id || !selectedMatch}
                     icon="save"
                     onPress={submitReflection}
                     title={saving ? 'Saving...' : 'Save performance reflection'}
                   />
-                ) : null}
-              </ScrollView>
+                </View>
+              ) : null}
             </View>
           </KeyboardAvoidingView>
         </View>
@@ -687,6 +701,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(3, 18, 25, 0.58)',
   },
   keyboardAvoider: {
+    flex: 1,
     justifyContent: 'flex-end',
     width: '100%',
   },
@@ -694,8 +709,10 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 8,
     borderTopRightRadius: 8,
     borderWidth: 1,
-    maxHeight: '88%',
-    padding: 16,
+    maxHeight: '92%',
+    overflow: 'hidden',
+    paddingHorizontal: 16,
+    paddingTop: 16,
   },
   modalHeader: {
     alignItems: 'flex-start',
@@ -727,8 +744,23 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     gap: 16,
-    paddingBottom: 18,
+    paddingBottom: 22,
     paddingTop: 16,
+  },
+  modalFooter: {
+    borderTopWidth: 1,
+    paddingBottom: Platform.OS === 'ios' ? 18 : 14,
+    paddingTop: 12,
+  },
+  modalNotice: {
+    borderRadius: 8,
+    borderWidth: 1,
+    padding: 12,
+  },
+  modalNoticeText: {
+    fontSize: 13,
+    fontWeight: '800',
+    lineHeight: 19,
   },
   formCard: {
     gap: 16,

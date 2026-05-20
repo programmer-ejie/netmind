@@ -82,6 +82,16 @@ export const deleteResource = (resource, id) => (
   apiRequest(`/${resource}/${id}`, { method: 'DELETE' })
 )
 
+export const listNotifications = () => listResource('notifications')
+
+export const markNotificationRead = (id) => (
+  apiRequest(`/notifications/${id}/read`, { method: 'PATCH' })
+)
+
+export const markAllNotificationsRead = () => (
+  apiRequest('/notifications/read-all', { method: 'POST' })
+)
+
 export const registerUser = async (body) => {
   const payload = await apiRequest('/auth/register', { method: 'POST', body })
   return payload.user || payload
@@ -111,6 +121,8 @@ export const readSavedUser = () => {
     return null
   }
 }
+
+export const readAuthToken = () => localStorage.getItem('netmind_token')
 
 export const saveUser = (user) => {
   if (user) {

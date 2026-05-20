@@ -75,6 +75,7 @@ function createApp() {
   app.use("/api", apiRoutes.analytics);
   app.use("/api", apiRoutes.wellness);
   app.use("/api", apiRoutes.workflow);
+  app.use("/api", apiRoutes.notifications);
   app.use("/api", apiRoutes.crud);
 
   app.use(notFound);

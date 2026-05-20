@@ -3,6 +3,10 @@ const { query } = require("../config/db");
 const asyncHandler = require("../utils/asyncHandler");
 const ApiError = require("../utils/apiError");
 const { toLocalDateKey } = require("../utils/dateKeys");
+const {
+  createNotifications,
+  getPlayerStaffRecipients,
+} = require("../src/services/notificationService");
 
 const router = express.Router();
 
@@ -162,6 +166,22 @@ router.post("/players/:playerId/wellness-checkins", asyncHandler(async (req, res
     WHERE player_id = ? AND checkin_date = ?`,
     [req.params.playerId, checkinDate]
   );
+
+  const checkin = rows[0];
+  await createNotifications({
+    actorId: req.user.id,
+    recipientIds: [checkin.player_id, ...(await getPlayerStaffRecipients(checkin.player_id))],
+    type: "wellness.checkin.updated",
+    title: "Wellness check-in submitted",
+    body: `${req.user.name} submitted a wellness check-in.`,
+    data: {
+      wellnessCheckinId: checkin.id,
+      playerId: checkin.player_id,
+      checkinDate: checkin.checkin_date,
+      fatigueLevel: checkin.fatigue_level,
+      rpe: checkin.rpe,
+    },
+  });
 
   res.status(201).json(rows[0]);
 }));

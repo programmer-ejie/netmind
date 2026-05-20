@@ -6,6 +6,11 @@ const asyncHandler = require("../utils/asyncHandler");
 const ApiError = require("../utils/apiError");
 const { getDriveClient, uploadBufferToDrive } = require("../utils/googleDriveStorage");
 const { canAccessTeam, isSelf } = require("../middleware/authorization");
+const {
+  createNotifications,
+  getPlayerStaffRecipients,
+  getActorNetworkRecipients,
+} = require("../src/services/notificationService");
 
 const router = express.Router();
 const upload = multer({
@@ -84,9 +89,27 @@ router.post(
       "SELECT id, name, email, role, position, jersey_number, age, birthdate, location, profile_picture_url, profile_picture_file_id, is_active, created_at FROM users WHERE id = ?",
       [req.params.id]
     );
+    const user = rows[0];
+
+    if (["trainer", "player"].includes(user.role)) {
+      const recipientIds = user.role === "player"
+        ? [user.id, ...(await getPlayerStaffRecipients(user.id))]
+        : [user.id, ...(await getActorNetworkRecipients(req.user))];
+      await createNotifications({
+        actorId: req.user.id,
+        recipientIds,
+        type: "account.profile_picture.updated",
+        title: "Profile picture updated",
+        body: `${req.user.name} updated a profile picture.`,
+        data: {
+          userId: user.id,
+          role: user.role,
+        },
+      });
+    }
 
     res.json({
-      user: rows[0],
+      user,
       file: uploaded,
     });
   })

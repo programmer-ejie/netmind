@@ -16,6 +16,7 @@ import AdminAnalytics from './pages/admin/AdminAnalytics'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminMatchInputs from './pages/admin/AdminMatchInputs'
 import AdminMatches from './pages/admin/AdminMatches'
+import AdminNotifications from './pages/admin/AdminNotifications'
 import AdminAttendance from './pages/admin/AdminAttendance'
 import AdminAttendanceCheck from './pages/admin/AdminAttendanceCheck'
 import AdminPlayers from './pages/admin/AdminPlayers'
@@ -27,6 +28,7 @@ import AdminTrainers from './pages/admin/AdminTrainers'
 import AdminTraining from './pages/admin/AdminTraining'
 import AdminWellness from './pages/admin/AdminWellness'
 import { clearSavedUser, readSavedUser } from './lib/api'
+import { useNotifications } from './lib/notifications'
 
 const getRoute = () => {
   const hash = window.location.hash || ''
@@ -58,6 +60,11 @@ const scrollToPageTop = () => {
   document.body.scrollTop = 0
 }
 
+function NotificationSoundBridge() {
+  useNotifications()
+  return null
+}
+
 const getAdminRedirect = (route, currentUser) => {
   if (route.area !== 'coach') return ''
   if (!['coach', 'trainer'].includes(currentUser?.role)) return '#auth'
@@ -75,6 +82,7 @@ const getAdminRedirect = (route, currentUser) => {
     'attendance',
     'wellness',
     'analytics',
+    'notifications',
     'settings',
   ].includes(route.page)) {
     return '#trainer'
@@ -195,15 +203,30 @@ function App() {
     }
 
     if (route.page === 'teams' && route.id) {
-      return <AdminTeamDetails teamId={route.id} currentPath={route.hash} />
+      return (
+        <>
+          <NotificationSoundBridge />
+          <AdminTeamDetails teamId={route.id} currentPath={route.hash} />
+        </>
+      )
     }
 
     if (route.page === 'matches' && route.id) {
-      return <AdminMatchInputs matchId={route.id} matchNumber={route.matchNumber} currentPath={route.hash} />
+      return (
+        <>
+          <NotificationSoundBridge />
+          <AdminMatchInputs matchId={route.id} matchNumber={route.matchNumber} currentPath={route.hash} />
+        </>
+      )
     }
 
     if (route.page === 'attendance' && route.id && route.section === 'check') {
-      return <AdminAttendanceCheck scheduleId={route.id} currentPath={route.hash} />
+      return (
+        <>
+          <NotificationSoundBridge />
+          <AdminAttendanceCheck scheduleId={route.id} currentPath={route.hash} />
+        </>
+      )
     }
 
     const pages = {
@@ -218,15 +241,26 @@ function App() {
       attendance: AdminAttendance,
       wellness: AdminWellness,
       analytics: AdminAnalytics,
+      notifications: AdminNotifications,
       settings: AdminSettings,
     }
     const AdminPage = pages[route.page] || AdminDashboard
     const pageKey = `${route.hash}-${currentUser?.id || 'guest'}-${currentUser?.role || 'none'}-${authVersion}`
 
-    return <AdminPage key={pageKey} currentPath={route.hash} />
+    return (
+      <>
+        <NotificationSoundBridge />
+        <AdminPage key={pageKey} currentPath={route.hash} />
+      </>
+    )
   }
 
-  return renderHome()
+  return (
+    <>
+      <NotificationSoundBridge />
+      {renderHome()}
+    </>
+  )
 }
 
 export default App
