@@ -17,7 +17,9 @@ import { apiRequest, createResource, deleteResource, listResource, readSavedUser
 const actualMatchTypes = ['league', 'tournament', 'playoff']
 const MATCHES_PER_PAGE = 5
 const MATCHES_TAB_STORAGE_KEY = 'netmind:matches-active-tab'
+const MATCHES_STATUS_STORAGE_KEY = 'netmind:matches-status-filter'
 const matchTabs = new Set(['practice', 'actual'])
+const statusFilters = new Set(['all', 'ongoing', 'scored'])
 const bestOfLabels = {
   1: 'Best of One',
   3: 'Best of Three',
@@ -25,7 +27,7 @@ const bestOfLabels = {
 }
 const statusFilterOptions = [
   { value: 'all', label: 'All statuses' },
-  { value: 'pending', label: 'Pending' },
+  { value: 'ongoing', label: 'On-going' },
   { value: 'scored', label: 'Scored' },
 ]
 
@@ -39,6 +41,10 @@ const sortMatchesDesc = (rows) => (
     || Number(b.id || 0) - Number(a.id || 0)
   ))
 )
+const isScoreComplete = (score) => (
+  score?.team_score !== null && score?.team_score !== undefined
+  && score?.opponent_score !== null && score?.opponent_score !== undefined
+)
 const mergeTeams = (...groups) => (
   [...new Map(groups.flat().filter(Boolean).map((team) => [String(team.id), team])).values()]
 )
@@ -46,6 +52,11 @@ const mergeTeams = (...groups) => (
 const getSavedMatchesTab = () => {
   const saved = window.localStorage.getItem(MATCHES_TAB_STORAGE_KEY)
   return matchTabs.has(saved) ? saved : 'practice'
+}
+
+const getSavedMatchesStatusFilter = () => {
+  const saved = window.localStorage.getItem(MATCHES_STATUS_STORAGE_KEY)
+  return statusFilters.has(saved) ? saved : 'all'
 }
 
 const blankMatch = {
@@ -66,7 +77,7 @@ const AdminMatches = ({ currentPath = '#coach/matches' }) => {
   const [activeView, setActiveView] = useState(getSavedMatchesTab)
   const [practicePage, setPracticePage] = useState(1)
   const [actualPage, setActualPage] = useState(1)
-  const [statusFilter, setStatusFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState(getSavedMatchesStatusFilter)
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(blankMatch)
@@ -100,16 +111,18 @@ const AdminMatches = ({ currentPath = '#coach/matches' }) => {
     const scores = matchScores.filter((score) => String(score.match_id) === String(match.id))
 
     if (bestOf <= 1) {
-      return Boolean(getWinner(scores.find((item) => Number(item.match_number) === 1) || match))
+      return isScoreComplete(scores.find((item) => Number(item.match_number) === 1) || match)
     }
 
-    return scores.some((score) => getWinner(score))
+    return Array.from({ length: bestOf }).every((_, index) => (
+      isScoreComplete(scores.find((score) => Number(score.match_number) === index + 1))
+    ))
   }, [matchScores])
   const tabMatches = activeView === 'practice' ? practiceMatches : actualMatches
   const visibleMatches = useMemo(() => (
     tabMatches.filter((match) => {
       if (statusFilter === 'scored') return isMatchScored(match)
-      if (statusFilter === 'pending') return !isMatchScored(match)
+      if (statusFilter === 'ongoing') return !isMatchScored(match)
       return true
     })
   ), [isMatchScored, statusFilter, tabMatches])
@@ -214,6 +227,10 @@ const AdminMatches = ({ currentPath = '#coach/matches' }) => {
   useEffect(() => {
     window.localStorage.setItem(MATCHES_TAB_STORAGE_KEY, activeView)
   }, [activeView])
+
+  useEffect(() => {
+    window.localStorage.setItem(MATCHES_STATUS_STORAGE_KEY, statusFilter)
+  }, [statusFilter])
 
   useEffect(() => {
     setPracticePage((current) => Math.min(Math.max(current, 1), Math.max(1, Math.ceil(practiceMatches.length / MATCHES_PER_PAGE))))
