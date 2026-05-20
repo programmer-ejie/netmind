@@ -16,6 +16,7 @@ import {
 
 import { Card, ListRow, PrimaryButton, Screen, SectionTitle } from '@/components/netmind-ui';
 import { useNetmindTheme } from '@/contexts/netmind-theme';
+import { toLocalDateKey } from '@/lib/dateKeys';
 import {
   listPlayerPerformanceLogs,
   listResource,
@@ -513,7 +514,7 @@ function isValidScale(value: number) {
 }
 
 function dateKey(value: string) {
-  return /^\d{4}-\d{2}-\d{2}/.test(value) ? value.slice(0, 10) : new Date(value).toISOString().slice(0, 10);
+  return toLocalDateKey(value);
 }
 
 function isCompletedMatch(match: Match, scores: MatchScore[]) {

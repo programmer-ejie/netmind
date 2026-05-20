@@ -1,10 +1,23 @@
+const PROFILE_UPDATE_FIELDS = [
+  "name",
+  "position",
+  "jersey_number",
+  "age",
+  "birthdate",
+  "location",
+  "profile_picture_url",
+  "profile_picture_file_id",
+];
+
+const STAFF_ROLES = ["coach", "trainer"];
+const ALL_ROLES = ["coach", "trainer", "player"];
+
 const tables = {
   users: {
     table: "users",
     fields: [
       "name",
       "email",
-      "role",
       "position",
       "jersey_number",
       "age",
@@ -12,9 +25,19 @@ const tables = {
       "location",
       "profile_picture_url",
       "profile_picture_file_id",
-      "is_active",
     ],
     disableCreate: true,
+    writePolicy: {
+      create: false,
+      update: {
+        roles: ALL_ROLES,
+        allowedFields: {
+          default: PROFILE_UPDATE_FIELDS,
+          coach: [...PROFILE_UPDATE_FIELDS, "email"],
+        },
+      },
+      delete: false,
+    },
     publicFields: [
       "id",
       "name",
@@ -36,27 +59,52 @@ const tables = {
   teams: {
     table: "teams",
     fields: ["team_name", "coach_id", "team_color", "logo_url", "team_logo_file_id"],
+    writePolicy: {
+      create: { roles: ["coach"] },
+      update: { roles: ["coach"] },
+      delete: { roles: ["coach"] },
+    },
     filterFields: ["coach_id"],
     searchFields: ["team_name"],
   },
   "team-members": {
     table: "team_members",
     fields: ["team_id", "player_id", "joined_at", "is_active"],
+    writePolicy: {
+      create: false,
+      update: false,
+      delete: false,
+    },
     filterFields: ["team_id", "player_id", "is_active"],
   },
   "team-trainers": {
     table: "team_trainers",
     fields: ["team_id", "trainer_id", "assigned_by"],
+    writePolicy: {
+      create: false,
+      update: false,
+      delete: false,
+    },
     filterFields: ["team_id", "trainer_id", "assigned_by"],
   },
   "coach-trainers": {
     table: "coach_trainers",
     fields: ["coach_id", "trainer_id"],
+    writePolicy: {
+      create: false,
+      update: false,
+      delete: false,
+    },
     filterFields: ["coach_id", "trainer_id"],
   },
   seasons: {
     table: "seasons",
     fields: ["team_id", "season_name", "season_type", "start_date", "end_date", "is_active"],
+    writePolicy: {
+      create: { roles: ["coach"] },
+      update: { roles: ["coach"] },
+      delete: { roles: ["coach"] },
+    },
     filterFields: ["team_id", "season_type", "is_active"],
     searchFields: ["season_name"],
   },
@@ -75,12 +123,22 @@ const tables = {
       "match_type",
       "notes",
     ],
+    writePolicy: {
+      create: { roles: ["coach"] },
+      update: { roles: STAFF_ROLES },
+      delete: { roles: ["coach"] },
+    },
     filterFields: ["team_id", "season_id", "result", "match_type", "is_home"],
     searchFields: ["opponent_name", "notes"],
   },
   "match-scores": {
     table: "match_scores",
     fields: ["match_id", "match_number", "team_score", "opponent_score", "result"],
+    writePolicy: {
+      create: { roles: STAFF_ROLES },
+      update: { roles: STAFF_ROLES },
+      delete: { roles: ["coach"] },
+    },
     filterFields: ["match_id", "match_number", "result"],
   },
   "team-rankings": {
@@ -96,6 +154,11 @@ const tables = {
       "points_against",
       "point_difference",
     ],
+    writePolicy: {
+      create: false,
+      update: false,
+      delete: false,
+    },
     filterFields: ["team_id", "season_id"],
   },
   drills: {
@@ -113,6 +176,11 @@ const tables = {
       "created_by",
       "is_public",
     ],
+    writePolicy: {
+      create: { roles: STAFF_ROLES },
+      update: { roles: STAFF_ROLES },
+      delete: { roles: STAFF_ROLES },
+    },
     filterFields: ["category", "difficulty", "created_by", "is_public"],
     searchFields: ["drill_name", "description", "instructions"],
   },
@@ -130,6 +198,11 @@ const tables = {
       "status",
       "completed_at",
     ],
+    writePolicy: {
+      create: false,
+      update: false,
+      delete: false,
+    },
     filterFields: ["player_id", "assigned_by", "drill_id", "status"],
     searchFields: ["focus_area", "drill_description"],
   },
@@ -142,6 +215,11 @@ const tables = {
       "description",
       "created_by",
     ],
+    writePolicy: {
+      create: { roles: STAFF_ROLES },
+      update: { roles: STAFF_ROLES },
+      delete: { roles: ["coach"] },
+    },
     filterFields: ["team_id", "session_type", "session_date", "created_by"],
     searchFields: ["description"],
   },
@@ -153,6 +231,11 @@ const tables = {
       "expires_at",
       "created_by",
     ],
+    writePolicy: {
+      create: false,
+      update: false,
+      delete: false,
+    },
     filterFields: ["training_schedule_id", "token", "created_by"],
   },
   "drill-performance-logs": {
@@ -169,6 +252,11 @@ const tables = {
       "metric_value",
       "notes",
     ],
+    writePolicy: {
+      create: false,
+      update: false,
+      delete: false,
+    },
     filterFields: ["training_assignment_id", "player_id", "drill_id", "session_date"],
     searchFields: ["notes"],
   },
@@ -193,6 +281,11 @@ const tables = {
       "injury_status",
       "notes",
     ],
+    writePolicy: {
+      create: false,
+      update: false,
+      delete: { roles: STAFF_ROLES },
+    },
     filterFields: ["user_id", "session_type", "match_id", "match_number", "season_id", "action_type", "result", "injury_status"],
   },
   "wellness-checkins": {
@@ -205,6 +298,11 @@ const tables = {
       "sleep_hours",
       "notes",
     ],
+    writePolicy: {
+      create: false,
+      update: false,
+      delete: false,
+    },
     filterFields: ["player_id", "checkin_date"],
     searchFields: ["notes"],
   },
@@ -221,6 +319,11 @@ const tables = {
       "reason",
       "marked_by",
     ],
+    writePolicy: {
+      create: false,
+      update: false,
+      delete: false,
+    },
     filterFields: ["player_id", "team_id", "session_type", "match_id", "session_date", "status", "marked_by"],
     searchFields: ["reason"],
   },
@@ -237,6 +340,11 @@ const tables = {
       "reported_by",
       "notes",
     ],
+    writePolicy: {
+      create: false,
+      update: false,
+      delete: false,
+    },
     filterFields: ["player_id", "body_part", "severity", "reported_by"],
     searchFields: ["injury_type", "notes"],
   },
@@ -244,6 +352,11 @@ const tables = {
     table: "lineups",
     fields: ["coach_id", "team_id", "match_id", "match_date", "lineup_config", "rotation_order", "notes"],
     jsonFields: ["lineup_config", "rotation_order"],
+    writePolicy: {
+      create: { roles: ["coach"] },
+      update: { roles: ["coach"] },
+      delete: { roles: ["coach"] },
+    },
     filterFields: ["coach_id", "team_id", "match_id", "match_date"],
     searchFields: ["notes"],
   },
@@ -251,6 +364,11 @@ const tables = {
     table: "player_comparisons",
     fields: ["coach_id", "team_id", "season_id", "metric_name", "rankings"],
     jsonFields: ["rankings"],
+    writePolicy: {
+      create: false,
+      update: false,
+      delete: false,
+    },
     filterFields: ["coach_id", "team_id", "season_id", "metric_name"],
   },
 };

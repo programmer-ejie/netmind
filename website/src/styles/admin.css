@@ -971,10 +971,17 @@
 }
 
 .admin-profile-offcanvas-actions {
+  width: 100%;
   display: flex;
-  justify-content: flex-end;
-  gap: 10px;
+  justify-content: center;
+  gap: 12px;
   padding-top: 6px;
+}
+
+.admin-profile-offcanvas-actions > .admin-button {
+  flex: 1 1 0;
+  max-width: none;
+  min-width: 0;
 }
 
 .admin-sync-backdrop {
@@ -1070,6 +1077,21 @@
   display: flex;
   align-items: center;
   gap: 18px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklab, var(--team-color, #635bff) 28%, var(--admin-border));
+  border-radius: 8px;
+  padding: 18px;
+  background:
+    linear-gradient(135deg,
+      color-mix(in oklab, var(--team-color, #635bff) 30%, transparent) 0%,
+      color-mix(in oklab, var(--team-color, #635bff) 12%, transparent) 38%,
+      transparent 72%),
+    linear-gradient(90deg,
+      color-mix(in oklab, var(--team-color, #635bff) 18%, transparent) 0%,
+      transparent 48%),
+    var(--admin-card);
+  box-shadow: inset 0 1px 0 color-mix(in oklab, #fff 10%, transparent);
 }
 
 .admin-profile-team-list {
@@ -1078,13 +1100,11 @@
 }
 
 .admin-profile-team-list .admin-profile-team {
-  border-bottom: 1px solid var(--admin-border);
-  padding-bottom: 18px;
+  border-bottom-color: color-mix(in oklab, var(--team-color, #635bff) 28%, var(--admin-border));
 }
 
 .admin-profile-team-list .admin-profile-team:last-child {
-  border-bottom: 0;
-  padding-bottom: 0;
+  padding-bottom: 18px;
 }
 
 .admin-profile-team-logo {
@@ -1102,10 +1122,6 @@
   color: var(--admin-dark);
   font-size: 20px;
   font-weight: 800;
-}
-
-.admin-profile-team .admin-color-pill {
-  margin-top: 12px;
 }
 
 .admin-alert {
@@ -1397,6 +1413,146 @@
   stroke-width: 1;
 }
 
+.admin-activity-mix-chart {
+  display: grid;
+  grid-template-columns: minmax(130px, 0.24fr) minmax(0, 1fr);
+  gap: 16px;
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 12% 18%, color-mix(in oklab, var(--admin-primary) 16%, transparent), transparent 36%),
+    linear-gradient(180deg, color-mix(in oklab, var(--admin-soft) 64%, #ffffff), #ffffff);
+  padding: 18px;
+}
+
+.admin-activity-mix-total {
+  min-height: 190px;
+  border: 1px solid color-mix(in oklab, var(--admin-primary) 20%, var(--admin-border));
+  border-radius: 12px;
+  display: grid;
+  place-content: center;
+  gap: 6px;
+  background: color-mix(in oklab, var(--admin-primary) 10%, #ffffff);
+  text-align: center;
+}
+
+.admin-activity-mix-total strong {
+  color: var(--admin-primary);
+  font-size: clamp(34px, 5vw, 58px);
+  font-weight: 950;
+  line-height: 1;
+}
+
+.admin-activity-mix-total span,
+.admin-activity-heat-head span {
+  color: var(--admin-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.admin-activity-mix-list {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-activity-mix-row {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 54px;
+  align-items: center;
+  gap: 12px;
+}
+
+.admin-activity-mix-rank {
+  min-height: 40px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: color-mix(in oklab, var(--action-color) 16%, transparent);
+  color: var(--action-color);
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.admin-activity-mix-main {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.admin-activity-mix-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-activity-mix-label strong {
+  color: var(--admin-dark);
+  font-size: 14px;
+  font-weight: 900;
+  text-transform: capitalize;
+}
+
+.admin-activity-mix-label span,
+.admin-activity-mix-row > b {
+  color: var(--admin-muted);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.admin-activity-mix-bar {
+  height: 12px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: color-mix(in oklab, var(--admin-muted) 12%, transparent);
+}
+
+.admin-activity-mix-bar i {
+  height: 100%;
+  border-radius: inherit;
+  display: block;
+  background: linear-gradient(90deg, var(--action-color), color-mix(in oklab, var(--action-color) 72%, #ffffff));
+  box-shadow: 0 8px 20px color-mix(in oklab, var(--action-color) 22%, transparent);
+}
+
+.admin-activity-mix-row > b {
+  color: var(--admin-dark);
+  text-align: right;
+}
+
+.admin-activity-heat {
+  grid-column: 1 / -1;
+  border-top: 1px solid var(--admin-border);
+  display: grid;
+  gap: 10px;
+  padding-top: 14px;
+}
+
+.admin-activity-heat-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-activity-heat-head strong {
+  color: var(--admin-dark);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.admin-activity-heat-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--heat-columns), minmax(28px, 1fr));
+  gap: 8px;
+}
+
+.admin-activity-heat-grid span {
+  height: 14px;
+  border-radius: 999px;
+  background: var(--action-color);
+  opacity: var(--heat-opacity);
+}
+
 .admin-dashboard-box-card {
   min-height: 430px;
 }
@@ -1503,11 +1659,20 @@
   min-width: 760px;
 }
 
+.admin-dashboard-performance-table .admin-native-table {
+  min-width: 1120px;
+}
+
 .admin-dashboard-table-card .admin-native-table th {
   background: color-mix(in oklab, var(--admin-soft) 70%, #ffffff);
   color: var(--admin-muted);
   font-size: 12px;
   text-transform: uppercase;
+}
+
+.admin-dashboard-performance-table .admin-native-table th:nth-child(n + 3),
+.admin-dashboard-performance-table .admin-native-table td:nth-child(n + 3) {
+  text-align: center;
 }
 
 .admin-dashboard-table-card .admin-native-table tbody tr:nth-child(odd) {
@@ -1595,11 +1760,19 @@
 }
 
 .admin-dark .admin-bump-chart,
+.admin-dark .admin-activity-mix-chart,
 .admin-dark .admin-box-chart,
 .admin-dark .admin-box-summary span {
   background: color-mix(in oklab, var(--admin-card) 88%, #243146);
 }
 
+.admin-dark .admin-activity-mix-total {
+  background: color-mix(in oklab, var(--admin-primary) 13%, var(--admin-card));
+}
+
+.admin-dark .admin-activity-mix-label strong,
+.admin-dark .admin-activity-mix-row > b,
+.admin-dark .admin-activity-heat-head strong,
 .admin-dark .admin-box-summary b {
   color: #ffffff;
 }
@@ -1991,6 +2164,45 @@
   color: #ffffff;
 }
 
+.admin-button.admin-success-action-button,
+.admin-button.admin-confirm-button {
+  background: var(--admin-success);
+  color: #ffffff;
+}
+
+.admin-button.admin-success-action-button:hover,
+.admin-button.admin-confirm-button:hover {
+  background: color-mix(in oklab, var(--admin-success) 88%, #000000);
+  color: #ffffff;
+}
+
+.admin-button.admin-success-action-button:disabled:hover,
+.admin-button.admin-confirm-button:disabled:hover {
+  background: var(--admin-success);
+  color: #ffffff;
+}
+
+.admin-button.admin-cancel-button,
+.admin-button.ghost.admin-cancel-button,
+.admin-button.secondary.admin-cancel-button {
+  background: var(--admin-error);
+  color: #ffffff;
+}
+
+.admin-button.admin-cancel-button:hover,
+.admin-button.ghost.admin-cancel-button:hover,
+.admin-button.secondary.admin-cancel-button:hover {
+  background: color-mix(in oklab, var(--admin-error) 88%, #000000);
+  color: #ffffff;
+}
+
+.admin-button.admin-cancel-button:disabled:hover,
+.admin-button.ghost.admin-cancel-button:disabled:hover,
+.admin-button.secondary.admin-cancel-button:disabled:hover {
+  background: var(--admin-error);
+  color: #ffffff;
+}
+
 .admin-button.ghost {
   background: transparent;
   color: var(--admin-muted);
@@ -2047,6 +2259,14 @@
   border-color: var(--admin-primary);
 }
 
+.admin-input[type='date']::-webkit-calendar-picker-indicator {
+  filter: invert(0);
+}
+
+.admin-dark .admin-input[type='date']::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+}
+
 .admin-input:disabled {
   background: var(--admin-soft);
   color: var(--admin-muted);
@@ -2074,10 +2294,16 @@
 }
 
 .admin-form-actions {
+  width: 100%;
   display: flex;
-  justify-content: flex-end;
-  gap: 10px;
+  justify-content: center;
+  gap: 12px;
   margin-top: 4px;
+}
+
+.admin-form-actions > .admin-button {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .admin-inline-form {
@@ -2602,6 +2828,10 @@
 
 .admin-matches-table {
   padding: 18px 32px 32px;
+}
+
+.admin-matches-empty-wrap {
+  padding: 0 32px 32px;
 }
 
 .admin-matches-table .admin-native-table {
@@ -3169,8 +3399,12 @@
     var(--admin-card);
 }
 
+.admin-match-roster-card.can-input {
+  border-color: color-mix(in oklab, var(--admin-success) 34%, var(--admin-border));
+}
+
+.admin-match-roster-card.can-input::before,
 .admin-match-roster-card.view-only::before {
-  content: 'View only';
   min-height: 28px;
   border-radius: 999px;
   display: inline-flex;
@@ -3187,6 +3421,19 @@
   text-transform: uppercase;
 }
 
+.admin-match-roster-card.can-input::before {
+  content: 'My Team';
+  background: var(--admin-light-success);
+  color: var(--admin-success);
+}
+
+.admin-match-roster-card.view-only::before {
+  content: 'View only';
+  background: color-mix(in oklab, var(--team-accent, var(--admin-warning)) 16%, var(--admin-card));
+  color: color-mix(in oklab, var(--team-accent, var(--admin-warning)) 72%, var(--admin-link));
+}
+
+.admin-match-roster-card.can-input .admin-match-roster-header,
 .admin-match-roster-card.view-only .admin-match-roster-header {
   padding-top: 44px;
 }
@@ -3455,10 +3702,18 @@
 }
 
 .admin-score-actions {
+  width: 100%;
   display: flex;
-  justify-content: flex-end;
-  gap: 10px;
+  justify-content: center;
+  gap: 12px;
   margin-top: 4px;
+}
+
+.admin-offcanvas .admin-score-actions > .admin-button,
+.admin-offcanvas .admin-profile-offcanvas-actions > .admin-button {
+  flex: 1 1 0;
+  max-width: none;
+  min-width: 0;
 }
 
 .admin-score-confirm-backdrop {
@@ -3705,7 +3960,7 @@
 
 .admin-wellness-visual-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.95fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 24px;
   margin-bottom: 24px;
 }
@@ -3714,51 +3969,170 @@
   margin-top: 24px;
 }
 
+.admin-wellness-table-header {
+  align-items: end;
+  gap: 16px;
+}
+
+.admin-wellness-player-filter {
+  min-width: min(280px, 100%);
+  display: grid;
+  gap: 7px;
+}
+
+.admin-wellness-player-filter span {
+  color: var(--admin-muted);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.admin-wellness-checkin-table {
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--admin-card);
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+
+.admin-wellness-checkin-table .admin-native-table {
+  min-width: 820px;
+}
+
+.admin-wellness-checkin-table .admin-native-table th,
+.admin-wellness-checkin-table .admin-native-table td {
+  vertical-align: middle;
+}
+
+.admin-wellness-checkin-table .admin-native-table th {
+  background: color-mix(in oklab, var(--admin-soft) 70%, transparent);
+  color: var(--admin-muted);
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.admin-wellness-checkin-table .admin-native-table td {
+  padding-top: 16px;
+  padding-bottom: 16px;
+}
+
+.admin-wellness-checkin-table .admin-native-table td:first-child,
+.admin-wellness-checkin-table .admin-native-table td:nth-child(5) {
+  color: var(--admin-link);
+  font-weight: 800;
+}
+
+.admin-wellness-checkin-table .admin-native-table tr:hover {
+  background: color-mix(in oklab, var(--admin-soft) 42%, transparent);
+}
+
 .admin-wellness-chart-card {
   min-height: 320px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklab, var(--admin-primary) 10%, var(--admin-border));
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--admin-soft) 18%, transparent), transparent 44%),
+    linear-gradient(180deg, color-mix(in oklab, var(--admin-card) 92%, var(--admin-soft)), var(--admin-card));
+  box-shadow: 0 18px 38px rgba(4, 12, 24, 0.12);
 }
 
 .admin-wellness-compact-header {
   margin-bottom: 14px;
+  align-items: start;
 }
 
 .admin-wellness-trend {
   position: relative;
   min-height: 232px;
+  isolation: isolate;
+}
+
+.admin-wellness-trend::before {
+  content: '';
+  position: absolute;
+  inset: 18px 18px 28px 98px;
+  border-radius: 10px;
+  background:
+    linear-gradient(to right, color-mix(in oklab, var(--admin-border) 14%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklab, var(--admin-border) 20%, transparent) 1px, transparent 1px);
+  background-size: 80px 100%, 100% 35px;
+  opacity: 0.28;
+  pointer-events: none;
+  z-index: -1;
 }
 
 .admin-wellness-trend svg {
   width: 100%;
   min-height: 220px;
   display: block;
+  overflow: visible;
 }
 
 .admin-wellness-trend line {
-  stroke: color-mix(in oklab, var(--admin-border) 72%, transparent);
+  stroke: color-mix(in oklab, var(--admin-border) 52%, transparent);
   stroke-width: 1;
 }
 
 .admin-wellness-trend text {
   fill: var(--admin-muted);
-  font-size: 11px;
-  font-weight: 800;
+  font-size: 10px;
+  font-weight: 900;
 }
 
-.admin-wellness-trend polyline {
-  fill: none;
-  stroke-width: 4;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+.admin-wellness-y-label {
+  text-anchor: end;
 }
 
 .admin-wellness-trend .rpe {
-  stroke: var(--admin-primary);
-  fill: var(--admin-primary);
+  fill: url(#wellnessRpeBar);
 }
 
 .admin-wellness-trend .fatigue {
-  stroke: #f59e0b;
-  fill: #f59e0b;
+  fill: url(#wellnessFatigueBar);
+}
+
+.admin-wellness-bar {
+  filter: url(#wellnessGlow);
+  transform-box: fill-box;
+  transform-origin: bottom;
+  opacity: 0.94;
+}
+
+.admin-wellness-bar.rpe {
+  stroke: color-mix(in oklab, var(--admin-primary) 34%, #ffffff);
+  stroke-width: 0.7;
+}
+
+.admin-wellness-bar.fatigue {
+  stroke: color-mix(in oklab, #f59e0b 36%, #ffffff);
+  stroke-width: 0.7;
+}
+
+.admin-wellness-axis,
+.admin-wellness-bar-base {
+  stroke: color-mix(in oklab, var(--admin-border) 78%, transparent);
+  stroke-linecap: round;
+}
+
+.admin-wellness-axis {
+  stroke-width: 1.2;
+}
+
+.admin-wellness-bar-label {
+  text-anchor: middle;
+  fill: var(--admin-link);
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.admin-wellness-date-label {
+  text-anchor: middle;
+  fill: color-mix(in oklab, var(--admin-muted) 78%, transparent);
+  font-size: 9px;
+  font-weight: 800;
 }
 
 .admin-wellness-legend {
@@ -3775,13 +4149,19 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
+  min-height: 30px;
+  border: 1px solid color-mix(in oklab, var(--admin-border) 78%, transparent);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--admin-soft) 48%, transparent);
+  padding: 0 10px;
 }
 
 .admin-wellness-legend b {
   width: 22px;
-  height: 4px;
+  height: 5px;
   border-radius: 999px;
   display: inline-block;
+  box-shadow: 0 0 14px currentColor;
 }
 
 .admin-wellness-legend b.rpe {
@@ -3790,6 +4170,39 @@
 
 .admin-wellness-legend b.fatigue {
   background: #f59e0b;
+}
+
+.admin-wellness-chart-kpis {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.admin-wellness-chart-kpis span {
+  min-width: 82px;
+  min-height: 58px;
+  border: 1px solid color-mix(in oklab, var(--admin-primary) 14%, var(--admin-border));
+  border-radius: 10px;
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--admin-soft) 62%, transparent), color-mix(in oklab, var(--admin-card) 84%, transparent));
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 3px;
+}
+
+.admin-wellness-chart-kpis small {
+  color: var(--admin-muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.admin-wellness-chart-kpis strong {
+  color: var(--admin-link);
+  font-size: 22px;
+  line-height: 1;
 }
 
 .admin-wellness-bars {
@@ -4064,6 +4477,53 @@
 
 .admin-dark .admin-injury-report-meta > span {
   background: color-mix(in oklab, var(--admin-card) 88%, var(--admin-soft));
+}
+
+.admin-injury-report-table {
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--admin-card);
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+
+.admin-injury-report-table .admin-native-table {
+  min-width: 720px;
+}
+
+.admin-injury-report-table .admin-native-table th,
+.admin-injury-report-table .admin-native-table td {
+  vertical-align: middle;
+}
+
+.admin-injury-report-table .admin-native-table th {
+  background: color-mix(in oklab, var(--admin-soft) 70%, transparent);
+  color: var(--admin-muted);
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.admin-injury-report-table .admin-native-table td {
+  padding-top: 16px;
+  padding-bottom: 16px;
+}
+
+.admin-injury-report-table .admin-native-table td:first-child {
+  color: var(--admin-link);
+  font-weight: 800;
+}
+
+.admin-injury-report-table .admin-native-table td:nth-child(4),
+.admin-injury-report-table .admin-native-table td:nth-child(5) {
+  color: var(--admin-link);
+  font-weight: 800;
+  text-transform: capitalize;
+}
+
+.admin-injury-report-table .admin-native-table tr:hover {
+  background: color-mix(in oklab, var(--admin-soft) 42%, transparent);
 }
 
 .admin-tutorial-link {
@@ -4386,6 +4846,32 @@
   border: 1px solid var(--admin-border);
   border-radius: 10px;
   padding: 12px;
+}
+
+.admin-native-table tbody tr.admin-team-color-row {
+  background:
+    linear-gradient(90deg,
+      color-mix(in oklab, var(--team-color, #635bff) 18%, transparent) 0%,
+      color-mix(in oklab, var(--team-color, #635bff) 8%, transparent) 36%,
+      transparent 74%);
+}
+
+.admin-native-table tbody tr.admin-team-color-row:hover {
+  background:
+    linear-gradient(90deg,
+      color-mix(in oklab, var(--team-color, #635bff) 26%, transparent) 0%,
+      color-mix(in oklab, var(--team-color, #635bff) 11%, transparent) 42%,
+      transparent 78%);
+}
+
+.admin-teams-table .admin-native-table th,
+.admin-teams-table .admin-native-table td {
+  text-align: center;
+}
+
+.admin-teams-table .admin-player,
+.admin-teams-table .admin-actions {
+  justify-content: center;
 }
 
 .admin-roster-list {
@@ -6091,6 +6577,14 @@
     white-space: normal;
   }
 
+  .admin-wellness-table-header {
+    align-items: stretch;
+  }
+
+  .admin-wellness-player-filter {
+    width: 100%;
+  }
+
   .admin-wellness-log-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -6191,6 +6685,26 @@
     padding: 18px;
   }
 
+  .admin-activity-mix-chart {
+    grid-template-columns: 1fr;
+    padding: 14px;
+  }
+
+  .admin-activity-mix-total {
+    min-height: 112px;
+  }
+
+  .admin-activity-mix-row {
+    grid-template-columns: 38px minmax(0, 1fr) 44px;
+    gap: 10px;
+  }
+
+  .admin-activity-heat-head {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
   .admin-match-stats {
     grid-template-columns: 1fr;
   }
@@ -6227,7 +6741,16 @@
     grid-column: auto;
   }
 
+  .admin-match-roster-grid.has-versus .admin-match-roster-card:first-child {
+    grid-row: 1;
+  }
+
+  .admin-match-roster-grid.has-versus .admin-match-roster-card:nth-child(2) {
+    grid-row: 3;
+  }
+
   .admin-roster-versus {
+    grid-row: 2;
     margin: -2px auto;
     transform: rotate(-8deg);
   }

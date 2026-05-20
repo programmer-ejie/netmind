@@ -4,11 +4,76 @@ const crypto = require("crypto");
 const { pool, query } = require("../config/db");
 const asyncHandler = require("../utils/asyncHandler");
 const ApiError = require("../utils/apiError");
+const { toLocalDateKey } = require("../utils/dateKeys");
+const { deletePlayerById } = require("../utils/playerDeletion");
 const { sendPasswordResetCodeEmail } = require("../utils/emailService");
+const { requireRoles, requireSelf } = require("../middleware/authorization");
+const {
+  createRateLimiter,
+  envNumber,
+  getClientIp,
+  normalizeRateKeyPart,
+} = require("../middleware/rateLimit");
 
 const router = express.Router();
 const BCRYPT_ROUNDS = Number(process.env.BCRYPT_ROUNDS || 10);
 const passwordCodes = new Map();
+const PASSWORD_CODE_TTL_MS = 10 * 60 * 1000;
+const PASSWORD_CODE_RESEND_COOLDOWN_MS = 60 * 1000;
+const ATTENDANCE_QR_TTL_MINUTES = Math.max(1, Number(process.env.ATTENDANCE_QR_TTL_MINUTES || 10));
+const userScopedRateKey = (req) => `${getClientIp(req)}:${req.params.userId || req.user?.id || "unknown-user"}`;
+const qrCheckInRateKey = (req) => [
+  getClientIp(req),
+  req.user?.id || "anonymous",
+  normalizeRateKeyPart(req.params.token),
+].join(":");
+const qrTokenRateKey = (req) => [
+  getClientIp(req),
+  req.user?.id || "anonymous",
+  req.params.scheduleId || "unknown-schedule",
+].join(":");
+const passwordChangeLimiter = createRateLimiter({
+  name: "password-change",
+  windowMs: envNumber("PASSWORD_CHANGE_RATE_LIMIT_WINDOW_MS", 15 * 60 * 1000),
+  max: envNumber("PASSWORD_CHANGE_RATE_LIMIT_MAX", 5),
+  keyGenerator: userScopedRateKey,
+  message: "Too many password attempts. Try again later.",
+});
+const passwordCodeRequestLimiter = createRateLimiter({
+  name: "password-code-request",
+  windowMs: envNumber("PASSWORD_CODE_SEND_RATE_LIMIT_WINDOW_MS", 15 * 60 * 1000),
+  max: envNumber("PASSWORD_CODE_SEND_RATE_LIMIT_MAX", 3),
+  keyGenerator: userScopedRateKey,
+  message: "Too many confirmation code requests. Try again later.",
+});
+const passwordCodeVerifyLimiter = createRateLimiter({
+  name: "password-code-verify",
+  windowMs: envNumber("PASSWORD_CODE_VERIFY_RATE_LIMIT_WINDOW_MS", 15 * 60 * 1000),
+  max: envNumber("PASSWORD_CODE_VERIFY_RATE_LIMIT_MAX", 10),
+  keyGenerator: userScopedRateKey,
+  message: "Too many confirmation code attempts. Try again later.",
+});
+const passwordWithCodeLimiter = createRateLimiter({
+  name: "password-with-code",
+  windowMs: envNumber("PASSWORD_WITH_CODE_RATE_LIMIT_WINDOW_MS", 15 * 60 * 1000),
+  max: envNumber("PASSWORD_WITH_CODE_RATE_LIMIT_MAX", 5),
+  keyGenerator: userScopedRateKey,
+  message: "Too many password reset attempts. Try again later.",
+});
+const qrAttendanceCheckInLimiter = createRateLimiter({
+  name: "attendance-qr-check-in",
+  windowMs: envNumber("QR_CHECK_IN_RATE_LIMIT_WINDOW_MS", 60 * 1000),
+  max: envNumber("QR_CHECK_IN_RATE_LIMIT_MAX", 20),
+  keyGenerator: qrCheckInRateKey,
+  message: "Too many QR check-in attempts. Try again shortly.",
+});
+const qrTokenLimiter = createRateLimiter({
+  name: "attendance-qr-token",
+  windowMs: envNumber("QR_TOKEN_RATE_LIMIT_WINDOW_MS", 60 * 1000),
+  max: envNumber("QR_TOKEN_RATE_LIMIT_MAX", 30),
+  keyGenerator: qrTokenRateKey,
+  message: "Too many QR token requests. Try again shortly.",
+});
 const exportTables = [
   "users",
   "teams",
@@ -90,37 +155,94 @@ async function ensureRecord(table, id, label) {
   return record;
 }
 
-async function columnExists(table, column) {
-  const rows = await query(
-    `SELECT COUNT(*) AS count
-    FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE TABLE_SCHEMA = DATABASE()
-      AND TABLE_NAME = ?
-      AND COLUMN_NAME = ?`,
-    [table, column]
-  );
+function visiblePlayersQuery(user) {
+  const select =
+    "SELECT DISTINCT u.id, u.name, u.email, u.role, u.position, u.jersey_number, u.age, u.birthdate, u.location, u.profile_picture_url, u.profile_picture_file_id, u.is_active, u.created_at FROM users u";
 
-  return Number(rows[0]?.count || 0) > 0;
+  if (user.role === "coach") {
+    return {
+      sql: `${select}
+      JOIN team_members tm ON tm.player_id = u.id
+      JOIN teams t ON t.id = tm.team_id
+      WHERE u.role = 'player' AND t.coach_id = ?
+      ORDER BY u.name`,
+      values: [user.id],
+    };
+  }
+
+  if (user.role === "trainer") {
+    return {
+      sql: `${select}
+      JOIN team_members tm ON tm.player_id = u.id
+      JOIN team_trainers tt ON tt.team_id = tm.team_id
+      WHERE u.role = 'player' AND tt.trainer_id = ?
+      ORDER BY u.name`,
+      values: [user.id],
+    };
+  }
+
+  return {
+    sql: `${select} WHERE u.id = ? AND u.role = 'player' ORDER BY u.name`,
+    values: [user.id],
+  };
 }
 
-async function ensurePerformanceLogColumns() {
-  if (!(await columnExists("performance_logs", "confidence_level"))) {
-    await query("ALTER TABLE performance_logs ADD COLUMN confidence_level TINYINT NULL");
+function visibleCoachesQuery(user) {
+  const select =
+    "SELECT DISTINCT u.id, u.name, u.email, u.role, u.position, u.jersey_number, u.age, u.birthdate, u.location, u.profile_picture_url, u.profile_picture_file_id, u.is_active, u.created_at FROM users u";
+
+  if (user.role === "coach") {
+    return { sql: `${select} WHERE u.id = ? AND u.role = 'coach' ORDER BY u.name`, values: [user.id] };
   }
 
-  if (!(await columnExists("performance_logs", "focus_level"))) {
-    await query("ALTER TABLE performance_logs ADD COLUMN focus_level TINYINT NULL");
+  if (user.role === "trainer") {
+    return {
+      sql: `${select}
+      JOIN coach_trainers ct ON ct.coach_id = u.id
+      WHERE u.role = 'coach' AND ct.trainer_id = ?
+      ORDER BY u.name`,
+      values: [user.id],
+    };
   }
 
-  if (!(await columnExists("performance_logs", "notes"))) {
-    await query("ALTER TABLE performance_logs ADD COLUMN notes TEXT NULL");
+  return {
+    sql: `${select}
+    JOIN teams t ON t.coach_id = u.id
+    JOIN team_members tm ON tm.team_id = t.id
+    WHERE u.role = 'coach' AND tm.player_id = ?
+    ORDER BY u.name`,
+    values: [user.id],
+  };
+}
+
+function visibleTrainersQuery(user) {
+  const select =
+    "SELECT DISTINCT u.id, u.name, u.email, u.role, u.position, u.jersey_number, u.age, u.birthdate, u.location, u.profile_picture_url, u.profile_picture_file_id, u.is_active, u.created_at FROM users u";
+
+  if (user.role === "coach") {
+    return {
+      sql: `${select}
+      LEFT JOIN coach_trainers ct ON ct.trainer_id = u.id
+      LEFT JOIN team_trainers tt ON tt.trainer_id = u.id
+      LEFT JOIN teams t ON t.id = tt.team_id
+      WHERE u.role = 'trainer' AND (ct.coach_id = ? OR t.coach_id = ?)
+      ORDER BY u.name`,
+      values: [user.id, user.id],
+    };
   }
 
-  await query("ALTER TABLE performance_logs MODIFY energy_level TINYINT NULL");
-  await query(
-    `ALTER TABLE performance_logs
-    MODIFY action_type ENUM('spike', 'serve', 'receive', 'dig', 'set', 'block', 'jump', 'run', 'reflection') NOT NULL`
-  );
+  if (user.role === "trainer") {
+    return { sql: `${select} WHERE u.id = ? AND u.role = 'trainer' ORDER BY u.name`, values: [user.id] };
+  }
+
+  return {
+    sql: `${select}
+    JOIN team_trainers tt ON tt.trainer_id = u.id
+    JOIN team_members tm ON tm.team_id = tt.team_id
+    WHERE u.role = 'trainer' AND tm.player_id = ?
+    ORDER BY u.name`,
+    values: [user.id],
+  };
 }
 
 router.get("/routes", (req, res) => {
@@ -227,16 +349,16 @@ router.get("/routes", (req, res) => {
       "POST /api/teams/:teamId/player-comparisons/generate",
     ],
     genericCrud: [
-      "GET /api/<resource>",
-      "GET /api/<resource>/:id",
-      "POST /api/<resource>",
-      "PATCH /api/<resource>/:id",
-      "DELETE /api/<resource>/:id",
+      "GET /api/<resource> (scoped by role/ownership)",
+      "GET /api/<resource>/:id (scoped by role/ownership)",
+      "POST /api/<resource> (only for resources with explicit write policy)",
+      "PATCH /api/<resource>/:id (only for resources with explicit write policy)",
+      "DELETE /api/<resource>/:id (only for resources with explicit write policy)",
     ],
   });
 });
 
-router.get("/database/export", asyncHandler(async (req, res) => {
+router.get("/database/export", requireRoles("coach"), asyncHandler(async (req, res) => {
   const dbName = process.env.DB_NAME || "netmind";
   const parts = [
     `-- NetMind database export`,
@@ -266,27 +388,73 @@ router.get("/database/export", asyncHandler(async (req, res) => {
 }));
 
 router.get("/players", asyncHandler(async (req, res) => {
-  const rows = await query(
-    "SELECT id, name, email, role, position, jersey_number, age, birthdate, location, profile_picture_url, profile_picture_file_id, is_active, created_at FROM users WHERE role = 'player' ORDER BY name"
-  );
+  const { sql, values } = visiblePlayersQuery(req.user);
+  const rows = await query(sql, values);
   res.json(rows);
 }));
 
 router.get("/coaches", asyncHandler(async (req, res) => {
-  const rows = await query(
-    "SELECT id, name, email, role, position, jersey_number, age, birthdate, location, profile_picture_url, profile_picture_file_id, is_active, created_at FROM users WHERE role = 'coach' ORDER BY name"
-  );
+  const { sql, values } = visibleCoachesQuery(req.user);
+  const rows = await query(sql, values);
   res.json(rows);
 }));
 
 router.get("/trainers", asyncHandler(async (req, res) => {
-  const rows = await query(
-    "SELECT id, name, email, role, position, jersey_number, age, birthdate, location, profile_picture_url, profile_picture_file_id, is_active, created_at FROM users WHERE role = 'trainer' ORDER BY name"
-  );
+  const { sql, values } = visibleTrainersQuery(req.user);
+  const rows = await query(sql, values);
   res.json(rows);
 }));
 
-router.patch("/users/:userId/password", asyncHandler(async (req, res) => {
+router.get("/teams/opponents", asyncHandler(async (req, res) => {
+  const params = [];
+  let excludeSql = "";
+
+  if (req.user.role === "coach") {
+    excludeSql = "WHERE coach_id <> ?";
+    params.push(req.user.id);
+  } else if (req.user.role === "trainer") {
+    excludeSql = `WHERE id NOT IN (
+      SELECT team_id FROM team_trainers WHERE trainer_id = ?
+    )`;
+    params.push(req.user.id);
+  } else if (req.user.role === "player") {
+    excludeSql = `WHERE id NOT IN (
+      SELECT team_id FROM team_members WHERE player_id = ? AND is_active = TRUE
+    )`;
+    params.push(req.user.id);
+  }
+
+  const rows = await query(
+    `SELECT id, team_name, coach_id, team_color, logo_url, team_logo_file_id
+    FROM teams
+    ${excludeSql}
+    ORDER BY team_name`,
+    params
+  );
+
+  res.json(rows);
+}));
+
+router.get("/teams/:teamId/opponent-roster", asyncHandler(async (req, res) => {
+  const rows = await query(
+    `SELECT
+      tm.player_id,
+      tm.is_active,
+      u.name,
+      u.email,
+      u.position,
+      u.jersey_number
+    FROM team_members tm
+    JOIN users u ON u.id = tm.player_id
+    WHERE tm.team_id = ? AND tm.is_active = TRUE
+    ORDER BY u.jersey_number IS NULL, u.jersey_number, u.name`,
+    [req.params.teamId]
+  );
+
+  res.json(rows);
+}));
+
+router.patch("/users/:userId/password", requireSelf("userId"), passwordChangeLimiter, asyncHandler(async (req, res) => {
   const { current_password: currentPassword, new_password: newPassword } = req.body;
 
   if (!currentPassword || !newPassword) {
@@ -306,16 +474,22 @@ router.patch("/users/:userId/password", asyncHandler(async (req, res) => {
 
   const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
   await query("UPDATE users SET password_hash = ? WHERE id = ?", [passwordHash, req.params.userId]);
+  passwordChangeLimiter.reset(req);
 
   res.json({ message: "Password updated" });
 }));
 
-router.post("/users/:userId/password-code", asyncHandler(async (req, res) => {
+router.post("/users/:userId/password-code", requireSelf("userId"), passwordCodeRequestLimiter, asyncHandler(async (req, res) => {
   const rows = await query("SELECT id, name, email FROM users WHERE id = ?", [req.params.userId]);
   const user = rows[0];
 
   if (!user) {
     throw new ApiError(404, "User not found");
+  }
+
+  const existingRecord = getPasswordCodeRecord(req.params.userId);
+  if (existingRecord && Date.now() - existingRecord.createdAt < PASSWORD_CODE_RESEND_COOLDOWN_MS) {
+    throw new ApiError(429, "Wait before requesting another confirmation code.");
   }
 
   const rawCode = createPasswordCode();
@@ -325,7 +499,8 @@ router.post("/users/:userId/password-code", asyncHandler(async (req, res) => {
   passwordCodes.set(String(user.id), {
     codeHash,
     attempts: 0,
-    expiresAt: Date.now() + 10 * 60 * 1000,
+    createdAt: Date.now(),
+    expiresAt: Date.now() + PASSWORD_CODE_TTL_MS,
   });
 
   await sendPasswordResetCodeEmail({
@@ -341,7 +516,7 @@ router.post("/users/:userId/password-code", asyncHandler(async (req, res) => {
   });
 }));
 
-router.post("/users/:userId/password-code/verify", asyncHandler(async (req, res) => {
+router.post("/users/:userId/password-code/verify", requireSelf("userId"), passwordCodeVerifyLimiter, asyncHandler(async (req, res) => {
   const code = String(req.body.code || "").replace(/\D/g, "");
 
   if (code.length !== 6) {
@@ -366,10 +541,11 @@ router.post("/users/:userId/password-code/verify", asyncHandler(async (req, res)
   }
 
   record.verified = true;
+  passwordCodeVerifyLimiter.reset(req);
   res.json({ message: "Confirmation code verified" });
 }));
 
-router.patch("/users/:userId/password-with-code", asyncHandler(async (req, res) => {
+router.patch("/users/:userId/password-with-code", requireSelf("userId"), passwordWithCodeLimiter, asyncHandler(async (req, res) => {
   const code = String(req.body.code || "").replace(/\D/g, "");
   const newPassword = String(req.body.new_password || "");
 
@@ -395,6 +571,9 @@ router.patch("/users/:userId/password-with-code", asyncHandler(async (req, res) 
   const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
   await query("UPDATE users SET password_hash = ? WHERE id = ?", [passwordHash, req.params.userId]);
   passwordCodes.delete(String(req.params.userId));
+  passwordCodeRequestLimiter.reset(req);
+  passwordCodeVerifyLimiter.reset(req);
+  passwordWithCodeLimiter.reset(req);
 
   res.json({ message: "Password updated" });
 }));
@@ -462,35 +641,13 @@ router.delete("/teams/:teamId/members/:playerId", asyncHandler(async (req, res) 
 }));
 
 router.delete("/players/:playerId", asyncHandler(async (req, res) => {
-  const rows = await query("SELECT id FROM users WHERE id = ? AND role = 'player'", [req.params.playerId]);
-  const player = rows[0];
-
-  if (!player) {
-    throw new ApiError(404, "Player not found");
-  }
-
   const connection = await pool.getConnection();
 
   try {
     await connection.beginTransaction();
 
-    await connection.execute(
-      `DELETE FROM drill_performance_logs
-      WHERE player_id = ?
-        OR training_assignment_id IN (
-          SELECT id FROM training_assignments WHERE player_id = ?
-        )`,
-      [player.id, player.id]
-    );
-    await connection.execute("DELETE FROM training_assignments WHERE player_id = ?", [player.id]);
-    await connection.execute("DELETE FROM performance_logs WHERE user_id = ?", [player.id]);
-    await connection.execute("DELETE FROM attendance_logs WHERE player_id = ?", [player.id]);
-    await connection.execute("DELETE FROM injury_logs WHERE player_id = ?", [player.id]);
-    await connection.execute("DELETE FROM team_members WHERE player_id = ?", [player.id]);
-
-    const [result] = await connection.execute("DELETE FROM users WHERE id = ? AND role = 'player'", [player.id]);
-
-    if (!result.affectedRows) {
+    const deleted = await deletePlayerById(connection, req.params.playerId);
+    if (!deleted) {
       throw new ApiError(404, "Player not found");
     }
 
@@ -518,19 +675,43 @@ router.get("/teams/:teamId/trainers", asyncHandler(async (req, res) => {
 
 router.post("/teams/:teamId/trainers", asyncHandler(async (req, res) => {
   await ensureRecord("teams", req.params.teamId, "Team");
-  await ensureRecord("users", req.body.trainer_id, "Trainer");
+  const trainer = await ensureRecord("users", req.body.trainer_id, "Trainer");
+
+  if (trainer.role !== "trainer") {
+    throw new ApiError(400, "Selected user is not a trainer");
+  }
+
+  const existingAssignments = await query(
+    `SELECT tt.*, u.name, u.email
+    FROM team_trainers tt
+    JOIN users u ON u.id = tt.trainer_id
+    WHERE tt.team_id = ?
+    LIMIT 1`,
+    [req.params.teamId]
+  );
+  const existingAssignment = existingAssignments[0];
+
+  if (existingAssignment && String(existingAssignment.trainer_id) !== String(req.body.trainer_id)) {
+    throw new ApiError(409, "This team already has a trainer. Remove the current trainer before assigning another.");
+  }
 
   await query(
     `INSERT INTO team_trainers (team_id, trainer_id, assigned_by)
     VALUES (?, ?, ?)
     ON DUPLICATE KEY UPDATE assigned_by = VALUES(assigned_by), assigned_at = CURRENT_TIMESTAMP`,
-    [req.params.teamId, req.body.trainer_id, req.body.assigned_by]
+    [req.params.teamId, req.body.trainer_id, req.user.id]
   );
 
-  const rows = await query("SELECT * FROM team_trainers WHERE team_id = ? AND trainer_id = ?", [
+  const rows = await query(
+    `SELECT tt.*, u.name, u.email
+    FROM team_trainers tt
+    JOIN users u ON u.id = tt.trainer_id
+    WHERE tt.team_id = ? AND tt.trainer_id = ?`,
+    [
     req.params.teamId,
     req.body.trainer_id,
-  ]);
+    ]
+  );
   res.status(201).json(rows[0]);
 }));
 
@@ -672,6 +853,9 @@ router.patch("/matches/:matchId/score", asyncHandler(async (req, res) => {
 
 router.post("/drills/:drillId/assign", asyncHandler(async (req, res) => {
   const drill = await ensureRecord("drills", req.params.drillId, "Drill");
+  if (req.user.role === "trainer" && String(drill.created_by) !== String(req.user.id)) {
+    throw new ApiError(403, "You can only assign drills you created");
+  }
 
   const result = await query(
     `INSERT INTO training_assignments
@@ -679,7 +863,7 @@ router.post("/drills/:drillId/assign", asyncHandler(async (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       req.body.player_id,
-      req.body.assigned_by,
+      req.user.id,
       req.params.drillId,
       req.body.focus_area || drill.category,
       req.body.drill_description || drill.description,
@@ -693,13 +877,34 @@ router.post("/drills/:drillId/assign", asyncHandler(async (req, res) => {
 }));
 
 router.get("/players/:playerId/training-assignments", asyncHandler(async (req, res) => {
+  const visibilityClauses = ["ta.player_id = ?"];
+  const visibilityValues = [req.params.playerId];
+
+  if (req.user.role === "trainer") {
+    visibilityClauses.push("ta.assigned_by = ?");
+    visibilityValues.push(req.user.id);
+  } else if (req.user.role === "player") {
+    visibilityClauses.push(`ta.assigned_by IN (
+      SELECT tt.trainer_id
+      FROM team_trainers tt
+      JOIN team_members tm ON tm.team_id = tt.team_id
+      WHERE tm.player_id = ? AND tm.is_active = TRUE
+    )`);
+    visibilityValues.push(req.params.playerId);
+  }
+  visibilityClauses.push(`EXISTS (
+    SELECT 1 FROM drills owner_drill
+    WHERE owner_drill.id = ta.drill_id
+      AND owner_drill.created_by = ta.assigned_by
+  )`);
+
   const rows = await query(
-    `SELECT ta.*, d.drill_name, d.category, d.difficulty
+    `SELECT ta.*, d.drill_name, d.category, d.difficulty, d.video_url
     FROM training_assignments ta
     LEFT JOIN drills d ON d.id = ta.drill_id
-    WHERE ta.player_id = ?
+    WHERE ${visibilityClauses.join(" AND ")}
     ORDER BY ta.created_at DESC`,
-    [req.params.playerId]
+    visibilityValues
   );
   res.json(rows);
 }));
@@ -744,15 +949,11 @@ router.post("/training-assignments/:assignmentId/logs", asyncHandler(async (req,
 }));
 
 router.get("/players/:playerId/performance-logs", asyncHandler(async (req, res) => {
-  await ensurePerformanceLogColumns();
-
   const rows = await query("SELECT * FROM performance_logs WHERE user_id = ? ORDER BY created_at DESC", [req.params.playerId]);
   res.json(rows);
 }));
 
 router.post("/players/:playerId/performance-logs", asyncHandler(async (req, res) => {
-  await ensurePerformanceLogColumns();
-
   const isReflection = req.body.session_type === "match" && req.body.action_type === "reflection" && req.body.match_id;
   if (isReflection) {
     const existingRows = await query(
@@ -862,7 +1063,7 @@ router.post("/attendance-logs/bulk", asyncHandler(async (req, res) => {
     log.status,
     log.late_minutes || 0,
     log.reason || null,
-    log.marked_by,
+    req.user.id,
   ]);
 
   const placeholders = values.map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?)").join(", ");
@@ -877,10 +1078,40 @@ router.post("/attendance-logs/bulk", asyncHandler(async (req, res) => {
   res.status(201).json({ inserted: result.affectedRows });
 }));
 
-router.post("/training-schedules/:scheduleId/qr-token", asyncHandler(async (req, res) => {
+router.post("/training-schedules/:scheduleId/qr-token", qrTokenLimiter, asyncHandler(async (req, res) => {
   const schedule = await ensureRecord("training_schedules", req.params.scheduleId, "Training schedule");
+  if (toLocalDateKey(schedule.session_date) < toLocalDateKey()) {
+    throw new ApiError(400, "QR codes are disabled for past training dates");
+  }
+
+  const existingRows = await query(
+    `SELECT
+      token,
+      DATE_FORMAT(expires_at, '%Y-%m-%dT%H:%i:%s.000Z') AS expires_at_iso
+    FROM training_schedule_qr_tokens
+    WHERE training_schedule_id = ? AND expires_at > UTC_TIMESTAMP()
+    ORDER BY expires_at DESC
+    LIMIT 1`,
+    [schedule.id]
+  );
+  const existing = existingRows[0];
+
+  if (existing) {
+    return res.json({
+      token: existing.token,
+      training_schedule_id: schedule.id,
+      team_id: schedule.team_id,
+      session_type: schedule.session_type,
+      session_date: schedule.session_date,
+      expires_at: existing.expires_at_iso,
+      expires_in_seconds: Math.max(0, Math.ceil((new Date(existing.expires_at_iso).getTime() - Date.now()) / 1000)),
+      check_in_url: `netmind://attendance-check-in?token=${existing.token}`,
+      reused: true,
+    });
+  }
+
   const token = crypto.randomBytes(24).toString("hex");
-  const expiresAt = new Date(Date.now() + 60 * 1000);
+  const expiresAt = new Date(Date.now() + ATTENDANCE_QR_TTL_MINUTES * 60 * 1000);
 
   await query(
     `INSERT INTO training_schedule_qr_tokens
@@ -890,7 +1121,7 @@ router.post("/training-schedules/:scheduleId/qr-token", asyncHandler(async (req,
       schedule.id,
       token,
       expiresAt.toISOString().slice(0, 19).replace("T", " "),
-      req.body.created_by || null,
+      req.user.id,
     ]
   );
 
@@ -901,7 +1132,9 @@ router.post("/training-schedules/:scheduleId/qr-token", asyncHandler(async (req,
     session_type: schedule.session_type,
     session_date: schedule.session_date,
     expires_at: expiresAt.toISOString(),
+    expires_in_seconds: ATTENDANCE_QR_TTL_MINUTES * 60,
     check_in_url: `netmind://attendance-check-in?token=${token}`,
+    reused: false,
   });
 }));
 
@@ -975,11 +1208,7 @@ router.get("/attendance-qr/:token", asyncHandler(async (req, res) => {
   });
 }));
 
-router.post("/attendance-qr/:token/check-in", asyncHandler(async (req, res) => {
-  if (!req.body.player_id) {
-    throw new ApiError(400, "player_id is required");
-  }
-
+router.post("/attendance-qr/:token/check-in", qrAttendanceCheckInLimiter, asyncHandler(async (req, res) => {
   const rows = await query(
     `SELECT
       qr.*,
@@ -1003,11 +1232,12 @@ router.post("/attendance-qr/:token/check-in", asyncHandler(async (req, res) => {
     throw new ApiError(410, "QR token has expired");
   }
 
+  const playerId = req.user.id;
   const existing = await query(
     `SELECT id FROM attendance_logs
     WHERE player_id = ? AND team_id = ? AND session_type = ? AND session_date = ?
     LIMIT 1`,
-    [req.body.player_id, record.team_id, record.session_type, record.session_date]
+    [playerId, record.team_id, record.session_type, record.session_date]
   );
 
   if (existing.length) {
@@ -1020,12 +1250,12 @@ router.post("/attendance-qr/:token/check-in", asyncHandler(async (req, res) => {
       (player_id, team_id, session_type, match_id, session_date, status, late_minutes, reason, marked_by)
     VALUES (?, ?, ?, NULL, ?, 'present', 0, ?, ?)`,
     [
-      req.body.player_id,
+      playerId,
       record.team_id,
       record.session_type,
       record.session_date,
       "QR check-in",
-      req.body.marked_by || req.body.player_id,
+      playerId,
     ]
   );
 
@@ -1071,7 +1301,7 @@ router.post("/players/:playerId/injuries", asyncHandler(async (req, res) => {
       req.body.occurred_at,
       req.body.recovered_at || null,
       req.body.days_missed || null,
-      req.body.reported_by,
+      req.user.id,
       req.body.notes || null,
     ]
   );
@@ -1081,7 +1311,7 @@ router.post("/players/:playerId/injuries", asyncHandler(async (req, res) => {
 
 router.patch("/injury-logs/:injuryId/recover", asyncHandler(async (req, res) => {
   const injury = await ensureRecord("injury_logs", req.params.injuryId, "Injury log");
-  const recoveredAt = req.body.recovered_at || new Date().toISOString().slice(0, 10);
+  const recoveredAt = req.body.recovered_at || toLocalDateKey();
 
   await query(
     `UPDATE injury_logs
@@ -1103,7 +1333,7 @@ router.post("/teams/:teamId/lineups", asyncHandler(async (req, res) => {
     `INSERT INTO lineups (coach_id, team_id, match_id, match_date, lineup_config, rotation_order, notes)
     VALUES (?, ?, ?, ?, ?, ?, ?)`,
     [
-      req.body.coach_id,
+      req.user.id,
       req.params.teamId,
       req.body.match_id || null,
       req.body.match_date,
@@ -1189,8 +1419,8 @@ router.get("/teams/:teamId/player-comparisons", asyncHandler(async (req, res) =>
 }));
 
 router.post("/teams/:teamId/player-comparisons/generate", asyncHandler(async (req, res) => {
-  if (!req.body.coach_id || !req.body.season_id) {
-    throw new ApiError(400, "coach_id and season_id are required");
+  if (!req.body.season_id) {
+    throw new ApiError(400, "season_id is required");
   }
 
   const metricName = req.body.metric_name || req.body.action_type || "overall";
@@ -1232,7 +1462,7 @@ router.post("/teams/:teamId/player-comparisons/generate", asyncHandler(async (re
     `INSERT INTO player_comparisons (coach_id, team_id, season_id, metric_name, rankings)
     VALUES (?, ?, ?, ?, ?)`,
     [
-      req.body.coach_id,
+      req.user.id,
       req.params.teamId,
       req.body.season_id,
       metricName,

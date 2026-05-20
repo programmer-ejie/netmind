@@ -6,7 +6,8 @@ import AdminLayout, {
   AdminField,
   AdminInput,
 } from './AdminLayout'
-import { API_BASE, apiRequest, getResource, readSavedUser } from '../../lib/api'
+import { API_BASE, apiRequest, getAuthHeaders, getResource, readSavedUser } from '../../lib/api'
+import { toLocalDateKey } from '../../lib/dateKeys'
 
 const SettingsSkeleton = () => (
   <>
@@ -172,7 +173,9 @@ const AdminSettings = ({ currentPath = '#coach/settings' }) => {
       setMessage('')
       setError('')
 
-      const response = await fetch(`${API_BASE}/database/export`)
+      const response = await fetch(`${API_BASE}/database/export`, {
+        headers: getAuthHeaders('/database/export'),
+      })
       if (!response.ok) {
         const payload = await response.json().catch(() => null)
         throw new Error(payload?.message || `Export failed with ${response.status}`)
@@ -182,7 +185,7 @@ const AdminSettings = ({ currentPath = '#coach/settings' }) => {
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = `netmind-${new Date().toISOString().slice(0, 10)}.sql`
+      link.download = `netmind-${toLocalDateKey()}.sql`
       document.body.appendChild(link)
       link.click()
       link.remove()

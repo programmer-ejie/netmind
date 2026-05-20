@@ -1,9 +1,11 @@
 const express = require("express");
 const multer = require("multer");
+const sharp = require("sharp");
 const { query } = require("../config/db");
 const asyncHandler = require("../utils/asyncHandler");
 const ApiError = require("../utils/apiError");
 const { getDriveClient, uploadBufferToDrive } = require("../utils/googleDriveStorage");
+const { canAccessTeam, isSelf } = require("../middleware/authorization");
 
 const router = express.Router();
 const upload = multer({
@@ -21,8 +23,38 @@ const upload = multer({
   },
 });
 
+async function convertImageToWebp(file, { maxSize = 1200, quality = 82 } = {}) {
+  try {
+    const buffer = await sharp(file.buffer)
+      .rotate()
+      .resize({
+        width: maxSize,
+        height: maxSize,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .webp({ quality })
+      .toBuffer();
+
+    return {
+      buffer,
+      extension: "webp",
+      mimeType: "image/webp",
+    };
+  } catch {
+    throw new ApiError(400, "Uploaded file must be a valid image");
+  }
+}
+
 router.post(
   "/users/:id/profile-picture",
+  asyncHandler(async (req, res, next) => {
+    if (!isSelf(req.user, req.params.id)) {
+      throw new ApiError(403, "You can only update your own profile picture");
+    }
+
+    next();
+  }),
   upload.single("profile_picture"),
   asyncHandler(async (req, res) => {
     if (!req.file) {
@@ -34,12 +66,12 @@ router.post(
       throw new ApiError(404, "User not found");
     }
 
-    const extension = req.file.originalname.split(".").pop() || "jpg";
+    const image = await convertImageToWebp(req.file, { maxSize: 900, quality: 82 });
     const safeName = users[0].name.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase() || "profile";
     const uploaded = await uploadBufferToDrive({
-      buffer: req.file.buffer,
-      fileName: `${safeName}-${Date.now()}.${extension}`,
-      mimeType: req.file.mimetype,
+      buffer: image.buffer,
+      fileName: `${safeName}-${Date.now()}.${image.extension}`,
+      mimeType: image.mimeType,
       folderId: process.env.GOOGLE_DRIVE_PROFILE_FOLDER_ID || process.env.GOOGLE_DRIVE_FOLDER_ID,
     });
 
@@ -62,6 +94,13 @@ router.post(
 
 router.post(
   "/teams/:id/logo",
+  asyncHandler(async (req, res, next) => {
+    if (req.user.role === "player" || !(await canAccessTeam(req.user, req.params.id))) {
+      throw new ApiError(403, "You do not have permission to update this team logo");
+    }
+
+    next();
+  }),
   upload.single("team_logo"),
   asyncHandler(async (req, res) => {
     if (!req.file) {
@@ -73,12 +112,12 @@ router.post(
       throw new ApiError(404, "Team not found");
     }
 
-    const extension = req.file.originalname.split(".").pop() || "jpg";
+    const image = await convertImageToWebp(req.file, { maxSize: 1200, quality: 84 });
     const safeName = teams[0].team_name.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase() || "team-logo";
     const uploaded = await uploadBufferToDrive({
-      buffer: req.file.buffer,
-      fileName: `${safeName}-logo-${Date.now()}.${extension}`,
-      mimeType: req.file.mimetype,
+      buffer: image.buffer,
+      fileName: `${safeName}-logo-${Date.now()}.${image.extension}`,
+      mimeType: image.mimeType,
       folderId: process.env.GOOGLE_DRIVE_TEAMLOGO_FOLDER_ID || process.env.GOOGLE_DRIVE_FOLDER_ID,
     });
 

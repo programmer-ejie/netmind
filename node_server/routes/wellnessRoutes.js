@@ -2,26 +2,9 @@ const express = require("express");
 const { query } = require("../config/db");
 const asyncHandler = require("../utils/asyncHandler");
 const ApiError = require("../utils/apiError");
+const { toLocalDateKey } = require("../utils/dateKeys");
 
 const router = express.Router();
-
-async function ensureWellnessTable() {
-  await query(`
-    CREATE TABLE IF NOT EXISTS wellness_checkins (
-      id INT PRIMARY KEY AUTO_INCREMENT,
-      player_id INT NOT NULL,
-      checkin_date DATE NOT NULL,
-      fatigue_level TINYINT NOT NULL,
-      rpe TINYINT NOT NULL,
-      sleep_hours DECIMAL(4,1) NOT NULL,
-      notes TEXT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      UNIQUE KEY unique_player_checkin_date (player_id, checkin_date),
-      CONSTRAINT fk_wellness_checkins_player FOREIGN KEY (player_id) REFERENCES users(id)
-    )
-  `);
-}
 
 function clampNumber(value, min, max) {
   const number = Number(value);
@@ -31,30 +14,14 @@ function clampNumber(value, min, max) {
 }
 
 function toDateKey(value) {
-  if (!value) return new Date().toISOString().slice(0, 10);
-
-  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}/.test(value)) {
-    return value.slice(0, 10);
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return String(value).slice(0, 10);
-
-  return date.toISOString().slice(0, 10);
+  return toLocalDateKey(value || new Date());
 }
 
 function todayDateKey() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
+  return toLocalDateKey();
 }
 
 router.get("/players/:playerId/wellness-checkins", asyncHandler(async (req, res) => {
-  await ensureWellnessTable();
-
   const params = [req.params.playerId];
   let dateFilter = "";
 
@@ -85,8 +52,6 @@ router.get("/players/:playerId/wellness-checkins", asyncHandler(async (req, res)
 }));
 
 router.get("/wellness-checkins", asyncHandler(async (req, res) => {
-  await ensureWellnessTable();
-
   const params = [];
   const filters = [];
 
@@ -98,6 +63,29 @@ router.get("/wellness-checkins", asyncHandler(async (req, res) => {
   if (req.query.month) {
     filters.push("DATE_FORMAT(checkin_date, '%Y-%m') = ?");
     params.push(req.query.month);
+  }
+
+  if (req.user.role === "coach") {
+    filters.push(
+      `player_id IN (
+        SELECT tm.player_id FROM team_members tm
+        JOIN teams t ON t.id = tm.team_id
+        WHERE t.coach_id = ?
+      )`
+    );
+    params.push(req.user.id);
+  } else if (req.user.role === "trainer") {
+    filters.push(
+      `player_id IN (
+        SELECT tm.player_id FROM team_members tm
+        JOIN team_trainers tt ON tt.team_id = tm.team_id
+        WHERE tt.trainer_id = ?
+      )`
+    );
+    params.push(req.user.id);
+  } else {
+    filters.push("player_id = ?");
+    params.push(req.user.id);
   }
 
   const whereSql = filters.length ? `WHERE ${filters.join(" AND ")}` : "";
@@ -125,8 +113,6 @@ router.get("/wellness-checkins", asyncHandler(async (req, res) => {
 }));
 
 router.post("/players/:playerId/wellness-checkins", asyncHandler(async (req, res) => {
-  await ensureWellnessTable();
-
   const fatigueLevel = clampNumber(req.body.fatigue_level, 1, 10);
   const rpe = clampNumber(req.body.rpe, 1, 10);
   const sleepHours = clampNumber(req.body.sleep_hours, 0, 24);

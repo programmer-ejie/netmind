@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AlertCircle, CheckCircle2, Eye, EyeOff, Loader2, Lock, Mail, UserRound } from 'lucide-react'
 import { siteContent } from '../data/netmindData'
 import { loginUser, registerCoachWithTemporaryPassword, saveUser } from '../lib/api'
@@ -55,6 +55,18 @@ const AuthSection = () => {
   const [statusModal, setStatusModal] = useState(null)
   const isSignup = mode === 'signup'
   const isSubmitting = statusModal?.status === 'loading'
+
+  useEffect(() => {
+    const openRegister = () => {
+      if (window.location.hash === '#register') {
+        setMode('signup')
+      }
+    }
+
+    openRegister()
+    window.addEventListener('hashchange', openRegister)
+    return () => window.removeEventListener('hashchange', openRegister)
+  }, [])
 
   const updateForm = (key, value) => {
     setForm((current) => ({ ...current, [key]: value }))
@@ -137,6 +149,7 @@ const AuthSection = () => {
 
   return (
     <section id="auth" className="section-padding gradient-bg">
+      <span id="register" className="block scroll-mt-24" aria-hidden="true" />
       <div className="container mx-auto max-w-5xl grid md:grid-cols-2 gap-12 items-center">
         <div className="max-w-md">
           <p className="mb-3 text-sm font-bold uppercase tracking-wide text-primary">

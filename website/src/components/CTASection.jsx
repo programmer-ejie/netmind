@@ -7,8 +7,8 @@ const CTASection = () => (
           Ready to Run Your{' '}
           <span className="glow-text">Volleyball Data System?</span>
         </h2>
-        <a href="#courses" className="glow-button text-lg px-10 py-5 inline-block">
-          Review Static Data
+        <a href="#register" className="glow-button text-lg px-10 py-5 inline-block">
+          Register Now
         </a>
       </div>
     </div>

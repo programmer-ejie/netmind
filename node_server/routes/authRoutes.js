@@ -6,12 +6,34 @@ const jwt = require("jsonwebtoken");
 const { body, validationResult } = require("express-validator");
 const { pool, query } = require("../config/db");
 const { protect } = require("../middleware/auth");
+const {
+  createRateLimiter,
+  envNumber,
+  getClientIp,
+  normalizeRateKeyPart,
+} = require("../middleware/rateLimit");
 const asyncHandler = require("../utils/asyncHandler");
 const ApiError = require("../utils/apiError");
 const { sendTemporaryPasswordEmail } = require("../utils/emailService");
 
 const router = express.Router();
 const BCRYPT_ROUNDS = Number(process.env.BCRYPT_ROUNDS || 10);
+
+const authEmailKey = (req) => `${getClientIp(req)}:${normalizeRateKeyPart(req.body?.email) || "no-email"}`;
+const registrationLimiter = createRateLimiter({
+  name: "auth-register",
+  windowMs: envNumber("REGISTER_RATE_LIMIT_WINDOW_MS", 60 * 60 * 1000),
+  max: envNumber("REGISTER_RATE_LIMIT_MAX", 20),
+  keyGenerator: authEmailKey,
+  message: "Too many registration attempts. Try again later.",
+});
+const loginLimiter = createRateLimiter({
+  name: "auth-login",
+  windowMs: envNumber("LOGIN_RATE_LIMIT_WINDOW_MS", 15 * 60 * 1000),
+  max: envNumber("LOGIN_RATE_LIMIT_MAX", 10),
+  keyGenerator: authEmailKey,
+  message: "Too many login attempts. Try again later.",
+});
 
 function signToken(user) {
   return jwt.sign(
@@ -50,6 +72,7 @@ function generateTemporaryPassword(length = 16) {
 
 router.post(
   "/register-coach",
+  registrationLimiter,
   [
     body("name").trim().notEmpty().withMessage("Name is required"),
     body("email").isEmail().withMessage("Valid email is required"),
@@ -136,6 +159,7 @@ router.post(
 
 router.post(
   "/register-trainer",
+  registrationLimiter,
   [
     body("name").trim().notEmpty().withMessage("Name is required"),
     body("email").isEmail().withMessage("Valid email is required"),
@@ -251,6 +275,7 @@ router.post(
 
 router.post(
   "/register-player",
+  registrationLimiter,
   [
     body("name").trim().notEmpty().withMessage("Name is required"),
     body("email").isEmail().withMessage("Valid email is required"),
@@ -340,6 +365,7 @@ router.post(
 
 router.post(
   "/register",
+  registrationLimiter,
   [
     body("name").trim().notEmpty().withMessage("Name is required"),
     body("email").isEmail().withMessage("Valid email is required"),
@@ -391,6 +417,7 @@ router.post(
 
 router.post(
   "/login",
+  loginLimiter,
   [
     body("email").isEmail().withMessage("Valid email is required"),
     body("password").notEmpty().withMessage("Password is required"),

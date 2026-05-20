@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Edit3, Info, Plus, TriangleAlert, Trash2 } from 'lucide-react'
 import AdminLayout, {
   AdminButton,
@@ -37,7 +37,6 @@ const AdminTrainers = ({ currentPath = '#coach/trainers' }) => {
   const [trainers, setTrainers] = useState([])
   const [teams, setTeams] = useState([])
   const [links, setLinks] = useState([])
-  const [coaches, setCoaches] = useState([])
   const [createModal, setCreateModal] = useState(false)
   const [creatingTrainer, setCreatingTrainer] = useState(false)
   const [editModal, setEditModal] = useState(false)
@@ -57,17 +56,16 @@ const AdminTrainers = ({ currentPath = '#coach/trainers' }) => {
     return map
   }, [links])
 
-  const load = async () => {
+  const load = useCallback(async () => {
     const teamParams = {
       limit: 100,
       ...(currentUser?.role === 'coach' && currentUser?.id ? { coach_id: currentUser.id } : {}),
     }
-    const [trainerRows, teamRows, linkRows, coachLinkRows, coachRows] = await Promise.all([
+    const [trainerRows, teamRows, linkRows, coachLinkRows] = await Promise.all([
       listResource('trainers'),
       listResource('teams', teamParams),
       listResource('team-trainers', { limit: 100 }),
       currentUser?.id ? listResource('coach-trainers', { coach_id: currentUser.id, limit: 100 }) : Promise.resolve([]),
-      listResource('coaches'),
     ])
     const scopedTeamIds = new Set(teamRows.map((team) => String(team.id)))
     const scopedLinks = linkRows.filter((link) => scopedTeamIds.has(String(link.team_id)))
@@ -77,12 +75,11 @@ const AdminTrainers = ({ currentPath = '#coach/trainers' }) => {
     setTrainers(trainerRows.filter((trainer) => scopedTrainerIds.has(String(trainer.id))))
     setTeams(teamRows)
     setLinks(scopedLinks)
-    setCoaches(coachRows)
-  }
+  }, [currentUser?.id, currentUser?.role])
 
   useEffect(() => {
     load().catch((err) => setError(err.message))
-  }, [])
+  }, [load])
 
   const createTrainer = async (event) => {
     event.preventDefault()
@@ -366,8 +363,8 @@ const AdminTrainers = ({ currentPath = '#coach/trainers' }) => {
               >
                 Cancel
               </AdminButton>
-              <AdminButton type="submit" variant="danger" disabled={deletingTrainer}>
-                {deletingTrainer ? 'Deleting...' : 'Delete Trainer'}
+              <AdminButton type="submit" className="admin-confirm-button" disabled={deletingTrainer}>
+                {deletingTrainer ? 'Confirming...' : 'Confirm'}
               </AdminButton>
             </div>
           </form>

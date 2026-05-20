@@ -1,8 +1,9 @@
 const { google } = require("googleapis");
 require("dotenv").config({ quiet: true });
+const { getGoogleRedirectUri } = require("../utils/googleOAuthConfig");
 
 const code = process.argv[2];
-const redirectUri = process.env.GOOGLE_REDIRECT_URI || "http://localhost:5000/oauth2callback";
+const redirectUri = getGoogleRedirectUri();
 
 const required = ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"];
 const missing = required.filter((key) => !process.env[key]);
@@ -23,6 +24,8 @@ const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_SECRET,
   redirectUri
 );
+
+console.log(`Using redirect URI: ${redirectUri}`);
 
 oauth2Client
   .getToken(code)

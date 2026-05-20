@@ -1,8 +1,9 @@
 const { google } = require("googleapis");
 const { Readable } = require("stream");
+const { getGoogleRedirectUri } = require("./googleOAuthConfig");
 
 function getOAuthDriveClient() {
-  const required = ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REFRESH_TOKEN", "GOOGLE_REDIRECT_URI"];
+  const required = ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REFRESH_TOKEN"];
   const missing = required.filter((key) => !process.env[key]);
 
   if (missing.length) {
@@ -12,7 +13,7 @@ function getOAuthDriveClient() {
   const auth = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
-    process.env.GOOGLE_REDIRECT_URI
+    getGoogleRedirectUri()
   );
 
   auth.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });

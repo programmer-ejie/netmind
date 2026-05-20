@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Edit3, Info, Plus, Trash2, TriangleAlert, UserPlus } from 'lucide-react'
 import AdminLayout, {
   AdminButton,
@@ -43,11 +43,11 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
     return [...coaches, ...trainerOnlyRows]
   }, [coaches, trainers])
 
-  const assignedTrainerIds = useMemo(
-    () => new Set(assignedTrainers.map((trainer) => String(trainer.trainer_id))),
-    [assignedTrainers],
-  )
-  const availableTrainers = trainers.filter((trainer) => !assignedTrainerIds.has(String(trainer.id)))
+  const assigningTeamHasTrainer = assignedTrainers.length > 0
+  const assignedTrainerNames = assignedTrainers
+    .map((link) => link.name || trainers.find((trainer) => String(trainer.id) === String(link.trainer_id))?.name)
+    .filter(Boolean)
+  const availableTrainers = assigningTeamHasTrainer ? [] : trainers
   const trainersByTeam = useMemo(() => {
     const map = new Map()
 
@@ -62,7 +62,7 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
     return map
   }, [trainerLinks, trainers])
 
-  const load = async () => {
+  const load = useCallback(async () => {
     const teamParams = {
       limit: 100,
       sortDir: 'asc',
@@ -85,11 +85,11 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
     setCoaches(coachRows)
     setTrainers(trainerRows.filter((trainer) => scopedTrainerIds.has(String(trainer.id))))
     setTrainerLinks(scopedTrainerLinks)
-  }
+  }, [currentUser?.id, currentUser?.role])
 
   useEffect(() => {
     load().catch((err) => setError(err.message))
-  }, [])
+  }, [load])
 
   const openCreate = () => {
     setEditing(null)
@@ -114,6 +114,7 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
   const openAssign = async (team) => {
     setAssigningTeam(team)
     setSelectedTrainer('')
+    setAssignedTrainers(trainerLinks.filter((link) => String(link.team_id) === String(team.id)))
     setAssignModal(true)
     setError('')
 
@@ -127,7 +128,7 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
 
   const assignTrainer = async (event) => {
     event.preventDefault()
-    if (!assigningTeam || !selectedTrainer) return
+    if (!assigningTeam || !selectedTrainer || assigningTeamHasTrainer) return
 
     try {
       setError('')
@@ -231,13 +232,12 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
           </AdminButton>
         </div>
 
-        <div className="admin-table">
+        <div className="admin-table admin-teams-table">
           <table className="admin-native-table">
             <thead>
               <tr>
                 <th>Team</th>
                 <th>Trainer</th>
-                <th>Color</th>
                 <th>Created</th>
                 <th>Actions</th>
               </tr>
@@ -246,7 +246,8 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
               {teams.map((team) => (
                 <tr
                   key={team.id}
-                  className="admin-click-row"
+                  className="admin-click-row admin-team-color-row"
+                  style={{ '--team-color': team.team_color || '#635bff' }}
                   onClick={() => {
                     window.location.hash = `coach/teams/${team.id}`
                   }}
@@ -266,16 +267,16 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
                     </span>
                   </td>
                   <td>{trainersByTeam.get(String(team.id))?.join(', ') || 'Not Assigned'}</td>
-                  <td>
-                    <span className="admin-color-pill">
-                      <i style={{ background: team.team_color || '#635bff' }} />
-                      {team.team_color || '-'}
-                    </span>
-                  </td>
                   <td>{formatDate(team.created_at)}</td>
                   <td>
                     <div className="admin-actions" onClick={(event) => event.stopPropagation()}>
-                      <AdminButton variant="secondary" onClick={() => openAssign(team)} aria-label="Assign trainer">
+                      <AdminButton
+                        variant="secondary"
+                        onClick={() => openAssign(team)}
+                        aria-label="Assign trainer"
+                        disabled={trainerLinks.some((link) => String(link.team_id) === String(team.id))}
+                        title={trainerLinks.some((link) => String(link.team_id) === String(team.id)) ? 'This team already has a trainer' : 'Assign trainer'}
+                      >
                         <UserPlus size={15} />
                       </AdminButton>
                       <AdminButton variant="secondary" onClick={() => openEdit(team)} aria-label="Edit team">
@@ -371,7 +372,11 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
           <form className="admin-form" onSubmit={assignTrainer}>
             <div className="admin-password-tip">
               <Info size={18} />
-              <p>Select one available trainer to assign to this team workspace.</p>
+              <p>
+                {assigningTeamHasTrainer
+                  ? `${assignedTrainerNames.join(', ') || 'A trainer'} is already assigned to this team. Remove the current trainer from the team details page before assigning another.`
+                  : 'Select one trainer to assign to this team workspace.'}
+              </p>
             </div>
 
             <div className="admin-delete-summary">
@@ -394,12 +399,14 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
                 required
                 value={selectedTrainer}
                 onChange={(event) => setSelectedTrainer(event.target.value)}
+                disabled={assigningTeamHasTrainer || !trainers.length}
               >
                 <option value="" disabled hidden>Select trainer</option>
                 {availableTrainers.map((trainer) => (
                   <option key={trainer.id} value={trainer.id}>{trainer.name}</option>
                 ))}
-                {!availableTrainers.length && <option value="" disabled>No connected trainers</option>}
+                {assigningTeamHasTrainer && <option value="" disabled>Trainer already assigned</option>}
+                {!assigningTeamHasTrainer && !availableTrainers.length && <option value="" disabled>No connected trainers</option>}
               </AdminSelect>
             </AdminField>
 
@@ -412,7 +419,7 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
               <AdminButton type="button" variant="ghost" onClick={() => setAssignModal(false)}>
                 Cancel
               </AdminButton>
-              <AdminButton type="submit" disabled={!selectedTrainer}>Assign Trainer</AdminButton>
+              <AdminButton type="submit" disabled={assigningTeamHasTrainer || !selectedTrainer}>Assign Trainer</AdminButton>
             </div>
           </form>
         )}

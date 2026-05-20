@@ -1,4 +1,8 @@
 
+// OAuth redirect URI uses GOOGLE_REDIRECT_URI when set.
+// Otherwise it defaults to BACKEND_BASE_URL/oauth2callback, or http://localhost:5001/oauth2callback.
+// Add the exact redirect URI to Google Cloud Console before generating a code.
+
 // to get the code
 npm run drive:auth-url
 

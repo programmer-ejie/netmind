@@ -3,7 +3,7 @@ const faqs = [
   { q: 'Can coaches invite team members?', a: 'Coaches can create trainer and player accounts inside the admin workspace after their account is created.' },
   { q: 'Which roles does NetMind support?', a: 'Coach, trainer, and player roles are represented in the users table and interface copy.' },
   { q: 'What sport is this built around?', a: 'The current schema and content are built for volleyball teams and performance tracking.' },
-  { q: 'Are demo records included?', a: 'No. New environments start empty so real team data can be created from the app.' },
+  { q: 'Are sample records included?', a: 'No. New environments start empty so real team data can be created from the app.' },
 ]
 
 const FAQSection = () => (

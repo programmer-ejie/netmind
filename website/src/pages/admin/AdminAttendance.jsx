@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import QRCode from 'qrcode'
 import { CalendarDays, ClipboardCheck, Info, Plus, QrCode } from 'lucide-react'
 import AdminLayout, {
@@ -15,12 +15,18 @@ import AdminLayout, {
   initials,
 } from './AdminLayout'
 import { API_BASE, apiRequest, createResource, listResource, readSavedUser } from '../../lib/api'
+import { toLocalDateKey } from '../../lib/dateKeys'
 
 const blankSchedule = {
   team_id: '',
   session_type: 'training',
-  session_date: new Date().toISOString().slice(0, 10),
+  session_date: toLocalDateKey(),
   description: '',
+}
+
+const isPastSchedule = (schedule) => {
+  const sessionDate = toLocalDateKey(schedule?.session_date)
+  return Boolean(sessionDate) && sessionDate < toLocalDateKey()
 }
 
 const getTeamLogoSrc = (team) => {
@@ -38,6 +44,7 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
   const [activeSchedule, setActiveSchedule] = useState(null)
   const [form, setForm] = useState(blankSchedule)
   const [qrState, setQrState] = useState({ loading: false, image: '', token: '', expiresAt: '', error: '' })
+  const [qrCache, setQrCache] = useState(() => new Map())
   const [remainingSeconds, setRemainingSeconds] = useState(0)
   const [failedLogoIds, setFailedLogoIds] = useState(() => new Set())
   const [error, setError] = useState('')
@@ -48,7 +55,7 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
     return map
   }, [teams])
 
-  const load = async () => {
+  const load = useCallback(async () => {
     const teamParams = {
       limit: 100,
       ...(currentUser?.role === 'coach' && currentUser?.id ? { coach_id: currentUser.id } : {}),
@@ -74,11 +81,11 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
     const coachTeamIds = new Set(teamRows.map((team) => String(team.id)))
     setSchedules(scheduleRows.filter((schedule) => coachTeamIds.has(String(schedule.team_id))))
     setTeams(teamRows)
-  }
+  }, [currentUser?.id, currentUser?.role, isTrainerView])
 
   useEffect(() => {
     load().catch((err) => setError(err.message))
-  }, [])
+  }, [load])
 
   const openCreate = () => {
     setForm(blankSchedule)
@@ -113,7 +120,22 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
     return () => window.clearInterval(timer)
   }, [qrState.expiresAt])
 
-  const generateQr = async (schedule) => {
+  const getQrRemainingSeconds = (expiresAt) => (
+    Math.max(0, Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 1000))
+  )
+
+  const formatQrCountdown = (seconds) => {
+    const minutes = Math.floor(seconds / 60)
+    const remainder = seconds % 60
+    return `${minutes}:${String(remainder).padStart(2, '0')}`
+  }
+
+  const generateQr = useCallback(async (schedule) => {
+    if (!schedule || isPastSchedule(schedule)) {
+      setQrState({ loading: false, image: '', token: '', expiresAt: '', error: 'QR codes are disabled for past training dates.' })
+      return
+    }
+
     setQrState({ loading: true, image: '', token: '', expiresAt: '', error: '' })
     setRemainingSeconds(0)
 
@@ -131,21 +153,38 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
         },
       })
 
-      setQrState({
+      const nextQrState = {
         loading: false,
         image,
         token: payload.token,
         expiresAt: payload.expires_at,
         error: '',
+      }
+
+      setQrState(nextQrState)
+      setQrCache((current) => {
+        const next = new Map(current)
+        next.set(String(schedule.id), nextQrState)
+        return next
       })
     } catch (err) {
       setQrState({ loading: false, image: '', token: '', expiresAt: '', error: err.message })
     }
-  }
+  }, [currentUser?.id])
 
   const openQr = (schedule) => {
+    if (isPastSchedule(schedule)) return
+
     setActiveSchedule(schedule)
     setQrModalOpen(true)
+    const cached = qrCache.get(String(schedule.id))
+
+    if (cached?.expiresAt && getQrRemainingSeconds(cached.expiresAt) > 0) {
+      setQrState(cached)
+      setRemainingSeconds(getQrRemainingSeconds(cached.expiresAt))
+      return
+    }
+
     generateQr(schedule)
   }
 
@@ -176,6 +215,7 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
             const teamName = team?.team_name || getName(teams, schedule.team_id, 'Team')
             const logoSrc = getTeamLogoSrc(team)
             const showLogo = logoSrc && !failedLogoIds.has(String(team.id))
+            const pastSchedule = isPastSchedule(schedule)
 
             return (
               <article className="admin-schedule-card" key={schedule.id}>
@@ -211,7 +251,13 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
                   </div>
                 </div>
                 <div className="admin-schedule-actions">
-                  <AdminButton variant="secondary" onClick={() => openQr(schedule)} aria-label={`Generate QR for ${teamName}`}>
+                  <AdminButton
+                    variant="secondary"
+                    onClick={() => openQr(schedule)}
+                    disabled={pastSchedule}
+                    title={pastSchedule ? 'QR disabled because this training date has passed' : 'Generate QR'}
+                    aria-label={pastSchedule ? `QR disabled for past training date for ${teamName}` : `Generate QR for ${teamName}`}
+                  >
                     <QrCode size={17} />
                   </AdminButton>
                   <AdminButton
@@ -269,7 +315,7 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
         <div className="admin-qr-panel">
           <div className="admin-password-tip">
             <Info size={18} />
-            <p>This QR expires after 1 minute. Players can scan it in the app to check in for attendance.</p>
+            <p>This QR stays active until the countdown expires. Players can scan it in the app to check in for attendance.</p>
           </div>
 
           <div className={`admin-qr-code ${qrExpired ? 'expired' : ''}`}>
@@ -285,7 +331,7 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
 
           {qrState.error && <div className="admin-alert">{qrState.error}</div>}
           {!qrExpired && qrState.expiresAt && (
-            <p className="admin-qr-countdown">Expires in {remainingSeconds}s</p>
+            <p className="admin-qr-countdown">Expires in {formatQrCountdown(remainingSeconds)}</p>
           )}
         </div>
       </AdminModal>

@@ -17,6 +17,7 @@ import {
 import { Card, PrimaryButton, ProgressBar, Screen, SectionTitle } from '@/components/netmind-ui';
 import { injuryChecklist } from '@/constants/netmind';
 import { useNetmindTheme } from '@/contexts/netmind-theme';
+import { toLocalDateKey } from '@/lib/dateKeys';
 import {
   listPlayerWellnessCheckIns,
   reportPlayerInjury,
@@ -27,7 +28,7 @@ import {
 
 export default function WellnessScreen() {
   const today = useMemo(() => new Date(), []);
-  const todayKey = toDateKey(today);
+  const todayKey = toLocalDateKey(today);
   const monthKey = todayKey.slice(0, 7);
   const [fatigue, setFatigue] = useState('');
   const [rpe, setRpe] = useState('');
@@ -417,7 +418,7 @@ function CheckInCalendar({
   today: Date;
 }) {
   const { colors } = useNetmindTheme();
-  const todayKey = toDateKey(today);
+  const todayKey = toLocalDateKey(today);
   const checkedIn = new Set(checkedInDates);
   const days = buildCalendarDays(today);
   const monthLabel = today.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
@@ -444,7 +445,7 @@ function CheckInCalendar({
         {days.map((day, index) => {
           if (!day) return <View key={`empty-${index}`} style={styles.dayCell} />;
 
-          const dayKey = toDateKey(day);
+          const dayKey = toLocalDateKey(day);
           const isToday = dayKey === todayKey;
           const isChecked = checkedIn.has(dayKey);
           const isPast = day < startOfDay(today);
@@ -533,16 +534,9 @@ function startOfDay(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
-function toDateKey(date: Date) {
-  const year = date.getFullYear();
-  const month = `${date.getMonth() + 1}`.padStart(2, '0');
-  const day = `${date.getDate()}`.padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
 function dateKeyFromValue(value: string | Date) {
   if (typeof value === 'string') return value.slice(0, 10);
-  return toDateKey(value);
+  return toLocalDateKey(value);
 }
 
 function isValidRange(value: number, min: number, max: number) {

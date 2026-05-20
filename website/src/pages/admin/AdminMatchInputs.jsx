@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, Lock, Minus, MousePointerClick, Plus, Swords, Trophy, UsersRound, X } from 'lucide-react'
 import AdminLayout, {
   AdminButton,
@@ -30,6 +30,13 @@ const bestOfLabels = {
 
 const getTeamLogoSrc = (team) => (
   team?.team_logo_file_id ? `${API_BASE}/team-logos/${team.team_logo_file_id}` : team?.logo_url
+)
+const mergeTeams = (...groups) => (
+  [...new Map(groups.flat().filter(Boolean).map((team) => [String(team.id), team])).values()]
+)
+const canInputForTeam = (team, user) => String(team?.coach_id) === String(user?.id)
+const getRosterPath = (team, user) => (
+  canInputForTeam(team, user) ? `/teams/${team.id}/members` : `/teams/${team.id}/opponent-roster`
 )
 
 const buildStatsFromLogs = (logs, currentMatchId) => {
@@ -116,7 +123,7 @@ const AdminMatchInputs = ({ matchId, matchNumber, currentPath = `#coach/matches/
     Object.fromEntries(matchScores.map((score) => [Number(score.match_number), score]))
   ), [matchScores])
   const winsNeeded = Math.floor(bestOf / 2) + 1
-  const getSeriesLeaderBefore = (number) => {
+  const getSeriesLeaderBefore = useCallback((number) => {
     const wins = { team: 0, opponent: 0 }
 
     for (let index = 1; index < number; index += 1) {
@@ -125,11 +132,11 @@ const AdminMatchInputs = ({ matchId, matchNumber, currentPath = `#coach/matches/
     }
 
     return wins.team >= winsNeeded ? 'team' : wins.opponent >= winsNeeded ? 'opponent' : null
-  }
-  const allPreviousScored = (number) => (
+  }, [matchScoreByNumber, winsNeeded])
+  const allPreviousScored = useCallback((number) => (
     Array.from({ length: number - 1 }, (_, index) => index + 1)
       .every((item) => isScoreComplete(matchScoreByNumber[item]))
-  )
+  ), [matchScoreByNumber])
   const matchNumberCards = useMemo(() => {
     if (bestOf <= 1) return []
 
@@ -144,7 +151,7 @@ const AdminMatchInputs = ({ matchId, matchNumber, currentPath = `#coach/matches/
         return { number, state: isScoreComplete(score) ? 'scored' : allPreviousScored(number) ? 'open' : 'waiting', score }
       })
       .filter(Boolean)
-  }, [bestOf, matchScoreByNumber])
+  }, [allPreviousScored, bestOf, getSeriesLeaderBefore, matchScoreByNumber])
 
   useEffect(() => {
     const load = async () => {
@@ -152,12 +159,14 @@ const AdminMatchInputs = ({ matchId, matchNumber, currentPath = `#coach/matches/
         getResource('matches', matchId),
         listResource('teams', { limit: 100 }),
       ])
+      const opponentRows = await apiRequest('/teams/opponents')
+      const allTeamRows = mergeTeams(teamRows, opponentRows)
       const scoreRows = await listResource('match-scores', { match_id: matchId, limit: 100, sortBy: 'match_number', sortDir: 'asc' })
-      const teamOne = teamRows.find((team) => String(team.id) === String(matchRow.team_id))
-      const teamTwo = teamRows.find((team) => team.team_name === matchRow.opponent_name)
+      const teamOne = allTeamRows.find((team) => String(team.id) === String(matchRow.team_id))
+      const teamTwo = allTeamRows.find((team) => team.team_name === matchRow.opponent_name)
       const rosterTeams = [teamOne, teamTwo].filter(Boolean)
       const rosterRows = await Promise.all(
-        rosterTeams.map(async (team) => [team.id, await apiRequest(`/teams/${team.id}/members`)]),
+        rosterTeams.map(async (team) => [team.id, await apiRequest(getRosterPath(team, currentUser))]),
       )
       const loadedBestOf = Number(matchRow.best_of || 1)
       const selectedNumber = Number(matchNumber) || (loadedBestOf > 1 ? 0 : 1)
@@ -167,7 +176,7 @@ const AdminMatchInputs = ({ matchId, matchNumber, currentPath = `#coach/matches/
       const { stats: loadedStats, logIds } = buildStatsFromLogs(performanceLogs, matchId)
 
       setMatch(matchRow)
-      setTeams(teamRows)
+      setTeams(allTeamRows)
       setMatchScores(scoreRows)
       setTeamRosters(Object.fromEntries(rosterRows))
       setStatsByMatch(loadedStats)
@@ -184,7 +193,7 @@ const AdminMatchInputs = ({ matchId, matchNumber, currentPath = `#coach/matches/
     let alive = true
 
     Promise.all(
-      missingTeams.map(async (team) => [team.id, await apiRequest(`/teams/${team.id}/members`)]),
+      missingTeams.map(async (team) => [team.id, await apiRequest(getRosterPath(team, currentUser))]),
     )
       .then((rows) => {
         if (!alive) return
@@ -357,13 +366,6 @@ const AdminMatchInputs = ({ matchId, matchNumber, currentPath = `#coach/matches/
         updated,
       ].sort((a, b) => Number(a.match_number) - Number(b.match_number)))
 
-      if (bestOf <= 1) {
-        setMatch(await updateResource('matches', match.id, {
-          team_score: nextTeamScore,
-          opponent_score: nextOpponentScore,
-          result,
-        }))
-      }
       setScoreConfirmOpen(false)
       setScoreOpen(false)
     } catch (err) {

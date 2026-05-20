@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { ArrowLeft, ImagePlus, Info, Plus, Trash2, TriangleAlert, UserPlus } from 'lucide-react'
 import AdminLayout, {
   AdminButton,
@@ -14,6 +14,7 @@ import AdminLayout, {
   positions,
 } from './AdminLayout'
 import { API_BASE, apiRequest, getResource, listResource, readSavedUser, registerPlayerWithTemporaryPassword } from '../../lib/api'
+import { toLocalDateKey } from '../../lib/dateKeys'
 
 const blankPlayer = {
   name: '',
@@ -46,14 +47,11 @@ const AdminTeamDetails = ({ teamId, currentPath = '#coach/teams' }) => {
   const [deleteTrainer, setDeleteTrainer] = useState(null)
   const [error, setError] = useState('')
 
-  const assignedTrainerIds = useMemo(
-    () => new Set(assignedTrainers.map((trainer) => String(trainer.trainer_id))),
-    [assignedTrainers],
-  )
-  const availableTrainers = trainers.filter((trainer) => !assignedTrainerIds.has(String(trainer.id)))
+  const teamHasTrainer = assignedTrainers.length > 0
+  const availableTrainers = teamHasTrainer ? [] : trainers
   const assignedBy = currentUser?.id || team?.coach_id || coaches[0]?.id || 1
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!teamId) return
 
     const teamRow = await getResource('teams', teamId)
@@ -74,11 +72,11 @@ const AdminTeamDetails = ({ teamId, currentPath = '#coach/teams' }) => {
     setTrainers(allTrainers.filter((trainer) => scopedTrainerIds.has(String(trainer.id))))
     setCoaches(coachRows)
     setSelectedTrainer('')
-  }
+  }, [currentUser?.id, teamId])
 
   useEffect(() => {
     load().catch((err) => setError(err.message))
-  }, [teamId])
+  }, [load])
 
   const assignTrainer = async (event) => {
     event.preventDefault()
@@ -135,7 +133,7 @@ const AdminTeamDetails = ({ teamId, currentPath = '#coach/teams' }) => {
       })
       await apiRequest(`/teams/${teamId}/members`, {
         method: 'POST',
-        body: { player_id: player.id, joined_at: new Date().toISOString().slice(0, 10) },
+        body: { player_id: player.id, joined_at: toLocalDateKey() },
       })
       setPlayerModal(false)
       setPlayerForm(blankPlayer)
@@ -236,15 +234,17 @@ const AdminTeamDetails = ({ teamId, currentPath = '#coach/teams' }) => {
               <AdminSelect
                 value={selectedTrainer}
                 onChange={(event) => setSelectedTrainer(event.target.value)}
+                disabled={teamHasTrainer || !trainers.length}
               >
                 <option value="" disabled hidden>Select trainer</option>
                 {availableTrainers.map((trainer) => (
                   <option key={trainer.id} value={trainer.id}>{trainer.name}</option>
                 ))}
-                {!availableTrainers.length && <option value="" disabled>No connected trainers</option>}
+                {teamHasTrainer && <option value="" disabled>Trainer already assigned</option>}
+                {!teamHasTrainer && !availableTrainers.length && <option value="" disabled>No connected trainers</option>}
               </AdminSelect>
             </AdminField>
-            <AdminButton type="submit">
+            <AdminButton type="submit" disabled={teamHasTrainer || !selectedTrainer}>
               <UserPlus size={16} />
               Assign
             </AdminButton>
@@ -434,8 +434,8 @@ const AdminTeamDetails = ({ teamId, currentPath = '#coach/teams' }) => {
               <AdminButton type="button" variant="ghost" onClick={() => setDeletePlayerModal(false)} disabled={removingPlayer}>
                 Cancel
               </AdminButton>
-              <AdminButton type="submit" variant="danger" disabled={removingPlayer}>
-                {removingPlayer ? 'Deleting...' : 'Delete Player'}
+              <AdminButton type="submit" disabled={removingPlayer}>
+                {removingPlayer ? 'Confirming...' : 'Confirm'}
               </AdminButton>
             </div>
           </form>
@@ -477,8 +477,8 @@ const AdminTeamDetails = ({ teamId, currentPath = '#coach/teams' }) => {
               <AdminButton type="button" variant="ghost" onClick={() => setDeleteTrainerModal(false)} disabled={removingTrainer}>
                 Cancel
               </AdminButton>
-              <AdminButton type="submit" variant="danger" disabled={removingTrainer}>
-                {removingTrainer ? 'Removing...' : 'Remove Trainer'}
+              <AdminButton type="submit" disabled={removingTrainer}>
+                {removingTrainer ? 'Confirming...' : 'Confirm'}
               </AdminButton>
             </div>
           </form>

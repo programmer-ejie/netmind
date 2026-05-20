@@ -13,7 +13,7 @@ import {
   UserRound,
   Users,
 } from 'lucide-react'
-import fallbackProfilePhoto from '../../assets/crpt_image.jpg'
+import fallbackProfilePhoto from '../../assets/default-profilepc.webp'
 import AdminLayout, {
   AdminButton,
   AdminCard,
@@ -34,18 +34,18 @@ import {
   setProfilePreview,
   updateResource,
 } from '../../lib/api'
+import { parseDateInput, toLocalDateKey } from '../../lib/dateKeys'
 
 const toDateInput = (value) => {
   if (!value) return ''
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? String(value).slice(0, 10) : date.toISOString().slice(0, 10)
+  return toLocalDateKey(value)
 }
 
 const formatProfileDate = (value) => {
   if (!value) return '-'
-  const date = new Date(value)
+  const date = parseDateInput(value)
 
-  if (Number.isNaN(date.getTime())) return value
+  if (!date) return value
 
   return date.toLocaleDateString('en-US', {
     month: 'long',
@@ -416,7 +416,11 @@ const AdminProfile = ({ currentPath = '#coach/profile' }) => {
           {scopedTeams.length ? (
             <div className="admin-profile-team-list">
               {scopedTeams.map((team) => (
-                <div className="admin-profile-team" key={team.id}>
+                <div
+                  className="admin-profile-team"
+                  key={team.id}
+                  style={{ '--team-color': team.team_color || '#635bff' }}
+                >
                   {getTeamLogoSrc(team) ? (
                     <img className="admin-profile-team-logo" src={getTeamLogoSrc(team)} alt={`${team.team_name} logo`} />
                   ) : (
@@ -428,10 +432,6 @@ const AdminProfile = ({ currentPath = '#coach/profile' }) => {
                       <CalendarDays size={15} />
                       Created {formatDate(team.created_at)}
                     </p>
-                    <span className="admin-color-pill">
-                      <i style={{ background: team.team_color || '#635bff' }} />
-                      {team.team_color || 'Default color'}
-                    </span>
                   </div>
                 </div>
               ))}

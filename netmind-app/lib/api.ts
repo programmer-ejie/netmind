@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type NetmindUser = {
   id: number;
@@ -68,6 +69,7 @@ export type TrainingAssignment = {
   assigned_by: number;
   drill_id?: number | null;
   drill_name?: string | null;
+  video_url?: string | null;
   category?: string | null;
   difficulty?: string | null;
   focus_area?: string | null;
@@ -197,17 +199,38 @@ const defaultApiBase = Platform.select({
 
 export const API_BASE = (process.env.EXPO_PUBLIC_API_BASE || defaultApiBase).replace(/\/$/, '');
 
+const PUBLIC_AUTH_PATHS = new Set([
+  '/auth/login',
+  '/auth/register',
+  '/auth/register-coach',
+  '/auth/register-trainer',
+  '/auth/register-player',
+]);
+
+function isPublicAuthPath(path: string) {
+  return PUBLIC_AUTH_PATHS.has(path.split('?')[0]);
+}
+
+async function getAuthHeaders(path: string): Promise<Record<string, string>> {
+  if (isPublicAuthPath(path)) return {};
+
+  const token = await AsyncStorage.getItem('netmind_token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
   const body = options.body && typeof options.body !== 'string' && !isFormData
     ? JSON.stringify(options.body)
     : options.body;
+  const authHeaders = await getAuthHeaders(path);
 
   const response = await fetch(`${API_BASE}${path}`, {
     ...options,
     body,
     headers: {
       ...(body && !isFormData ? { 'Content-Type': 'application/json' } : {}),
+      ...authHeaders,
       ...options.headers,
     },
   });
@@ -306,7 +329,7 @@ export function getAttendanceQrInfo(token: string) {
 export function checkInWithAttendanceQr(token: string, playerId: number | string) {
   return apiRequest<AttendanceLog>(`/attendance-qr/${encodeURIComponent(token)}/check-in`, {
     method: 'POST',
-    body: JSON.stringify({ player_id: playerId, marked_by: playerId }),
+    body: JSON.stringify({}),
   });
 }
 

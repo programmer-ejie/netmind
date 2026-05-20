@@ -19,6 +19,7 @@ import {
 
 import { Card, Screen, SectionTitle } from '@/components/netmind-ui';
 import { useNetmindTheme } from '@/contexts/netmind-theme';
+import { parseDateInput, toLocalDateKey } from '@/lib/dateKeys';
 import {
   getProfilePictureUrl,
   getResource,
@@ -40,14 +41,13 @@ type ProfileForm = {
 
 const toDateInput = (value?: string | null) => {
   if (!value) return '';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value.slice(0, 10) : date.toISOString().slice(0, 10);
+  return toLocalDateKey(value);
 };
 
 const formatDate = (value?: string | null) => {
   if (!value) return '-';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
+  const date = parseDateInput(value);
+  if (!date) return value;
 
   return date.toLocaleDateString('en-US', {
     month: 'long',
@@ -75,10 +75,7 @@ const getImageType = (uri: string) => {
 
 const positionOptions = ['OH', 'OPP', 'MB', 'S', 'L'];
 const toLocalDateInput = (date: Date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return toLocalDateKey(date);
 };
 
 const calculateAge = (value?: string | null) => {

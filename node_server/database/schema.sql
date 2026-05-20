@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS team_trainers (
   trainer_id INT NOT NULL,
   assigned_by INT NOT NULL,
   assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_team_trainer_team (team_id),
   UNIQUE KEY unique_team_trainer (team_id, trainer_id),
   CONSTRAINT fk_team_trainers_team FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE,
   CONSTRAINT fk_team_trainers_trainer FOREIGN KEY (trainer_id) REFERENCES users(id) ON DELETE CASCADE,

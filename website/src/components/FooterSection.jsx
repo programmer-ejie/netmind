@@ -4,6 +4,11 @@ import websiteLogo from '../assets/website_logo.png'
 const FooterSection = () => {
   const [email, setEmail] = useState('')
 
+  const goToRegister = (event) => {
+    event.preventDefault()
+    window.location.hash = 'register'
+  }
+
   return (
     <footer className="border-t border-border/50 py-12 px-4">
       <div className="container mx-auto grid md:grid-cols-4 gap-8">
@@ -37,19 +42,19 @@ const FooterSection = () => {
           </ul>
         </div>
         <div>
-          <h4 className="font-semibold mb-3 text-sm">Team Demo</h4>
-          <div className="flex gap-2">
+          <h4 className="font-semibold mb-3 text-sm">Register Now</h4>
+          <form className="flex gap-2" onSubmit={goToRegister}>
             <input
               type="email"
-              placeholder="Your email"
+              placeholder="Email address"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               className="flex-1 px-3 py-2 rounded-lg bg-secondary border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
-            <button className="glow-button px-4 py-2 text-sm">
-              Join
+            <button type="submit" className="glow-button px-4 py-2 text-sm">
+              Register
             </button>
-          </div>
+          </form>
         </div>
       </div>
       <div className="container mx-auto mt-8 pt-8 border-t border-border/50 text-center text-sm text-muted-foreground">

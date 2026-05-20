@@ -1,7 +1,8 @@
 const { google } = require("googleapis");
 require("dotenv").config({ quiet: true });
+const { getGoogleRedirectUri } = require("../utils/googleOAuthConfig");
 
-const redirectUri = process.env.GOOGLE_REDIRECT_URI || "http://localhost:5000/oauth2callback";
+const redirectUri = getGoogleRedirectUri();
 
 const required = ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"];
 const missing = required.filter((key) => !process.env[key]);
@@ -28,4 +29,5 @@ console.log("Open this URL in your browser:");
 console.log(authUrl);
 console.log("");
 console.log(`Redirect URI used: ${redirectUri}`);
+console.log("Make sure this exact URI is authorized in Google Cloud Console.");
 console.log("After approving access, copy the 'code' value from the redirected URL.");

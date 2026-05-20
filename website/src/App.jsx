@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useState } from 'react'
 import Navbar from './components/Navbar'
 import HeroSection from './components/HeroSection'
 import AboutSection from './components/AboutSection'
@@ -6,13 +6,11 @@ import SkillsSection from './components/SkillsSection'
 import ProgramsSection from './components/ProgramsSection'
 import CurriculumSection from './components/CurriculumSection'
 import PricingSection from './components/PricingSection'
-import DashboardPreview from './components/DashboardPreview'
 import TestimonialsSection from './components/TestimonialsSection'
 import BlogSection from './components/BlogSection'
 import FAQSection from './components/FAQSection'
 import CTASection from './components/CTASection'
 import FooterSection from './components/FooterSection'
-import LeadCaptureModal from './components/LeadCaptureModal'
 import AuthSection from './components/AuthSection'
 import AdminAnalytics from './pages/admin/AdminAnalytics'
 import AdminDashboard from './pages/admin/AdminDashboard'
@@ -32,11 +30,6 @@ import { clearSavedUser, readSavedUser } from './lib/api'
 
 const getRoute = () => {
   const hash = window.location.hash || ''
-  if (hash.startsWith('#admin')) {
-    const coachHash = hash.replace(/^#admin/, '#coach')
-    window.history.replaceState(null, '', coachHash)
-    return getRoute()
-  }
   const isCoachRoute = hash.startsWith('#coach')
   const isTrainerRoute = hash.startsWith('#trainer')
   if (!isCoachRoute && !isTrainerRoute) return { area: 'home', hash }
@@ -55,50 +48,73 @@ const getRoute = () => {
   }
 }
 
+const getLegacyAdminRedirect = (hash) => (
+  hash.startsWith('#admin') ? hash.replace(/^#admin/, '#coach') : ''
+)
+
 const scrollToPageTop = () => {
   window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
   document.documentElement.scrollTop = 0
   document.body.scrollTop = 0
 }
 
+const getAdminRedirect = (route, currentUser) => {
+  if (route.area !== 'coach') return ''
+  if (!['coach', 'trainer'].includes(currentUser?.role)) return '#auth'
+
+  const expectedBase = currentUser.role === 'trainer' ? 'trainer' : 'coach'
+  if (route.base !== expectedBase) return route.hash.replace(/^#(coach|trainer)/, expectedBase)
+  if (route.page === 'player-details') return '#trainer/players'
+
+  if (currentUser.role === 'trainer' && ![
+    'dashboard',
+    'profile',
+    'players',
+    'player-stats',
+    'training',
+    'attendance',
+    'wellness',
+    'analytics',
+    'settings',
+  ].includes(route.page)) {
+    return '#trainer'
+  }
+
+  if (route.page === 'players' && currentUser.role !== 'trainer') return '#coach/teams'
+  if (route.page === 'attendance' && currentUser.role !== 'trainer') return '#coach'
+
+  return ''
+}
+
 function App() {
-  const [modalOpen, setModalOpen] = useState(false)
   const [route, setRoute] = useState(getRoute)
   const [authVersion, setAuthVersion] = useState(0)
+  const currentUser = readSavedUser()
 
-  const moveHashToAuth = () => {
+  const moveHashToAuth = useCallback(() => {
     if (window.location.hash !== '#auth') {
       window.history.replaceState(null, '', '#auth')
     }
     window.setTimeout(() => {
       document.getElementById('auth')?.scrollIntoView({ behavior: 'auto', block: 'start' })
     }, 0)
-  }
+  }, [])
 
   const renderHome = () => (
     <div className="min-h-screen bg-background text-foreground">
       <Navbar />
-      <HeroSection onOpenModal={() => setModalOpen(true)} />
+      <HeroSection />
       <AboutSection />
       <SkillsSection />
       <ProgramsSection />
       <CurriculumSection />
       <PricingSection />
       <AuthSection />
-      <DashboardPreview />
       <TestimonialsSection />
       <BlogSection />
       <FAQSection />
       <CTASection />
       <FooterSection />
-      <LeadCaptureModal open={modalOpen} onClose={() => setModalOpen(false)} />
-
-      <button
-        onClick={() => setModalOpen(true)}
-        className="fixed bottom-6 right-6 z-50 glow-button rounded-full px-5 py-3 text-sm font-bold md:hidden"
-      >
-        Demo
-      </button>
     </div>
   )
 
@@ -142,52 +158,39 @@ function App() {
     }
   }, [])
 
-  if (route.area === 'coach') {
-    const currentUser = readSavedUser()
-    const currentRole = currentUser?.role
+  useEffect(() => {
+    const legacyRedirectTarget = getLegacyAdminRedirect(window.location.hash || '')
+    if (legacyRedirectTarget) {
+      window.history.replaceState(null, '', legacyRedirectTarget)
+      setRoute(getRoute())
+      return
+    }
 
-    if (!['coach', 'trainer'].includes(currentRole)) {
+    const redirectTarget = getAdminRedirect(route, currentUser)
+    if (!redirectTarget) return
+
+    if (redirectTarget === '#auth') {
       if (currentUser) {
         window.setTimeout(clearSavedUser, 0)
       }
       moveHashToAuth()
+      return
+    }
+
+    if (window.location.hash !== redirectTarget) {
+      window.location.hash = redirectTarget.replace(/^#/, '')
+    }
+  }, [currentUser, moveHashToAuth, route])
+
+  if (route.area === 'coach') {
+    const currentRole = currentUser?.role
+    const redirectTarget = getAdminRedirect(route, currentUser)
+
+    if (!['coach', 'trainer'].includes(currentRole)) {
       return renderHome()
     }
 
-    const expectedBase = currentUser?.role === 'trainer' ? 'trainer' : 'coach'
-
-    if (currentUser?.role && route.base !== expectedBase) {
-      window.location.hash = route.hash.replace(/^#(coach|trainer)/, expectedBase)
-      return null
-    }
-
-    if (route.page === 'player-details') {
-      window.location.hash = 'trainer/players'
-      return null
-    }
-
-    if (currentUser?.role === 'trainer' && ![
-      'dashboard',
-      'profile',
-      'players',
-      'player-stats',
-      'training',
-      'attendance',
-      'wellness',
-      'analytics',
-      'settings',
-    ].includes(route.page)) {
-      window.location.hash = 'trainer'
-      return null
-    }
-
-    if (route.page === 'players' && currentUser?.role !== 'trainer') {
-      window.location.hash = 'coach/teams'
-      return null
-    }
-
-    if (route.page === 'attendance' && currentUser?.role !== 'trainer') {
-      window.location.hash = 'coach'
+    if (redirectTarget) {
       return null
     }
 

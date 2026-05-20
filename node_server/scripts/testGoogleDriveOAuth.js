@@ -1,8 +1,9 @@
 const { google } = require("googleapis");
 const { Readable } = require("stream");
 require("dotenv").config({ quiet: true });
+const { getGoogleRedirectUri } = require("../utils/googleOAuthConfig");
 
-const redirectUri = process.env.GOOGLE_REDIRECT_URI || "http://localhost:5000/oauth2callback";
+const redirectUri = getGoogleRedirectUri();
 
 async function main() {
   const required = [
@@ -32,6 +33,7 @@ async function main() {
   const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
 
   console.log("OAuth env: ok");
+  console.log(`Redirect URI: ${redirectUri}`);
   console.log(`Folder ID suffix: ...${folderId.slice(-8)}`);
 
   const folder = await drive.files.get({

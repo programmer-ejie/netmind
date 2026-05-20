@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, BarChart3, Edit3, Plus, Trash2 } from 'lucide-react'
 import AdminLayout, {
   AdminButton,
@@ -15,6 +15,7 @@ import AdminLayout, {
   positions,
 } from './AdminLayout'
 import { apiRequest, deleteResource, listResource, readSavedUser, registerUser, updateResource } from '../../lib/api'
+import { toLocalDateKey } from '../../lib/dateKeys'
 
 const blankCreate = {
   name: '',
@@ -143,7 +144,7 @@ const AdminPlayers = ({ currentPath = '#coach/players' }) => {
     return map
   }, [memberships])
 
-  const load = async () => {
+  const load = useCallback(async () => {
     const teamParams = {
       limit: 100,
       ...(currentUser?.role === 'coach' && currentUser?.id ? { coach_id: currentUser.id } : {}),
@@ -177,7 +178,7 @@ const AdminPlayers = ({ currentPath = '#coach/players' }) => {
     setPlayers(playerRows.filter((player) => scopedPlayerIds.has(String(player.id))))
     setTeams(teamRows)
     setMemberships(scopedMemberships)
-  }
+  }, [currentUser?.id, currentUser?.role, isTrainerView])
 
   const createPlayer = async (event) => {
     event.preventDefault()
@@ -195,7 +196,7 @@ const AdminPlayers = ({ currentPath = '#coach/players' }) => {
       if (createForm.team_id) {
         await apiRequest(`/teams/${createForm.team_id}/members`, {
           method: 'POST',
-          body: { player_id: player.id, joined_at: new Date().toISOString().slice(0, 10) },
+          body: { player_id: player.id, joined_at: toLocalDateKey() },
         })
       }
 
@@ -248,7 +249,7 @@ const AdminPlayers = ({ currentPath = '#coach/players' }) => {
     }
   }
 
-  const loadPlayerStats = async (playerOrId) => {
+  const loadPlayerStats = useCallback(async (playerOrId) => {
     const playerId = typeof playerOrId === 'object' ? playerOrId.id : playerOrId
     const selectedPlayer = typeof playerOrId === 'object' ? playerOrId : null
     setStats({ loading: true, player: selectedPlayer })
@@ -261,7 +262,7 @@ const AdminPlayers = ({ currentPath = '#coach/players' }) => {
       apiRequest(`/players/${playerId}/injuries`),
     ])
     setStats({ ...summary, player: summary.player || selectedPlayer, logs, assignments, attendance, injuries, loading: false })
-  }
+  }, [])
 
   const openStats = (player) => {
     window.location.hash = `${currentBase}/player-stats/${player.id}`
@@ -273,7 +274,7 @@ const AdminPlayers = ({ currentPath = '#coach/players' }) => {
     if (isStatsPage && statsPlayerId) {
       loadPlayerStats(statsPlayerId).catch((err) => setError(err.message))
     }
-  }, [])
+  }, [isStatsPage, load, loadPlayerStats, statsPlayerId])
 
   const renderStatsContent = () => (
     <>

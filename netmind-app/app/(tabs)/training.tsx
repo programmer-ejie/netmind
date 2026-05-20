@@ -1,11 +1,13 @@
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Card, ProgressBar, Screen, SectionTitle } from '@/components/netmind-ui';
 import { palette } from '@/constants/netmind';
 import { useNetmindTheme } from '@/contexts/netmind-theme';
+import { toLocalDateKey } from '@/lib/dateKeys';
 import {
   listPlayerTrainingAssignments,
   updateTrainingAssignmentStatus,
@@ -50,7 +52,7 @@ const getDateGroupKey = (assignment: TrainingAssignment) => {
   const date = new Date(assignment.due_date);
   if (Number.isNaN(date.getTime())) return `custom-${assignment.due_date}`;
 
-  return date.toISOString().slice(0, 10);
+  return toLocalDateKey(date);
 };
 
 const getDateGroupLabel = (assignment: TrainingAssignment) => formatDate(assignment.due_date);
@@ -127,6 +129,12 @@ const getAssignmentDetail = (assignment: TrainingAssignment) => {
   ].filter(Boolean);
 
   return details.join(' - ') || assignment.drill_description || 'Assigned by your training staff.';
+};
+
+const getTutorialUrl = (assignment?: TrainingAssignment | null) => {
+  const rawUrl = assignment?.video_url?.trim();
+  if (!rawUrl) return '';
+  return /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
 };
 
 export default function TrainingScreen() {
@@ -238,6 +246,23 @@ export default function TrainingScreen() {
   const isSavingSelected = updatingId === selectedAssignment?.id;
   const activeFilterLabel = filterOptions.find((option) => option.value === activeFilter)?.label || 'Tasks';
 
+  const openTutorial = useCallback(async (assignment: TrainingAssignment) => {
+    const tutorialUrl = getTutorialUrl(assignment);
+    if (!tutorialUrl) return;
+
+    try {
+      const supported = await Linking.canOpenURL(tutorialUrl);
+      if (!supported) {
+        setError('Unable to open this tutorial link.');
+        return;
+      }
+
+      await Linking.openURL(tutorialUrl);
+    } catch {
+      setError('Unable to open this tutorial link.');
+    }
+  }, []);
+
   return (
     <Screen
       onRefresh={() => loadAssignments('refresh')}
@@ -331,6 +356,18 @@ export default function TrainingScreen() {
                     {overdue ? (
                       <Text style={styles.overdueText}>Past due since {formatDate(assignment.due_date)}</Text>
                     ) : null}
+                    {getTutorialUrl(assignment) ? (
+                      <Pressable
+                        onPress={() => openTutorial(assignment)}
+                        style={({ pressed }) => [
+                          styles.tutorialButton,
+                          { backgroundColor: colors.wash, borderColor: colors.line },
+                          pressed ? styles.buttonPressed : null,
+                        ]}>
+                        <MaterialIcons name="play-circle-outline" size={18} color={colors.court} />
+                        <Text style={[styles.tutorialButtonText, { color: colors.court }]}>Watch tutorial</Text>
+                      </Pressable>
+                    ) : null}
                     <View style={styles.statusRow}>
                       <Text style={[styles.progressText, { color: colors.muted }]}>
                         {getAssignmentProgress(assignment)}% complete
@@ -380,6 +417,18 @@ export default function TrainingScreen() {
                   This task was due {formatDate(selectedAssignment.due_date)}. Update progress when you start or finish it.
                 </Text>
               </View>
+            ) : null}
+            {selectedAssignment && getTutorialUrl(selectedAssignment) ? (
+              <Pressable
+                onPress={() => openTutorial(selectedAssignment)}
+                style={({ pressed }) => [
+                  styles.modalTutorialButton,
+                  { backgroundColor: colors.wash, borderColor: colors.line },
+                  pressed ? styles.buttonPressed : null,
+                ]}>
+                <MaterialIcons name="smart-display" size={20} color={colors.court} />
+                <Text style={[styles.modalTutorialText, { color: colors.court }]}>Watch tutorial</Text>
+              </Pressable>
             ) : null}
 
             <View style={[styles.statusPanel, { backgroundColor: colors.wash, borderColor: colors.line }]}>
@@ -469,6 +518,20 @@ const styles = StyleSheet.create({
   },
   overdueText: {
     color: '#b83225',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  tutorialButton: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 7,
+    minHeight: 34,
+    paddingHorizontal: 10,
+  },
+  tutorialButtonText: {
     fontSize: 12,
     fontWeight: '900',
   },
@@ -591,6 +654,20 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     lineHeight: 18,
+  },
+  modalTutorialButton: {
+    alignItems: 'center',
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+  },
+  modalTutorialText: {
+    fontSize: 14,
+    fontWeight: '900',
   },
   statusPanel: {
     borderRadius: 8,

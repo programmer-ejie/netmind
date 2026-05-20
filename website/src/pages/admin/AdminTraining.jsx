@@ -35,8 +35,6 @@ const blankAssignment = {
   drill_id: '',
   due_date: '',
   focus_area: '',
-  target_reps: '',
-  target_success_rate: '',
 }
 
 const getDisplayUrl = (url) => {
@@ -92,7 +90,12 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
       isTrainerView ? listResource('team-trainers', { limit: 100 }) : Promise.resolve([]),
     ])
 
-    setDrills(drillRows)
+    const visibleDrills = isTrainerView
+      ? drillRows.filter((drill) => String(drill.created_by) === String(currentUser?.id))
+      : drillRows
+    const visibleDrillIds = new Set(visibleDrills.map((drill) => String(drill.id)))
+
+    setDrills(visibleDrills)
     setCoaches(coachRows)
 
     if (isTrainerView) {
@@ -108,7 +111,11 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
       )
 
       setPlayers(playerRows.filter((player) => playerIds.has(String(player.id))))
-      setAssignments(assignmentRows.filter((assignment) => playerIds.has(String(assignment.player_id))))
+      setAssignments(assignmentRows.filter((assignment) => (
+        playerIds.has(String(assignment.player_id))
+        && String(assignment.assigned_by) === String(currentUser?.id)
+        && visibleDrillIds.has(String(assignment.drill_id))
+      )))
       return
     }
 
@@ -117,7 +124,6 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
   }, [currentUser?.id, isTrainerView])
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     load().catch((err) => setError(err.message))
   }, [load])
 
@@ -206,8 +212,6 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
           assigned_by: assignedBy,
           focus_area: assignmentForm.focus_area || drill?.category,
           drill_description: drill?.description,
-          target_reps: assignmentForm.target_reps ? Number(assignmentForm.target_reps) : null,
-          target_success_rate: assignmentForm.target_success_rate ? Number(assignmentForm.target_success_rate) : null,
           due_date: assignmentForm.due_date || null,
         },
       })
@@ -256,7 +260,7 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
                 Add Drill
               </AdminButton>
             ) : (
-              <AdminButton onClick={openAssignTraining}>
+              <AdminButton className="admin-confirm-button" onClick={openAssignTraining}>
                 <Plus size={17} />
                 Assign Training
               </AdminButton>
@@ -385,7 +389,7 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
               <EmptyState>
                 <div className="admin-empty-action">
                   <span>No training assignments yet.</span>
-                  <AdminButton onClick={openAssignTraining}>
+                  <AdminButton className="admin-confirm-button" onClick={openAssignTraining}>
                     <Plus size={17} />
                     Assign Training
                   </AdminButton>
@@ -518,25 +522,9 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
               onChange={(event) => setAssignmentForm((current) => ({ ...current, focus_area: event.target.value }))}
             />
           </AdminField>
-          <AdminField label="Target Reps">
-            <AdminInput
-              type="number"
-              placeholder="e.g. 50"
-              value={assignmentForm.target_reps}
-              onChange={(event) => setAssignmentForm((current) => ({ ...current, target_reps: event.target.value }))}
-            />
-          </AdminField>
-          <AdminField label="Target Success Rate">
-            <AdminInput
-              type="number"
-              placeholder="e.g. 80"
-              value={assignmentForm.target_success_rate}
-              onChange={(event) => setAssignmentForm((current) => ({ ...current, target_success_rate: event.target.value }))}
-            />
-          </AdminField>
           <div className="admin-form-actions admin-form-span">
             <AdminButton type="button" variant="secondary" onClick={() => setAssignModal(false)}>Cancel</AdminButton>
-            <AdminButton type="submit">Assign Training</AdminButton>
+            <AdminButton type="submit" className="admin-confirm-button">Assign Training</AdminButton>
           </div>
         </form>
       </AdminModal>
@@ -551,7 +539,7 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
             <div className="admin-offcanvas-header">
               <div>
                 <p className="admin-kicker">Delete Drill</p>
-                <h2>Delete {deleteDrill.drill_name}?</h2>
+                <h2>Delete</h2>
                 <small>This action cannot be undone.</small>
               </div>
               <button
@@ -595,7 +583,7 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
               <AdminButton type="button" variant="ghost" onClick={closeDeleteDrill} disabled={deletingDrill}>
                 Cancel
               </AdminButton>
-              <AdminButton type="button" variant="danger" onClick={removeDrill} disabled={deletingDrill}>
+              <AdminButton type="button" className="admin-confirm-button" onClick={removeDrill} disabled={deletingDrill}>
                 <Trash2 size={16} />
                 {deletingDrill ? 'Deleting...' : 'Delete Drill'}
               </AdminButton>

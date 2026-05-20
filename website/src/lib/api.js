@@ -1,5 +1,22 @@
 export const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5001/api'
 
+const PUBLIC_AUTH_PATHS = [
+  '/auth/login',
+  '/auth/register',
+  '/auth/register-coach',
+  '/auth/register-trainer',
+  '/auth/register-player',
+]
+
+const isPublicAuthPath = (path) => PUBLIC_AUTH_PATHS.includes(path.split('?')[0])
+
+export const getAuthHeaders = (path = '') => {
+  if (isPublicAuthPath(path)) return {}
+
+  const token = localStorage.getItem('netmind_token')
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
 const toQueryString = (params = {}) => {
   const query = new URLSearchParams()
 
@@ -31,6 +48,7 @@ export async function apiRequest(path, options = {}) {
     body,
     headers: {
       ...(body && !isFormData ? { 'Content-Type': 'application/json' } : {}),
+      ...getAuthHeaders(path),
       ...options.headers,
     },
   })

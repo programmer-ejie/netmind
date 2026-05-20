@@ -1,5 +1,5 @@
 import { CheckCircle } from 'lucide-react'
-import instructorImg from '../assets/logo_volley.jpg'
+import websiteLogo from '../assets/website_logo.png'
 import { siteContent } from '../data/netmindData'
 
 const bullets = [
@@ -11,14 +11,14 @@ const bullets = [
 ]
 
 const AboutSection = () => (
-  <section id="about" className="section-padding gradient-bg">
+  <section id="about" className="about-section section-padding gradient-bg">
     <div className="container mx-auto">
       <div className="grid md:grid-cols-2 gap-12 items-center">
-        <div className="glass-card p-2 rounded-2xl">
+        <div className="glass-card about-image-card rounded-2xl">
           <img
-            src={instructorImg}
-            alt="Volleyball team performance review"
-            className="w-full rounded-xl object-cover aspect-[4/5]"
+            src={websiteLogo}
+            alt="NetMind logo"
+            className="about-image w-full rounded-xl"
           />
         </div>
         <div>

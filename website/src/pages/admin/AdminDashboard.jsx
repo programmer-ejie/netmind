@@ -1,18 +1,25 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight, ClipboardCheck, Shield, UserRound, Users } from 'lucide-react'
+import { ClipboardCheck, Shield, UserRound, Users } from 'lucide-react'
 import AdminLayout, {
   AdminCard,
   EmptyState,
   StatCard,
   StatusBadge,
-  formatDate,
   initials,
   moneylessNumber,
 } from './AdminLayout'
 import { listResource, readSavedUser } from '../../lib/api'
 
 const areaColors = ['#12aabd', '#ff6692', '#36c76c', '#ffb900']
-const activityRowsPerPage = 4
+const performanceMetrics = [
+  { label: 'Kill', action_type: 'spike', result: 'kill' },
+  { label: 'Stuff Block', action_type: 'block', result: 'stuff' },
+  { label: 'Ace', action_type: 'serve', result: 'ace' },
+  { label: 'Error', action_type: 'spike', result: 'error' },
+  { label: 'Dig', action_type: 'dig', result: 'good' },
+  { label: 'Assist', action_type: 'set', result: 'assist' },
+  { label: 'Perfect Pass', action_type: 'receive', result: 'perfect' },
+]
 
 const formatShortDate = (value) => {
   const date = new Date(value)
@@ -29,60 +36,61 @@ const percentile = (values, position) => {
   return sorted[lower] + (sorted[upper] - sorted[lower]) * (index - lower)
 }
 
-const BumpChart = ({ labels, series }) => {
-  const width = 720
-  const height = 300
-  const padding = { top: 24, right: 26, bottom: 48, left: 46 }
-  const innerWidth = width - padding.left - padding.right
-  const innerHeight = height - padding.top - padding.bottom
-  const rankCount = Math.max(series.length, 1)
-  const rankRows = labels.map((_, labelIndex) => (
-    series
-      .map((item) => ({ label: item.label, value: Number(item.values[labelIndex] || 0) }))
-      .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label))
-      .map((item, index) => ({ ...item, rank: item.value ? index + 1 : rankCount }))
-  ))
-  const rankFor = (label, labelIndex) => (
-    rankRows[labelIndex].find((item) => item.label === label)?.rank || rankCount
-  )
-  const xFor = (index) => padding.left + (labels.length <= 1 ? innerWidth / 2 : (index / (labels.length - 1)) * innerWidth)
-  const yFor = (rank) => padding.top + (rankCount <= 1 ? innerHeight / 2 : ((rank - 1) / (rankCount - 1)) * innerHeight)
+const ActivityMixChart = ({ labels, actions, total }) => {
+  const maxActionValue = Math.max(...actions.map((item) => item.total), 1)
+  const maxDateValue = Math.max(...actions.flatMap((item) => item.values), 1)
 
   return (
-    <div className="admin-bump-chart">
-      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Action type bump chart">
-        {Array.from({ length: rankCount }, (_, index) => index + 1).map((rank) => (
-          <g key={rank}>
-            <line x1={padding.left} x2={width - padding.right} y1={yFor(rank)} y2={yFor(rank)} className="admin-bump-grid" />
-            <text x={18} y={yFor(rank)} dominantBaseline="middle">#{rank}</text>
-          </g>
-        ))}
-        {series.map((item, seriesIndex) => {
-          const color = areaColors[seriesIndex % areaColors.length]
-          const points = labels.map((_, labelIndex) => `${xFor(labelIndex)},${yFor(rankFor(item.label, labelIndex))}`).join(' ')
+    <div className="admin-activity-mix-chart" role="img" aria-label="Performance action mix chart">
+      <div className="admin-activity-mix-total">
+        <strong>{moneylessNumber(total)}</strong>
+        <span>Total inputs</span>
+      </div>
+
+      <div className="admin-activity-mix-list">
+        {actions.map((item, index) => {
+          const percent = total ? Math.round((item.total / total) * 100) : 0
+          const width = Math.max(6, (item.total / maxActionValue) * 100)
 
           return (
-            <g key={item.label}>
-              <polyline points={points} fill="none" stroke={color} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-              {labels.map((label, labelIndex) => (
-                <circle key={`${item.label}-${label}`} cx={xFor(labelIndex)} cy={yFor(rankFor(item.label, labelIndex))} r="5" fill={color}>
-                  <title>{`${item.label} ${label}: rank #${rankFor(item.label, labelIndex)}, value ${item.values[labelIndex] || 0}`}</title>
-                </circle>
-              ))}
-            </g>
+            <div className="admin-activity-mix-row" key={item.label} style={{ '--action-color': item.color }}>
+              <div className="admin-activity-mix-rank">#{index + 1}</div>
+              <div className="admin-activity-mix-main">
+                <div className="admin-activity-mix-label">
+                  <strong>{item.label}</strong>
+                  <span>{moneylessNumber(item.total)} inputs</span>
+                </div>
+                <div className="admin-activity-mix-bar" aria-hidden="true">
+                  <i style={{ width: `${width}%` }} />
+                </div>
+              </div>
+              <b>{percent}%</b>
+            </div>
           )
         })}
-        {labels.map((label, index) => (
-          <text key={label} x={xFor(index)} y={height - 18} textAnchor="middle">{label}</text>
-        ))}
-      </svg>
-      <div className="admin-line-legend">
-        {series.map((item, index) => (
-          <span key={item.label}>
-            <i style={{ background: areaColors[index % areaColors.length] }} />
-            {item.label}
-          </span>
-        ))}
+      </div>
+
+      <div className="admin-activity-heat">
+        <div className="admin-activity-heat-head">
+          <strong>Recent activity</strong>
+          <span>{labels.join(' / ')}</span>
+        </div>
+        <div className="admin-activity-heat-grid" style={{ '--heat-columns': labels.length }}>
+          {actions.map((item) => (
+            labels.map((label, labelIndex) => {
+              const value = Number(item.values[labelIndex] || 0)
+              const opacity = value ? 0.22 + (value / maxDateValue) * 0.68 : 0.08
+
+              return (
+                <span
+                  key={`${item.label}-${label}`}
+                  style={{ '--action-color': item.color, '--heat-opacity': opacity }}
+                  title={`${item.label} on ${label}: ${moneylessNumber(value)}`}
+                />
+              )
+            })
+          ))}
+        </div>
       </div>
     </div>
   )
@@ -144,7 +152,6 @@ const AdminDashboard = ({ currentPath = '#coach' }) => {
     loading: true,
     error: '',
   })
-  const [activityPage, setActivityPage] = useState(1)
 
   useEffect(() => {
     let alive = true
@@ -204,30 +211,23 @@ const AdminDashboard = ({ currentPath = '#coach' }) => {
     state.players.filter((player) => scopedPlayerIds.has(String(player.id)))
   ), [scopedPlayerIds, state.players])
   const scopedTrainerIds = useMemo(() => new Set(
-    isTrainerDashboard
-      ? state.teamTrainers
-        .filter((link) => scopedTeamIds.has(String(link.team_id)))
-        .map((link) => String(link.trainer_id))
-      : state.teamTrainers
-        .filter((link) => scopedTeamIds.has(String(link.team_id)))
-        .map((link) => String(link.trainer_id)),
-  ), [isTrainerDashboard, scopedTeamIds, state.teamTrainers, state.trainers])
+    state.teamTrainers
+      .filter((link) => scopedTeamIds.has(String(link.team_id)))
+      .map((link) => String(link.trainer_id)),
+  ), [scopedTeamIds, state.teamTrainers])
   const scopedTrainers = useMemo(() => (
     state.trainers.filter((trainer) => scopedTrainerIds.has(String(trainer.id)))
   ), [scopedTrainerIds, state.trainers])
   const scopedLogs = useMemo(() => (
     state.logs.filter((log) => scopedPlayerIds.has(String(log.user_id)))
   ), [scopedPlayerIds, state.logs])
-  const scopedAssignments = useMemo(() => (
-    state.assignments.filter((item) => scopedPlayerIds.has(String(item.player_id)))
-  ), [scopedPlayerIds, state.assignments])
   const scopedAttendance = useMemo(() => (
     state.attendance.filter((item) => (
       scopedPlayerIds.has(String(item.player_id)) || scopedTeamIds.has(String(item.team_id))
     ))
   ), [scopedPlayerIds, scopedTeamIds, state.attendance])
 
-  const bumpChartData = useMemo(() => {
+  const performanceChartData = useMemo(() => {
     if (state.loading) return []
 
     const labels = Array.from(new Set(
@@ -244,14 +244,23 @@ const AdminDashboard = ({ currentPath = '#coach' }) => {
       .slice(0, 4)
       .map(([action]) => action)
 
+    const actionsWithValues = actions.map((action, index) => ({
+      label: action,
+      color: areaColors[index % areaColors.length],
+      labels,
+      values: labels.map((label) => scopedLogs
+        .filter((log) => formatShortDate(log.created_at || log.session_date) === label && (log.action_type || 'overall') === action)
+        .reduce((sum, log) => sum + Number(log.value || 1), 0)),
+    }))
+      .map((action) => ({
+        ...action,
+        total: action.values.reduce((sum, value) => sum + value, 0),
+      }))
+
     return {
       labels,
-      series: actions.map((action) => ({
-        label: action,
-        values: labels.map((label) => scopedLogs
-          .filter((log) => formatShortDate(log.created_at || log.session_date) === label && (log.action_type || 'overall') === action)
-          .reduce((sum, log) => sum + Number(log.value || 1), 0)),
-      })),
+      actions: actionsWithValues,
+      total: actionsWithValues.reduce((sum, action) => sum + action.total, 0),
     }
   }, [scopedLogs, state.loading])
 
@@ -259,10 +268,17 @@ const AdminDashboard = ({ currentPath = '#coach' }) => {
     scopedPlayers
       .map((player) => {
         const logs = scopedLogs.filter((log) => String(log.user_id) === String(player.id))
-        const score = logs.reduce((sum, log) => sum + (Number(log.value) || 1), 0)
-        return { ...player, score, logs: logs.length }
+        const metrics = Object.fromEntries(performanceMetrics.map((metric) => [
+          metric.label,
+          logs
+            .filter((log) => log.action_type === metric.action_type && log.result === metric.result)
+            .reduce((sum, log) => sum + (Number(log.value) || 1), 0),
+        ]))
+        const total = Object.values(metrics).reduce((sum, value) => sum + value, 0)
+
+        return { ...player, metrics, total }
       })
-      .sort((a, b) => b.score - a.score)
+      .sort((a, b) => b.total - a.total)
       .slice(0, 5)
   ), [scopedPlayers, scopedLogs])
 
@@ -281,49 +297,6 @@ const AdminDashboard = ({ currentPath = '#coach' }) => {
       average: scores.length ? scores.reduce((sum, score) => sum + score, 0) / scores.length : 0,
     }
   }, [scopedPlayers, scopedLogs])
-
-  const recentActivity = useMemo(() => {
-    const playerName = (id) => scopedPlayers.find((player) => String(player.id) === String(id))?.name || `Player #${id}`
-    const assignments = scopedAssignments.slice(0, 3).map((item) => ({
-      time: formatDate(item.created_at),
-      action: 'Training',
-      detail: item.status || 'pending',
-      subject: playerName(item.player_id),
-      tone: item.status === 'completed' ? 'secondary' : 'warning',
-      sortDate: item.created_at,
-    }))
-    const attendance = scopedAttendance.slice(0, 3).map((item) => ({
-      time: formatDate(item.session_date),
-      action: 'Attendance',
-      detail: item.status || 'marked',
-      subject: playerName(item.player_id),
-      tone: item.status === 'present' ? 'primary' : 'error',
-      sortDate: item.session_date,
-    }))
-    const performance = scopedLogs.slice(0, 6).map((item) => ({
-      time: formatDate(item.created_at),
-      action: item.action_type || 'Performance',
-      detail: item.result || 'logged',
-      subject: playerName(item.user_id),
-      tone: item.result === 'error' ? 'error' : 'primary',
-      sortDate: item.created_at,
-    }))
-
-    return [...assignments, ...attendance, ...performance]
-      .sort((a, b) => new Date(b.sortDate || 0) - new Date(a.sortDate || 0))
-  }, [scopedAssignments, scopedAttendance, scopedLogs, scopedPlayers])
-
-  const activityPageCount = Math.max(1, Math.ceil(recentActivity.length / activityRowsPerPage))
-  const pagedRecentActivity = useMemo(() => {
-    const start = (activityPage - 1) * activityRowsPerPage
-    return recentActivity.slice(start, start + activityRowsPerPage)
-  }, [activityPage, recentActivity])
-
-  useEffect(() => {
-    if (activityPage > activityPageCount) {
-      setActivityPage(activityPageCount)
-    }
-  }, [activityPage, activityPageCount])
 
   const dashboardNote = state.loading
     ? 'Loading your current team activity.'
@@ -403,8 +376,12 @@ const AdminDashboard = ({ currentPath = '#coach' }) => {
                 <span key={index} style={{ height: `${32 + (index % 4) * 14}%` }} />
               ))}
             </div>
-          ) : bumpChartData.labels?.length && bumpChartData.series?.length ? (
-            <BumpChart labels={bumpChartData.labels} series={bumpChartData.series} />
+          ) : performanceChartData.labels?.length && performanceChartData.actions?.length ? (
+            <ActivityMixChart
+              labels={performanceChartData.labels}
+              actions={performanceChartData.actions}
+              total={performanceChartData.total}
+            />
           ) : (
             <EmptyState>No performance logs yet.</EmptyState>
           )}
@@ -432,18 +409,19 @@ const AdminDashboard = ({ currentPath = '#coach' }) => {
           <div className="admin-card-header">
             <div>
               <h2>Top Players</h2>
-              <p className="admin-muted">Ranked by total inputted performance value.</p>
+              <p className="admin-muted">Breakdown by match input performance metric.</p>
             </div>
             <StatusBadge tone="success">{state.loading ? 'Loading' : 'Live data'}</StatusBadge>
           </div>
-          <div className="admin-table">
+          <div className="admin-table admin-dashboard-performance-table">
             <table className="admin-native-table">
               <thead>
                 <tr>
                   <th>Player</th>
                   <th>Position</th>
-                  <th>Logs</th>
-                  <th>Score</th>
+                  {performanceMetrics.map((metric) => (
+                    <th key={metric.label}>{metric.label}</th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
@@ -451,8 +429,9 @@ const AdminDashboard = ({ currentPath = '#coach' }) => {
                   <tr key={`loading-player-${index}`}>
                     <td><span className="admin-skeleton-line wide" /></td>
                     <td><span className="admin-skeleton-line" /></td>
-                    <td><span className="admin-skeleton-line short" /></td>
-                    <td><span className="admin-skeleton-line short" /></td>
+                    {performanceMetrics.map((metric) => (
+                      <td key={metric.label}><span className="admin-skeleton-line short" /></td>
+                    ))}
                   </tr>
                 ))}
                 {!state.loading && topPlayers.map((player) => (
@@ -467,68 +446,15 @@ const AdminDashboard = ({ currentPath = '#coach' }) => {
                       </span>
                     </td>
                     <td>{player.position || '-'}</td>
-                    <td>{player.logs}</td>
-                    <td>{moneylessNumber(player.score)}</td>
+                    {performanceMetrics.map((metric) => (
+                      <td key={metric.label}>{moneylessNumber(player.metrics[metric.label] || 0)}</td>
+                    ))}
                   </tr>
                 ))}
               </tbody>
             </table>
             {!state.loading && !topPlayers.length && <EmptyState />}
           </div>
-        </AdminCard>
-
-        <AdminCard className="admin-activity-card admin-analytics-card admin-dashboard-card admin-dashboard-activity-card">
-          <div className="admin-card-header">
-            <div>
-              <h2>Daily activities</h2>
-              <p className="admin-muted">Recent training and attendance movement.</p>
-            </div>
-          </div>
-          {state.loading ? (
-            <div className="admin-skeleton-list">
-              {Array.from({ length: 4 }).map((_, index) => (
-                <span key={index} />
-              ))}
-            </div>
-          ) : recentActivity.length ? (
-            <>
-              <ul className="admin-timeline">
-                {pagedRecentActivity.map((item, index) => (
-                  <li key={`${item.action}-${item.subject}-${item.sortDate}-${index}`}>
-                    <time>{item.time}</time>
-                    <span className={item.tone}>{item.action.slice(0, 1).toUpperCase()}</span>
-                    <p>
-                      <strong>{item.action}</strong>
-                      <small>{item.detail} • {item.subject}</small>
-                    </p>
-                  </li>
-                ))}
-              </ul>
-              <div className="admin-pagination">
-                <button
-                  type="button"
-                  className="admin-pagination-button"
-                  onClick={() => setActivityPage((page) => Math.max(1, page - 1))}
-                  disabled={activityPage === 1}
-                  aria-label="Previous activity page"
-                >
-                  <ChevronLeft size={16} />
-                </button>
-                <span>Page {activityPage} of {activityPageCount}</span>
-                <button
-                  type="button"
-                  className="admin-pagination-button"
-                  onClick={() => setActivityPage((page) => Math.min(activityPageCount, page + 1))}
-                  disabled={activityPage === activityPageCount}
-                  aria-label="Next activity page"
-                >
-                  <ChevronRight size={16} />
-                </button>
-              </div>
-            </>
-          ) : (
-            <EmptyState>No recent activity.</EmptyState>
-          )}
         </AdminCard>
 
       </div>

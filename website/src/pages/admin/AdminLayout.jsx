@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   BarChart3,
@@ -19,8 +20,9 @@ import {
   UsersRound,
 } from 'lucide-react'
 import websiteLogo from '../../assets/website_logo.png'
-import fallbackProfilePhoto from '../../assets/crpt_image.jpg'
+import fallbackProfilePhoto from '../../assets/default-profilepc.webp'
 import { API_BASE, clearSavedUser, readProfilePreview, readSavedUser } from '../../lib/api'
+import { parseDateInput } from '../../lib/dateKeys'
 import { useThemeMode } from '../../lib/theme'
 
 export const positions = ['OH', 'OPP', 'MB', 'S', 'L']
@@ -39,8 +41,8 @@ export const assignmentStatuses = ['pending', 'in_progress', 'completed', 'overd
 
 export const formatDate = (value) => {
   if (!value) return '-'
-  const date = new Date(value)
-  return Number.isNaN(date.getTime())
+  const date = parseDateInput(value)
+  return !date
     ? value
     : date.toLocaleDateString('en-US', {
       month: 'long',
@@ -191,11 +193,27 @@ export const AdminInput = (props) => <input className="admin-input" {...props} /
 export const AdminSelect = (props) => <select className="admin-input" {...props} />
 export const AdminTextarea = (props) => <textarea className="admin-input admin-textarea" {...props} />
 
-export const AdminButton = ({ children, variant = 'primary', className = '', ...props }) => (
-  <button className={`admin-button ${variant} ${className}`} {...props}>
+const getButtonText = (children) => {
+  if (typeof children === 'string' || typeof children === 'number') return String(children)
+  if (Array.isArray(children)) return children.map(getButtonText).join(' ')
+  if (children?.props?.children) return getButtonText(children.props.children)
+  return ''
+}
+
+export const AdminButton = ({ children, variant = 'primary', className = '', ...props }) => {
+  const buttonText = getButtonText(children).trim().toLowerCase()
+  const isCancel = buttonText === 'cancel'
+  const isSuccessAction = variant === 'primary' && /^(save|add|confirm)\b/.test(buttonText)
+
+  return (
+  <button
+    className={`admin-button ${variant} ${isCancel ? 'admin-cancel-button' : ''} ${isSuccessAction ? 'admin-success-action-button' : ''} ${className}`}
+    {...props}
+  >
     {children}
   </button>
-)
+  )
+}
 
 export const StatusBadge = ({ children, tone = 'success' }) => (
   <span className={`admin-badge ${tone}`}>{children}</span>

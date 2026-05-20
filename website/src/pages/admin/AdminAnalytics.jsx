@@ -58,13 +58,6 @@ const isScoreComplete = (score) => (
   && score?.opponent_score !== null && score?.opponent_score !== undefined
 )
 
-const getScoreResult = (score) => {
-  if (!isScoreComplete(score)) return null
-  if (Number(score.team_score) > Number(score.opponent_score)) return 'win'
-  if (Number(score.team_score) < Number(score.opponent_score)) return 'loss'
-  return 'draw'
-}
-
 const buildSetResultsForMatch = (match, scores, perspectiveTeam = null, teams = []) => {
   const isPrimaryTeam = !perspectiveTeam || String(match.team_id) === String(perspectiveTeam.id)
   const isOpponentTeam = perspectiveTeam && match.opponent_name === perspectiveTeam.team_name

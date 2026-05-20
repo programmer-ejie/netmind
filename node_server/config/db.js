@@ -9,6 +9,7 @@ const pool = mysql.createPool({
   connectionLimit: Number(process.env.DB_CONNECTION_LIMIT || 10),
   queueLimit: 0,
   decimalNumbers: true,
+  dateStrings: ["DATE"],
 });
 
 async function query(sql, params = []) {
