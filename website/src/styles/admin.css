@@ -3190,7 +3190,7 @@
 .admin-attendance-table-head,
 .admin-attendance-player-row {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) 160px 140px 190px;
+  grid-template-columns: minmax(260px, 1fr) 140px 120px 170px minmax(180px, 220px);
   align-items: center;
   justify-items: center;
   gap: 14px;
@@ -3250,6 +3250,58 @@
 
 .admin-attendance-player-row .admin-badge {
   font-weight: 600;
+}
+
+.admin-attendance-action {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+}
+
+.admin-attendance-input-button {
+  min-height: 38px;
+  padding: 0 12px;
+  white-space: nowrap;
+}
+
+.admin-attendance-input-button svg {
+  flex: 0 0 auto;
+}
+
+.admin-attendance-action small {
+  color: var(--admin-muted);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.admin-unit-input {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-unit-input span {
+  min-width: 58px;
+  color: var(--admin-muted);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.admin-trainer-input-offcanvas {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.admin-trainer-input-form {
+  gap: 16px;
+}
+
+.admin-trainer-input-offcanvas .admin-password-tip {
+  margin: 0;
 }
 
 

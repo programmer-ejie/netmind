@@ -250,6 +250,76 @@ async function upsertAfterTrainingReport({ attendanceLog, playerId, sessionType,
   return savedLogs;
 }
 
+async function upsertTrainerAttendanceInput({ schedule, playerId, input }) {
+  if (!input || typeof input !== "object") return [];
+
+  const metrics = [
+    {
+      field: "highest_jump",
+      actionType: "jump",
+      value: optionalNonNegativeNumber(input.highest_jump, "highest_jump"),
+      label: "Highest jump",
+      unit: "inches",
+    },
+    {
+      field: "strongest_spike",
+      actionType: "spike",
+      value: optionalNonNegativeNumber(input.strongest_spike, "strongest_spike"),
+      label: "Strongest spike",
+      unit: "km/h",
+    },
+  ].filter((metric) => metric.value !== null);
+
+  if (!metrics.length) {
+    throw new ApiError(400, "Enter highest_jump or strongest_spike");
+  }
+
+  const savedLogs = [];
+  for (const metric of metrics) {
+    const notes = [
+      "Trainer attendance input",
+      `training_schedule_id: ${schedule.id}`,
+      `session_date: ${toLocalDateKey(schedule.session_date)}`,
+      `metric: ${metric.field}`,
+      `${metric.label}: ${metric.value} ${metric.unit}`,
+    ].join("\n");
+    const existing = await query(
+      `SELECT id FROM performance_logs
+      WHERE user_id = ?
+        AND session_type = ?
+        AND action_type = ?
+        AND notes LIKE ?
+        AND notes LIKE ?
+      ORDER BY created_at DESC
+      LIMIT 1`,
+      [playerId, schedule.session_type, metric.actionType, `%training_schedule_id: ${schedule.id}%`, `%metric: ${metric.field}%`]
+    );
+
+    if (existing.length) {
+      await query(
+        `UPDATE performance_logs
+        SET value = ?,
+          result = 'normal',
+          notes = ?
+        WHERE id = ?`,
+        [metric.value, notes, existing[0].id]
+      );
+      savedLogs.push(await getById("performance_logs", existing[0].id));
+      continue;
+    }
+
+    const result = await query(
+      `INSERT INTO performance_logs
+        (user_id, session_type, match_id, match_number, season_id, action_type, result, value, minutes_played, fatigue_level, rpe, sleep_quality, energy_level, confidence_level, focus_level, injury_status, notes)
+      VALUES (?, ?, NULL, 1, NULL, ?, 'normal', ?, 0, NULL, NULL, NULL, NULL, NULL, NULL, 'none', ?)`,
+      [playerId, schedule.session_type, metric.actionType, metric.value, notes]
+    );
+    savedLogs.push(await getById("performance_logs", result.insertId));
+  }
+
+  return savedLogs;
+}
+
 function visiblePlayersQuery(user) {
   const select =
     "SELECT DISTINCT u.id, u.name, u.email, u.role, u.position, u.jersey_number, u.age, u.birthdate, u.location, u.profile_picture_url, u.profile_picture_file_id, u.is_active, u.created_at FROM users u";
@@ -1384,11 +1454,34 @@ router.get("/training-schedules/:scheduleId/attendance-check", asyncHandler(asyn
     ORDER BY u.name`,
     [schedule.team_id, schedule.session_type, schedule.session_date]
   );
+  const trainerInputLogs = await query(
+    `SELECT *
+    FROM performance_logs
+    WHERE session_type = ?
+      AND notes LIKE ?
+      AND notes LIKE 'Trainer attendance input%'
+    ORDER BY created_at DESC`,
+    [schedule.session_type, `%training_schedule_id: ${schedule.id}%`]
+  );
   const logsByPlayerId = new Map(logs.map((log) => [String(log.player_id), log]));
+  const trainerInputsByPlayerId = new Map();
+
+  trainerInputLogs.forEach((log) => {
+    const playerKey = String(log.user_id);
+    const current = trainerInputsByPlayerId.get(playerKey) || {};
+    const metric = String(log.notes || "").match(/metric:\s*([a-z_]+)/i)?.[1];
+
+    if (metric === "highest_jump") current.highest_jump = log.value;
+    if (metric === "strongest_spike") current.strongest_spike = log.value;
+
+    trainerInputsByPlayerId.set(playerKey, current);
+  });
+
   const roster = players.map((player) => ({
     ...player,
     checked_in: logsByPlayerId.has(String(player.player_id)),
     attendance_log: logsByPlayerId.get(String(player.player_id)) || null,
+    trainer_input: trainerInputsByPlayerId.get(String(player.player_id)) || null,
   }));
 
   res.json({
@@ -1401,6 +1494,37 @@ router.get("/training-schedules/:scheduleId/attendance-check", asyncHandler(asyn
       checked_in: roster.filter((player) => player.checked_in).length,
       not_checked_in: roster.filter((player) => !player.checked_in).length,
     },
+  });
+}));
+
+router.post("/training-schedules/:scheduleId/players/:playerId/trainer-input", asyncHandler(async (req, res) => {
+  if (!["coach", "trainer"].includes(req.user.role)) {
+    throw new ApiError(403, "Only coaches and trainers can submit trainer input");
+  }
+
+  const schedule = await ensureRecord("training_schedules", req.params.scheduleId, "Training schedule");
+  const playerRows = await query(
+    `SELECT player_id FROM team_members
+    WHERE team_id = ? AND player_id = ? AND is_active = TRUE
+    LIMIT 1`,
+    [schedule.team_id, req.params.playerId]
+  );
+
+  if (!playerRows.length) {
+    throw new ApiError(404, "Player is not active on this schedule team");
+  }
+
+  const reportLogs = await upsertTrainerAttendanceInput({
+    schedule,
+    playerId: req.params.playerId,
+    input: req.body,
+  });
+
+  res.json({
+    player_id: Number(req.params.playerId),
+    highest_jump: reportLogs.find((log) => log.notes?.includes("metric: highest_jump"))?.value ?? null,
+    strongest_spike: reportLogs.find((log) => log.notes?.includes("metric: strongest_spike"))?.value ?? null,
+    report_logs: reportLogs,
   });
 }));
 
