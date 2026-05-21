@@ -13,6 +13,7 @@ const {
 } = require("../src/services/notificationService");
 const { toLocalDateKey } = require("../utils/dateKeys");
 const { deletePlayerById } = require("../utils/playerDeletion");
+const { deleteTrainerById } = require("../utils/trainerDeletion");
 const { sendPasswordResetCodeEmail } = require("../utils/emailService");
 const { requireRoles, requireSelf } = require("../middleware/authorization");
 const {
@@ -668,43 +669,14 @@ router.delete("/players/:playerId", asyncHandler(async (req, res) => {
 }));
 
 router.delete("/trainers/:trainerId", asyncHandler(async (req, res) => {
-  const trainerId = req.params.trainerId;
   const connection = await pool.getConnection();
 
   try {
     await connection.beginTransaction();
 
-    const [trainers] = await connection.execute(
-      "SELECT id, role FROM users WHERE id = ? AND role = 'trainer' FOR UPDATE",
-      [trainerId]
-    );
-
-    if (!trainers.length) {
+    const deleted = await deleteTrainerById(connection, req.params.trainerId);
+    if (!deleted) {
       throw new ApiError(404, "Trainer not found");
-    }
-
-    await connection.execute(
-      `DELETE FROM team_trainers
-      WHERE trainer_id = ?
-        AND team_id IN (SELECT id FROM teams WHERE coach_id = ?)`,
-      [trainerId, req.user.id]
-    );
-    await connection.execute(
-      "DELETE FROM coach_trainers WHERE coach_id = ? AND trainer_id = ?",
-      [req.user.id, trainerId]
-    );
-
-    const [remainingLinks] = await connection.execute(
-      `SELECT trainer_id FROM coach_trainers WHERE trainer_id = ?
-      UNION
-      SELECT trainer_id FROM team_trainers WHERE trainer_id = ?
-      LIMIT 1`,
-      [trainerId, trainerId]
-    );
-
-    if (!remainingLinks.length) {
-      await connection.execute("UPDATE users SET is_active = FALSE WHERE id = ? AND role = 'trainer'", [trainerId]);
-      await connection.execute("DELETE FROM push_subscriptions WHERE user_id = ?", [trainerId]);
     }
 
     await connection.commit();
