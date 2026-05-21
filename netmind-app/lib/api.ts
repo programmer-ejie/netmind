@@ -1,4 +1,3 @@
-import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type NetmindUser = {
@@ -142,6 +141,12 @@ export type AttendanceLog = {
   created_at?: string | null;
 };
 
+export type AfterTrainingReportInput = {
+  total_jumps: number;
+  total_spikes: number;
+  avg_heart_rate: number;
+};
+
 export type PerformanceReflectionInput = {
   session_type: 'match';
   match_id: number;
@@ -158,6 +163,11 @@ export type PerformanceReflectionInput = {
 export type PerformanceLog = PerformanceReflectionInput & {
   id: number;
   user_id: number;
+  season_id?: number | string | null;
+  value?: number | string | null;
+  minutes_played?: number | string | null;
+  fatigue_level?: number | string | null;
+  sleep_quality?: number | string | null;
   match_number?: number | string;
   created_at?: string | null;
 };
@@ -205,10 +215,7 @@ export type PlayerSummary = {
   active_injuries?: InjuryLog[];
 };
 
-const defaultApiBase = Platform.select({
-  android: 'http://10.0.2.2:5001/api',
-  default: 'http://localhost:5001/api',
-});
+const defaultApiBase = 'https://netmind-backend-fjma.onrender.com/api';
 
 export const API_BASE = (process.env.EXPO_PUBLIC_API_BASE || defaultApiBase).replace(/\/$/, '');
 
@@ -364,11 +371,19 @@ export function getAttendanceQrInfo(token: string) {
   return apiRequest<AttendanceQrInfo>(`/attendance-qr/${encodeURIComponent(token)}`);
 }
 
-export function checkInWithAttendanceQr(token: string, playerId: number | string) {
-  return apiRequest<AttendanceLog>(`/attendance-qr/${encodeURIComponent(token)}/check-in`, {
+export function checkInWithAttendanceQr(
+  token: string,
+  playerId: number | string,
+  report?: AfterTrainingReportInput
+) {
+  return apiRequest<AttendanceLog & { report_logs?: PerformanceLog[] }>(`/attendance-qr/${encodeURIComponent(token)}/check-in`, {
     method: 'POST',
-    body: JSON.stringify({}),
+    body: JSON.stringify(report ? { report } : {}),
   });
+}
+
+export function listPlayerAttendanceLogs(playerId: number | string) {
+  return apiRequest<AttendanceLog[]>(`/players/${playerId}/attendance`);
 }
 
 export function getProfilePictureUrl(user?: NetmindUser | null) {

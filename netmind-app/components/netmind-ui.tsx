@@ -39,7 +39,10 @@ export function Screen({
   return (
     <SafeAreaView edges={['left', 'right']} style={[styles.safeArea, { backgroundColor: colors.wash }]}>
       <ScrollView
+        automaticallyAdjustKeyboardInsets
         contentContainerStyle={styles.screen}
+        keyboardDismissMode="interactive"
+        keyboardShouldPersistTaps="handled"
         refreshControl={onRefresh ? (
           <RefreshControl
             colors={[colors.court]}

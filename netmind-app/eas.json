@@ -5,12 +5,18 @@
   },
   "build": {
     "preview": {
+      "env": {
+        "EXPO_PUBLIC_API_BASE": "https://netmind-backend-fjma.onrender.com/api"
+      },
       "android": {
         "buildType": "apk"
       },
       "distribution": "internal"
     },
     "production": {
+      "env": {
+        "EXPO_PUBLIC_API_BASE": "https://netmind-backend-fjma.onrender.com/api"
+      },
       "android": {
         "buildType": "app-bundle"
       }

@@ -169,6 +169,87 @@ async function ensureRecord(table, id, label) {
   return record;
 }
 
+function optionalNonNegativeNumber(value, field) {
+  if (value === undefined || value === null || value === "") return null;
+
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < 0) {
+    throw new ApiError(400, `${field} must be a non-negative number`);
+  }
+
+  return number;
+}
+
+async function upsertAfterTrainingReport({ attendanceLog, playerId, sessionType, sessionDate, report }) {
+  if (!report || typeof report !== "object") return [];
+
+  const metrics = [
+    {
+      field: "total_jumps",
+      actionType: "jump",
+      value: optionalNonNegativeNumber(report.total_jumps, "total_jumps"),
+      label: "Total jumps",
+    },
+    {
+      field: "total_spikes",
+      actionType: "spike",
+      value: optionalNonNegativeNumber(report.total_spikes, "total_spikes"),
+      label: "Total spikes",
+    },
+    {
+      field: "avg_heart_rate",
+      actionType: "run",
+      value: optionalNonNegativeNumber(report.avg_heart_rate, "avg_heart_rate"),
+      label: "Average heart rate",
+    },
+  ].filter((metric) => metric.value !== null);
+
+  if (!metrics.length) return [];
+
+  const savedLogs = [];
+  for (const metric of metrics) {
+    const notes = [
+      "After training report",
+      `attendance_log_id: ${attendanceLog.id}`,
+      `metric: ${metric.field}`,
+      `${metric.label}: ${metric.value}`,
+    ].join("\n");
+    const existing = await query(
+      `SELECT id FROM performance_logs
+      WHERE user_id = ?
+        AND session_type = ?
+        AND action_type = ?
+        AND notes LIKE ?
+      ORDER BY created_at DESC
+      LIMIT 1`,
+      [playerId, sessionType, metric.actionType, `%attendance_log_id: ${attendanceLog.id}%`]
+    );
+
+    if (existing.length) {
+      await query(
+        `UPDATE performance_logs
+        SET value = ?,
+          result = 'normal',
+          notes = ?
+        WHERE id = ?`,
+        [metric.value, notes, existing[0].id]
+      );
+      savedLogs.push(await getById("performance_logs", existing[0].id));
+      continue;
+    }
+
+    const result = await query(
+      `INSERT INTO performance_logs
+        (user_id, session_type, match_id, match_number, season_id, action_type, result, value, minutes_played, fatigue_level, rpe, sleep_quality, energy_level, confidence_level, focus_level, injury_status, notes)
+      VALUES (?, ?, NULL, 1, NULL, ?, 'normal', ?, 0, NULL, NULL, NULL, NULL, NULL, NULL, 'none', ?)`,
+      [playerId, sessionType, metric.actionType, metric.value, notes]
+    );
+    savedLogs.push(await getById("performance_logs", result.insertId));
+  }
+
+  return savedLogs;
+}
+
 function visiblePlayersQuery(user) {
   const select =
     "SELECT DISTINCT u.id, u.name, u.email, u.role, u.position, u.jersey_number, u.age, u.birthdate, u.location, u.profile_picture_url, u.profile_picture_file_id, u.is_active, u.created_at FROM users u";
@@ -1388,7 +1469,14 @@ router.post("/attendance-qr/:token/check-in", qrAttendanceCheckInLimiter, asyncH
 
   if (existing.length) {
     const existingLog = await getById("attendance_logs", existing[0].id);
-    res.json(existingLog);
+    const reportLogs = await upsertAfterTrainingReport({
+      attendanceLog: existingLog,
+      playerId,
+      sessionType: record.session_type,
+      sessionDate: record.session_date,
+      report: req.body.report || req.body,
+    });
+    res.json({ ...existingLog, report_logs: reportLogs });
     return;
   }
 
@@ -1407,6 +1495,14 @@ router.post("/attendance-qr/:token/check-in", qrAttendanceCheckInLimiter, asyncH
   );
 
   const attendanceLog = await getById("attendance_logs", result.insertId);
+  const reportLogs = await upsertAfterTrainingReport({
+    attendanceLog,
+    playerId,
+    sessionType: record.session_type,
+    sessionDate: record.session_date,
+    report: req.body.report || req.body,
+  });
+
   await createNotifications({
     actorId: req.user.id,
     recipientIds: [playerId, ...(await getPlayerStaffRecipients(playerId))],
@@ -1422,7 +1518,7 @@ router.post("/attendance-qr/:token/check-in", qrAttendanceCheckInLimiter, asyncH
     },
   });
 
-  res.status(201).json(attendanceLog);
+  res.status(201).json({ ...attendanceLog, report_logs: reportLogs });
 }));
 
 router.get("/teams/:teamId/attendance", asyncHandler(async (req, res) => {

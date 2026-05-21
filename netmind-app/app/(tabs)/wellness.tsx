@@ -262,6 +262,7 @@ export default function WellnessScreen() {
 
             <ScrollView
               contentContainerStyle={styles.modalContent}
+              keyboardDismissMode="interactive"
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}>
               <Card style={styles.formCard}>
@@ -328,6 +329,7 @@ export default function WellnessScreen() {
 
             <ScrollView
               contentContainerStyle={styles.modalContent}
+              keyboardDismissMode="interactive"
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}>
               <SectionTitle>Body check</SectionTitle>
@@ -896,6 +898,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   keyboardAvoider: {
+    flex: 1,
     justifyContent: 'flex-end',
     width: '100%',
   },

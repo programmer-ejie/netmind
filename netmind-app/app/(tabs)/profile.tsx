@@ -346,7 +346,8 @@ export default function ProfileScreen() {
         visible={editOpen}>
         <View style={[styles.modalBackdrop, isDark ? styles.modalBackdropDark : styles.modalBackdropLight]}>
           <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
             style={styles.keyboardAvoider}>
             <View style={[styles.editModal, { backgroundColor: colors.surface, borderColor: colors.line }]}>
               <View style={[styles.modalHandle, { backgroundColor: colors.line }]} />
@@ -362,6 +363,7 @@ export default function ProfileScreen() {
 
               <ScrollView
                 contentContainerStyle={styles.form}
+                keyboardDismissMode="interactive"
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}>
                 <EditField label="Name" value={form.name} onChangeText={(value) => updateForm('name', value)} />
@@ -706,7 +708,9 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   keyboardAvoider: {
+    flex: 1,
     justifyContent: 'flex-end',
+    width: '100%',
   },
   modalBackdropDark: {
     backgroundColor: 'rgba(3, 18, 25, 0.72)',
