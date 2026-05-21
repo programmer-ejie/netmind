@@ -18,6 +18,7 @@ import {
 } from '@/lib/api';
 
 type ScanStatus = 'idle' | 'checking' | 'success' | 'error';
+type AttendanceTab = 'qr' | 'logs';
 type ReportForm = {
   totalJumps: string;
   totalSpikes: string;
@@ -35,6 +36,7 @@ const initialReportForm: ReportForm = {
   totalSpikes: '',
   avgHeartRate: '',
 };
+const LOGS_PER_PAGE = 4;
 
 function extractQrToken(value: string) {
   const trimmed = value.trim();
@@ -68,6 +70,24 @@ function formatDate(value?: string | null) {
 function parseReportNumber(value: string) {
   const number = Number(value);
   return Number.isFinite(number) && number >= 0 ? number : null;
+}
+
+function logDateTime(value?: string | null) {
+  if (!value) return 0;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+}
+
+function sortAttendanceLogs(logs: AttendanceLog[]) {
+  return [...logs].sort((first, second) => {
+    const sessionOrder = logDateTime(second.session_date) - logDateTime(first.session_date);
+    if (sessionOrder !== 0) return sessionOrder;
+
+    const createdOrder = logDateTime(second.created_at) - logDateTime(first.created_at);
+    if (createdOrder !== 0) return createdOrder;
+
+    return Number(second.id) - Number(first.id);
+  });
 }
 
 function readMetric(log: PerformanceLog) {
@@ -105,6 +125,7 @@ function buildReportSummaries(logs: PerformanceLog[]) {
 export default function AttendanceScreen() {
   const { colors, isDark } = useNetmindTheme();
   const [permission, requestPermission] = useCameraPermissions();
+  const [activeTab, setActiveTab] = useState<AttendanceTab>('qr');
   const [currentUser, setCurrentUser] = useState<NetmindUser | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scanned, setScanned] = useState(false);
@@ -117,6 +138,7 @@ export default function AttendanceScreen() {
   const [loadingLogs, setLoadingLogs] = useState(true);
   const [savingReport, setSavingReport] = useState(false);
   const [reportForm, setReportForm] = useState<ReportForm>(initialReportForm);
+  const [logsPage, setLogsPage] = useState(1);
   const resumeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastScan = useRef({ token: '', scannedAt: 0 });
 
@@ -128,7 +150,7 @@ export default function AttendanceScreen() {
         listPlayerAttendanceLogs(userId),
         listPlayerPerformanceLogs(userId),
       ]);
-      setAttendanceLogs(attendance);
+      setAttendanceLogs(sortAttendanceLogs(attendance));
       setReportLogs(performance.filter((log) => (log.notes || '').includes('After training report')));
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Unable to load attendance logs.');
@@ -160,12 +182,21 @@ export default function AttendanceScreen() {
 
   const cameraReady = permission?.granted;
   const reportSummaries = useMemo(() => buildReportSummaries(reportLogs), [reportLogs]);
+  const totalLogPages = Math.max(1, Math.ceil(attendanceLogs.length / LOGS_PER_PAGE));
+  const visibleLogs = useMemo(() => {
+    const start = (logsPage - 1) * LOGS_PER_PAGE;
+    return attendanceLogs.slice(start, start + LOGS_PER_PAGE);
+  }, [attendanceLogs, logsPage]);
   const statusTone = useMemo(() => {
     if (status === 'success') return colors.court;
     if (status === 'error') return colors.coral;
     return colors.muted;
   }, [colors.coral, colors.court, colors.muted, status]);
   const reportReady = Boolean(pendingToken && qrInfo && !qrInfo.expired);
+
+  useEffect(() => {
+    setLogsPage((current) => Math.min(current, totalLogPages));
+  }, [totalLogPages]);
 
   const resetScannerSoon = useCallback(() => {
     if (resumeTimer.current) clearTimeout(resumeTimer.current);
@@ -276,7 +307,10 @@ export default function AttendanceScreen() {
         avg_heart_rate: avgHeartRate,
       });
 
-      setAttendanceLogs((current) => [log, ...current.filter((item) => item.id !== log.id)]);
+      setAttendanceLogs((current) => sortAttendanceLogs([
+        log,
+        ...current.filter((item) => item.id !== log.id),
+      ]));
       setReportLogs((current) => [
         ...(log.report_logs || []),
         ...current.filter((item) => (
@@ -287,6 +321,8 @@ export default function AttendanceScreen() {
       setPendingToken('');
       setQrInfo(null);
       setReportForm(initialReportForm);
+      setLogsPage(1);
+      setActiveTab('logs');
       setStatus('success');
       setMessage('Attendance and after-training report submitted.');
     } catch (error) {
@@ -303,130 +339,151 @@ export default function AttendanceScreen() {
       refreshing={loadingLogs}
       title="Attendance"
       subtitle="Scan the trainer QR code, then submit your after-training report.">
-      <Card style={styles.heroCard}>
-        <View style={[styles.heroIcon, { backgroundColor: colors.courtSoft }]}>
-          <MaterialIcons name="qr-code-scanner" size={28} color={colors.court} />
-        </View>
-        <View style={styles.heroCopy}>
-          <Text style={[styles.heroTitle, { color: colors.ink }]}>QR Check-In</Text>
-          <Text style={[styles.heroText, { color: colors.muted }]}>
-            The scanner opens only when you tap the scan button.
-          </Text>
-        </View>
-      </Card>
+      <View style={[styles.tabBar, { backgroundColor: colors.surface, borderColor: colors.line }]}>
+        <AttendanceTabButton
+          active={activeTab === 'qr'}
+          icon="qr-code-scanner"
+          label="QR"
+          onPress={() => setActiveTab('qr')}
+        />
+        <AttendanceTabButton
+          active={activeTab === 'logs'}
+          icon="history"
+          label="Logs"
+          onPress={() => {
+            setScannerOpen(false);
+            setActiveTab('logs');
+          }}
+        />
+      </View>
 
-      <Card style={styles.statusCard}>
-        <View style={[styles.statusIcon, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : colors.wash }]}>
-          {status === 'checking' ? (
-            <ActivityIndicator color={colors.court} />
-          ) : (
-            <MaterialIcons
-              name={status === 'success' ? 'check-circle' : status === 'error' ? 'error-outline' : 'qr-code-2'}
-              size={24}
-              color={statusTone}
-            />
-          )}
-        </View>
-        <View style={styles.statusCopy}>
-          <Text style={[styles.statusTitle, { color: colors.ink }]}>
-            {reportReady ? 'After training report' : status === 'success' ? 'Submitted' : status === 'error' ? 'Action needed' : status === 'checking' ? 'Working' : 'Ready'}
-          </Text>
-          <Text style={[styles.statusText, { color: status === 'error' ? colors.coral : colors.muted }]}>{message}</Text>
-          {qrInfo ? (
-            <Text style={[styles.statusMeta, { color: colors.muted }]}>
-              Session date: {formatDate(qrInfo.session_date)}
-            </Text>
-          ) : null}
-        </View>
-      </Card>
-
-      {!reportReady ? (
-        <View style={styles.scanAction}>
-          <PrimaryButton icon={scannerOpen ? 'close' : 'qr-code-scanner'} onPress={scannerOpen ? closeScanner : openScanner} title={scannerOpen ? 'Close scanner' : 'Scan QR'} />
-        </View>
-      ) : null}
-
-      {scannerOpen ? (
-        <Card style={styles.scannerCard}>
-          {!permission ? (
-            <View style={styles.permissionState}>
-              <ActivityIndicator color={colors.court} />
-              <Text style={[styles.permissionText, { color: colors.muted }]}>Preparing camera...</Text>
-            </View>
-          ) : !cameraReady ? (
-            <View style={styles.permissionState}>
-              <MaterialIcons name="photo-camera" size={34} color={colors.court} />
-              <Text style={[styles.permissionTitle, { color: colors.ink }]}>Camera access needed</Text>
-              <Text style={[styles.permissionText, { color: colors.muted }]}>
-                NetMind needs camera access so you can scan attendance QR codes.
-              </Text>
-              <PrimaryButton icon="photo-camera" onPress={requestPermission} title="Allow Camera" />
-            </View>
-          ) : (
-            <View style={styles.cameraWrap}>
-              <CameraView
-                barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-                onBarcodeScanned={scanned ? undefined : handleBarcodeScanned}
-                style={styles.camera}
-              />
-              <View pointerEvents="none" style={styles.scanOverlay}>
-                <View style={[styles.scanFrame, { borderColor: colors.court }]} />
-              </View>
-            </View>
-          )}
-        </Card>
-      ) : null}
-
-      {reportReady ? (
+      {activeTab === 'qr' ? (
         <>
-          <SectionTitle>After training report</SectionTitle>
-          <Card style={styles.reportCard}>
-            <ReportField
-              label="Total Jumps"
-              onChangeText={(value) => updateReport('totalJumps', value)}
-              value={reportForm.totalJumps}
-            />
-            <ReportField
-              label="Total Spikes"
-              onChangeText={(value) => updateReport('totalSpikes', value)}
-              value={reportForm.totalSpikes}
-            />
-            <ReportField
-              label="Avg Heart Rate"
-              onChangeText={(value) => updateReport('avgHeartRate', value)}
-              suffix="bpm"
-              value={reportForm.avgHeartRate}
-            />
-            <PrimaryButton
-              disabled={savingReport}
-              icon="save"
-              onPress={submitReport}
-              title={savingReport ? 'Submitting...' : 'Submit report'}
-            />
+          <Card style={styles.heroCard}>
+            <View style={[styles.heroIcon, { backgroundColor: colors.courtSoft }]}>
+              <MaterialIcons name="qr-code-scanner" size={28} color={colors.court} />
+            </View>
+            <View style={styles.heroCopy}>
+              <Text style={[styles.heroTitle, { color: colors.ink }]}>QR Check-In</Text>
+              <Text style={[styles.heroText, { color: colors.muted }]}>
+                The scanner opens only when you tap the scan button.
+              </Text>
+            </View>
           </Card>
-        </>
-      ) : null}
 
-      <SectionTitle>Logs</SectionTitle>
-      {loadingLogs ? (
-        <Card style={styles.loadingCard}>
-          <ActivityIndicator color={colors.court} />
-          <Text style={[styles.permissionText, { color: colors.muted }]}>Loading attendance logs...</Text>
-        </Card>
-      ) : attendanceLogs.length ? (
-        <View style={styles.logList}>
-          {attendanceLogs.map((log) => (
-            <AttendanceLogCard
-              key={log.id}
-              log={log}
-              report={reportSummaries.get(String(log.id))}
-            />
-          ))}
-        </View>
+          <Card style={styles.statusCard}>
+            <View style={[styles.statusIcon, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : colors.wash }]}>
+              {status === 'checking' ? (
+                <ActivityIndicator color={colors.court} />
+              ) : (
+                <MaterialIcons
+                  name={status === 'success' ? 'check-circle' : status === 'error' ? 'error-outline' : 'qr-code-2'}
+                  size={24}
+                  color={statusTone}
+                />
+              )}
+            </View>
+            <View style={styles.statusCopy}>
+              <Text style={[styles.statusTitle, { color: colors.ink }]}>
+                {reportReady ? 'After training report' : status === 'success' ? 'Submitted' : status === 'error' ? 'Action needed' : status === 'checking' ? 'Working' : 'Ready'}
+              </Text>
+              <Text style={[styles.statusText, { color: status === 'error' ? colors.coral : colors.muted }]}>{message}</Text>
+              {qrInfo ? (
+                <Text style={[styles.statusMeta, { color: colors.muted }]}>
+                  Session date: {formatDate(qrInfo.session_date)}
+                </Text>
+              ) : null}
+            </View>
+          </Card>
+
+          {!reportReady ? (
+            <View style={styles.scanAction}>
+              <PrimaryButton icon={scannerOpen ? 'close' : 'qr-code-scanner'} onPress={scannerOpen ? closeScanner : openScanner} title={scannerOpen ? 'Close scanner' : 'Scan QR'} />
+            </View>
+          ) : null}
+
+          {scannerOpen ? (
+            <Card style={styles.scannerCard}>
+              {!permission ? (
+                <View style={styles.permissionState}>
+                  <ActivityIndicator color={colors.court} />
+                  <Text style={[styles.permissionText, { color: colors.muted }]}>Preparing camera...</Text>
+                </View>
+              ) : !cameraReady ? (
+                <View style={styles.permissionState}>
+                  <MaterialIcons name="photo-camera" size={34} color={colors.court} />
+                  <Text style={[styles.permissionTitle, { color: colors.ink }]}>Camera access needed</Text>
+                  <Text style={[styles.permissionText, { color: colors.muted }]}>
+                    NetMind needs camera access so you can scan attendance QR codes.
+                  </Text>
+                  <PrimaryButton icon="photo-camera" onPress={requestPermission} title="Allow Camera" />
+                </View>
+              ) : (
+                <View style={styles.cameraWrap}>
+                  <CameraView
+                    barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+                    onBarcodeScanned={scanned ? undefined : handleBarcodeScanned}
+                    style={styles.camera}
+                  />
+                  <View pointerEvents="none" style={styles.scanOverlay}>
+                    <View style={[styles.scanFrame, { borderColor: colors.court }]} />
+                  </View>
+                </View>
+              )}
+            </Card>
+          ) : null}
+
+          {reportReady ? (
+            <>
+              <SectionTitle>After training report</SectionTitle>
+              <Card style={styles.reportCard}>
+                <ReportField label="Total Jumps" onChangeText={(value) => updateReport('totalJumps', value)} value={reportForm.totalJumps} />
+                <ReportField label="Total Spikes" onChangeText={(value) => updateReport('totalSpikes', value)} value={reportForm.totalSpikes} />
+                <ReportField label="Avg Heart Rate" onChangeText={(value) => updateReport('avgHeartRate', value)} suffix="bpm" value={reportForm.avgHeartRate} />
+                <PrimaryButton disabled={savingReport} icon="save" onPress={submitReport} title={savingReport ? 'Submitting...' : 'Submit report'} />
+              </Card>
+            </>
+          ) : null}
+        </>
       ) : (
-        <Card>
-          <Text style={[styles.emptyText, { color: colors.muted }]}>No attendance logs yet.</Text>
-        </Card>
+        <>
+          <SectionTitle>Logs</SectionTitle>
+          {loadingLogs ? (
+            <Card style={styles.loadingCard}>
+              <ActivityIndicator color={colors.court} />
+              <Text style={[styles.permissionText, { color: colors.muted }]}>Loading attendance logs...</Text>
+            </Card>
+          ) : attendanceLogs.length ? (
+            <>
+              <View style={styles.logList}>
+                {visibleLogs.map((log) => (
+                  <AttendanceLogCard key={log.id} log={log} report={reportSummaries.get(String(log.id))} />
+                ))}
+              </View>
+              <View style={[styles.pagination, { backgroundColor: colors.surface, borderColor: colors.line }]}>
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={logsPage <= 1}
+                  onPress={() => setLogsPage((page) => Math.max(1, page - 1))}
+                  style={[styles.pageButton, { backgroundColor: colors.wash, borderColor: colors.line }, logsPage <= 1 ? styles.disabledButton : null]}>
+                  <MaterialIcons name="chevron-left" size={22} color={colors.court} />
+                </Pressable>
+                <Text style={[styles.pageText, { color: colors.ink }]}>Page {logsPage} of {totalLogPages}</Text>
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={logsPage >= totalLogPages}
+                  onPress={() => setLogsPage((page) => Math.min(totalLogPages, page + 1))}
+                  style={[styles.pageButton, { backgroundColor: colors.wash, borderColor: colors.line }, logsPage >= totalLogPages ? styles.disabledButton : null]}>
+                  <MaterialIcons name="chevron-right" size={22} color={colors.court} />
+                </Pressable>
+              </View>
+            </>
+          ) : (
+            <Card>
+              <Text style={[styles.emptyText, { color: colors.muted }]}>No attendance logs yet.</Text>
+            </Card>
+          )}
+        </>
       )}
     </Screen>
   );
@@ -463,6 +520,31 @@ function ReportField({
         {suffix ? <Text style={[styles.reportSuffix, { color: colors.muted }]}>{suffix}</Text> : null}
       </View>
     </View>
+  );
+}
+
+function AttendanceTabButton({
+  active,
+  icon,
+  label,
+  onPress,
+}: {
+  active: boolean;
+  icon: keyof typeof MaterialIcons.glyphMap;
+  label: string;
+  onPress: () => void;
+}) {
+  const { colors } = useNetmindTheme();
+
+  return (
+    <Pressable
+      accessibilityRole="tab"
+      accessibilityState={{ selected: active }}
+      onPress={onPress}
+      style={[styles.tabButton, { backgroundColor: active ? colors.court : 'transparent' }]}>
+      <MaterialIcons name={icon} size={20} color={active ? '#ffffff' : colors.court} />
+      <Text style={[styles.tabText, { color: active ? '#ffffff' : colors.ink }]}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -513,6 +595,27 @@ function Metric({ label, value }: { label: string; value: string | number }) {
 }
 
 const styles = StyleSheet.create({
+  tabBar: {
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 6,
+    padding: 6,
+  },
+  tabButton: {
+    alignItems: 'center',
+    borderRadius: 8,
+    flex: 1,
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+    minHeight: 44,
+    paddingHorizontal: 12,
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '900',
+  },
   heroCard: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -645,6 +748,30 @@ const styles = StyleSheet.create({
   },
   logList: {
     gap: 10,
+  },
+  pagination: {
+    alignItems: 'center',
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: 54,
+    paddingHorizontal: 10,
+  },
+  pageButton: {
+    alignItems: 'center',
+    borderRadius: 8,
+    borderWidth: 1,
+    height: 38,
+    justifyContent: 'center',
+    width: 44,
+  },
+  disabledButton: {
+    opacity: 0.42,
+  },
+  pageText: {
+    fontSize: 13,
+    fontWeight: '900',
   },
   logCard: {
     gap: 12,

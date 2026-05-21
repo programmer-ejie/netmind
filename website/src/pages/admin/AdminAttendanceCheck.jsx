@@ -252,6 +252,7 @@ const AdminAttendanceCheck = ({ scheduleId, currentPath = `#trainer/attendance/$
               <AdminField label="Highest Jump" className="admin-trainer-input-field">
                 <div className="admin-unit-input">
                   <AdminInput
+                    disabled={savingInput}
                     min="0"
                     step="0.1"
                     type="number"
@@ -265,6 +266,7 @@ const AdminAttendanceCheck = ({ scheduleId, currentPath = `#trainer/attendance/$
               <AdminField label="Strongest Spike" className="admin-trainer-input-field">
                 <div className="admin-unit-input">
                   <AdminInput
+                    disabled={savingInput}
                     min="0"
                     step="0.1"
                     type="number"
@@ -281,6 +283,16 @@ const AdminAttendanceCheck = ({ scheduleId, currentPath = `#trainer/attendance/$
               </div>
             </form>
           </aside>
+        </div>
+      )}
+
+      {savingInput && (
+        <div className="admin-sync-backdrop" role="presentation">
+          <section className="admin-sync-modal" role="status" aria-live="polite">
+            <div className="admin-sync-spinner" />
+            <h2>Saving Trainer Input</h2>
+            <p>Saving the player&apos;s highest jump and strongest spike for this attendance session.</p>
+          </section>
         </div>
       )}
     </AdminLayout>
