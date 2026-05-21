@@ -6365,6 +6365,11 @@
   stroke-width: 1.5;
 }
 
+.admin-analysis-chart-grid.muted {
+  stroke: color-mix(in oklab, var(--admin-muted) 20%, transparent);
+  stroke-dasharray: 6 8;
+}
+
 .admin-analysis-chart-empty {
   display: grid;
   min-height: 178px;
@@ -6377,39 +6382,30 @@
   font-weight: 800;
 }
 
-.admin-analysis-area path {
-  opacity: 0.56;
-  stroke: none;
-}
-
-.admin-analysis-area polyline {
+.admin-analysis-series polyline {
   fill: none;
-  stroke-width: 2.5;
+  stroke-width: 3;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
-.admin-analysis-area.jump path {
-  fill: var(--admin-primary);
+.admin-analysis-series circle {
+  stroke-width: 2;
+  fill: var(--admin-card);
 }
 
-.admin-analysis-area.jump polyline {
+.admin-analysis-series.jump polyline,
+.admin-analysis-series.jump circle {
   stroke: var(--admin-primary);
 }
 
-.admin-analysis-area.spike path {
-  fill: var(--admin-error);
-}
-
-.admin-analysis-area.spike polyline {
+.admin-analysis-series.spike polyline,
+.admin-analysis-series.spike circle {
   stroke: var(--admin-error);
 }
 
-.admin-analysis-area.heart path {
-  fill: var(--admin-success);
-}
-
-.admin-analysis-area.heart polyline {
+.admin-analysis-series.heart polyline,
+.admin-analysis-series.heart circle {
   stroke: var(--admin-success);
 }
 

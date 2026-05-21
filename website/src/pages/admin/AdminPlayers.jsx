@@ -280,61 +280,33 @@ const MeasurementTrendChart = ({ entries = [] }) => {
   const width = 560
   const height = 180
   const padding = 28
-  const chartEntries = entries.slice(-24)
-  const types = ['jump', 'spike', 'heart']
-  const maxByType = types.reduce((map, type) => {
-    const values = chartEntries.filter((entry) => entry.type === type).map((entry) => entry.value)
-    map[type] = Math.max(...values, 1)
-    return map
-  }, {})
-  const buckets = chartEntries.reduce((map, entry) => {
-    const date = entry.date || 'Session'
-    const bucket = map.get(date) || {
-      date,
-      jump: [],
-      spike: [],
-      heart: [],
+  const chartEntries = entries.slice(-30)
+  const series = ['jump', 'spike', 'heart'].map((type) => {
+    const values = chartEntries.filter((entry) => entry.type === type).slice(-8)
+    const rawValues = values.map((entry) => entry.value)
+    const minValue = Math.min(...rawValues)
+    const maxValue = Math.max(...rawValues)
+
+    return {
+      type,
+      values,
+      minValue: Number.isFinite(minValue) ? minValue : 0,
+      maxValue: Number.isFinite(maxValue) ? maxValue : 1,
     }
-    bucket[entry.type].push((entry.value / maxByType[entry.type]) * 100)
-    map.set(date, bucket)
-    return map
-  }, new Map())
-  const points = [...buckets.values()].slice(-8).map((bucket) => ({
-    date: bucket.date,
-    jump: average(bucket.jump) || 0,
-    spike: average(bucket.spike) || 0,
-    heart: average(bucket.heart) || 0,
-  }))
-  const maxStack = Math.max(...points.map((point) => point.jump + point.spike + point.heart), 100)
-  const xFor = (index, count) => padding + (count <= 1 ? 0 : (index / (count - 1)) * (width - padding * 2))
-  const yFor = (value) => height - padding - (value / maxStack) * (height - padding * 2)
-  const areaPath = (type, previousTypes = []) => {
-    if (!points.length) return ''
-
-    const top = points.map((point, index) => {
-      const lower = previousTypes.reduce((sum, item) => sum + point[item], 0)
-      return `${xFor(index, points.length)},${yFor(lower + point[type])}`
-    })
-    const bottom = points.map((point, index) => {
-      const lower = previousTypes.reduce((sum, item) => sum + point[item], 0)
-      return `${xFor(index, points.length)},${yFor(lower)}`
-    }).reverse()
-
-    return `M ${top.join(' L ')} L ${bottom.join(' L ')} Z`
+  }).filter((item) => item.values.length)
+  const maxPointCount = Math.max(...series.map((item) => item.values.length), 0)
+  const xFor = (index, count) => count <= 1
+    ? width / 2
+    : padding + (index / (count - 1)) * (width - padding * 2)
+  const yFor = (value, minValue, maxValue) => {
+    if (maxValue === minValue) return height / 2
+    return height - padding - ((value - minValue) / Math.max(maxValue - minValue, 1)) * (height - padding * 2)
   }
-  const linePoints = (type, previousTypes = []) => (
-    points.map((point, index) => {
-      const lower = previousTypes.reduce((sum, item) => sum + point[item], 0)
-      return `${xFor(index, points.length)},${yFor(lower + point[type])}`
-    }).join(' ')
-  )
-  const layers = [
-    { type: 'jump', previous: [] },
-    { type: 'spike', previous: ['jump'] },
-    { type: 'heart', previous: ['jump', 'spike'] },
-  ]
+  const pointsFor = (item) => item.values.map((entry, index) => (
+    `${xFor(index, item.values.length)},${yFor(entry.value, item.minValue, item.maxValue)}`
+  )).join(' ')
 
-  if (!points.length) {
+  if (!series.length) {
     return (
       <div className="admin-analysis-chart admin-analysis-chart-empty">
         <span>No measurement trend yet.</span>
@@ -343,20 +315,34 @@ const MeasurementTrendChart = ({ entries = [] }) => {
   }
 
   return (
-    <svg className="admin-analysis-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Player stacked area measurement trend chart">
+    <svg className="admin-analysis-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Player line measurement trend chart">
       <line className="admin-analysis-chart-grid" x1={padding} x2={width - padding} y1={height - padding} y2={height - padding} />
       <line className="admin-analysis-chart-grid" x1={padding} x2={width - padding} y1={padding} y2={padding} />
-      {layers.map((layer) => (
-        <g className={`admin-analysis-area ${layer.type}`} key={layer.type}>
-          <path d={areaPath(layer.type, layer.previous)} />
-          <polyline points={linePoints(layer.type, layer.previous)} />
+      <line className="admin-analysis-chart-grid muted" x1={padding} x2={width - padding} y1={height / 2} y2={height / 2} />
+      {series.map((item) => (
+        <g className={`admin-analysis-series ${item.type}`} key={item.type}>
+          {item.values.length > 1 ? <polyline points={pointsFor(item)} /> : null}
+          {item.values.map((entry, index) => (
+            <circle
+              key={`${item.type}-${entry.id || entry.date}-${index}`}
+              cx={xFor(index, item.values.length)}
+              cy={yFor(entry.value, item.minValue, item.maxValue)}
+              r="4">
+              <title>{`${item.type}: ${entry.value} (${entry.date})`}</title>
+            </circle>
+          ))}
         </g>
       ))}
-      {points.map((point, index) => (
-        <text className="admin-analysis-axis-label" key={point.date} x={xFor(index, points.length)} y={height - 8}>
-          {String(point.date).slice(5)}
-        </text>
-      ))}
+      {Array.from({ length: maxPointCount }).map((_, index) => {
+        const label = series.find((item) => item.values[index])?.values[index]?.date
+        if (!label) return null
+
+        return (
+          <text className="admin-analysis-axis-label" key={`${label}-${index}`} x={xFor(index, maxPointCount)} y={height - 8}>
+            {String(label).slice(5)}
+          </text>
+        )
+      })}
     </svg>
   )
 }
