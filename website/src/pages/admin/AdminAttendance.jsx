@@ -52,6 +52,7 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
   const [error, setError] = useState('')
   const [schedulePage, setSchedulePage] = useState(1)
   const [loading, setLoading] = useState(true)
+  const [savingSchedule, setSavingSchedule] = useState(false)
 
   const teamById = useMemo(() => {
     const map = new Map()
@@ -115,6 +116,8 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
     event.preventDefault()
 
     try {
+      setSavingSchedule(true)
+      setError('')
       await createResource('training-schedules', {
         ...form,
         session_type: 'training',
@@ -124,6 +127,8 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
       await load()
     } catch (err) {
       setError(err.message)
+    } finally {
+      setSavingSchedule(false)
     }
   }
 
@@ -321,7 +326,13 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
         </div>}
       </AdminCard>
 
-      <AdminModal open={modalOpen} title="Training Schedule" onClose={() => setModalOpen(false)}>
+      <AdminModal
+        open={modalOpen}
+        title="Training Schedule"
+        onClose={() => {
+          if (!savingSchedule) setModalOpen(false)
+        }}
+      >
         <form className="admin-form admin-form-grid" onSubmit={createSchedule}>
           <div className="admin-password-tip admin-form-span">
             <Info size={18} />
@@ -345,11 +356,21 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
             />
           </AdminField>
           <div className="admin-form-actions admin-form-span">
-            <AdminButton type="button" variant="secondary" onClick={() => setModalOpen(false)}>Cancel</AdminButton>
-            <AdminButton type="submit">Save</AdminButton>
+            <AdminButton type="button" variant="secondary" onClick={() => setModalOpen(false)} disabled={savingSchedule}>Cancel</AdminButton>
+            <AdminButton type="submit" disabled={savingSchedule}>{savingSchedule ? 'Saving...' : 'Save'}</AdminButton>
           </div>
         </form>
       </AdminModal>
+
+      {savingSchedule && (
+        <div className="admin-sync-backdrop" role="presentation">
+          <section className="admin-sync-modal" role="status" aria-live="polite">
+            <div className="admin-sync-spinner" />
+            <h2>Saving Schedule</h2>
+            <p>Creating the training schedule and refreshing the attendance list.</p>
+          </section>
+        </div>
+      )}
 
       <AdminModal
         open={qrModalOpen}
