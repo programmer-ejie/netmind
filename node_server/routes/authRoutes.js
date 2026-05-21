@@ -89,6 +89,7 @@ function logEmailFailure(context, error) {
     command: error?.command,
     responseCode: error?.responseCode,
     response: error?.response,
+    attempts: error?.smtpAttempts,
     message: error?.message,
     syscall: error?.syscall,
     address: error?.address,

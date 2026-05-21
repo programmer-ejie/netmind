@@ -3,12 +3,14 @@ const dns = require("dns");
 
 dns.setDefaultResultOrder?.("ipv4first");
 
-const EMAIL_TRANSPORT_VERSION = "gmail-smtp-ipv4-v2";
+const EMAIL_TRANSPORT_VERSION = "gmail-smtp-ipv4-v3";
+const DEFAULT_EMAIL_HOST = "smtp.gmail.com";
 
 let transporter;
 let transporterPromise;
+let transporterKey;
 
-async function createTransporter() {
+async function createTransporter(config) {
   const user = process.env.EMAIL_USER?.trim();
   const pass = process.env.EMAIL_PASS?.trim();
 
@@ -16,15 +18,24 @@ async function createTransporter() {
     throw new Error("EMAIL_USER and EMAIL_PASS must be set in .env");
   }
 
-  if (transporter) {
+  const key = getTransportKey(config);
+
+  if (transporter && transporterKey === key) {
     return transporter;
   }
 
-  if (transporterPromise) {
+  if (transporterPromise && transporterKey === key) {
     return transporterPromise;
   }
 
-  transporterPromise = createTransporterInternal(user, pass);
+  closeTransporter();
+  transporterKey = key;
+  transporterPromise = createTransporterInternal(user, pass, config)
+    .catch((error) => {
+      resetTransporter(key);
+      throw error;
+    });
+
   return transporterPromise;
 }
 
@@ -37,25 +48,59 @@ function getFromAddress() {
 }
 
 async function sendEmail({ to, subject, text, html }) {
-  const transporter = await createTransporter();
-  return transporter.sendMail({
-    from: getFromAddress(),
-    to,
-    subject,
-    text,
-    html,
-  });
+  const candidates = getTransportCandidates();
+  const attempts = [];
+  let lastError;
+
+  for (const [index, config] of candidates.entries()) {
+    const key = getTransportKey(config);
+
+    try {
+      const transporter = await createTransporter(config);
+      return await transporter.sendMail({
+        from: getFromAddress(),
+        to,
+        subject,
+        text,
+        html,
+      });
+    } catch (error) {
+      lastError = error;
+      attempts.push({
+        host: config.host,
+        port: config.port,
+        secure: config.secure,
+        code: error?.code,
+        command: error?.command,
+        message: error?.message,
+      });
+      resetTransporter(key);
+
+      if (!shouldTryNextTransport(error) || index === candidates.length - 1) {
+        break;
+      }
+
+      console.warn("[email:transport:fallback]", {
+        from: `${config.host}:${config.port}`,
+        to: `${candidates[index + 1].host}:${candidates[index + 1].port}`,
+        reason: error?.message,
+        code: error?.code,
+      });
+    }
+  }
+
+  if (lastError) {
+    lastError.smtpAttempts = attempts;
+  }
+
+  throw lastError;
 }
 
-async function createTransporterInternal(user, pass) {
-  const port = Number(process.env.EMAIL_PORT || 465);
-  const secure = process.env.EMAIL_SECURE
-    ? String(process.env.EMAIL_SECURE).toLowerCase() === "true"
-    : true;
-  const smtpHost = process.env.EMAIL_HOST || "smtp.gmail.com";
+async function createTransporterInternal(user, pass, config) {
+  const { host: smtpHost, port, secure } = config;
   const forceIpv4 = process.env.EMAIL_FORCE_IPV4 !== "false";
   const resolvedHost = forceIpv4
-    ? (await dns.promises.resolve4(smtpHost))[0]
+    ? await resolveIpv4Host(smtpHost)
     : smtpHost;
 
   console.log(`[email:transport] ${EMAIL_TRANSPORT_VERSION}`, {
@@ -91,6 +136,78 @@ async function createTransporterInternal(user, pass) {
   });
 
   return transporter;
+}
+
+function getTransportCandidates() {
+  const host = process.env.EMAIL_HOST?.trim() || DEFAULT_EMAIL_HOST;
+  const configuredPort = process.env.EMAIL_PORT?.trim()
+    ? Number(process.env.EMAIL_PORT.trim())
+    : undefined;
+  const configuredSecure = process.env.EMAIL_SECURE?.trim()
+    ? process.env.EMAIL_SECURE.trim().toLowerCase() === "true"
+    : undefined;
+
+  if (configuredPort) {
+    return [
+      {
+        host,
+        port: configuredPort,
+        secure: configuredSecure ?? configuredPort === 465,
+      },
+    ];
+  }
+
+  if (host.toLowerCase() === DEFAULT_EMAIL_HOST) {
+    return [
+      { host, port: 465, secure: true },
+      { host, port: 587, secure: false },
+    ];
+  }
+
+  return [
+    {
+      host,
+      port: 465,
+      secure: configuredSecure ?? true,
+    },
+  ];
+}
+
+async function resolveIpv4Host(host) {
+  try {
+    return (await dns.promises.resolve4(host))[0];
+  } catch (error) {
+    console.warn("[email:dns:fallback]", {
+      host,
+      code: error?.code,
+      message: error?.message,
+    });
+
+    return host;
+  }
+}
+
+function getTransportKey(config) {
+  return `${config.host}:${config.port}:${config.secure}`;
+}
+
+function shouldTryNextTransport(error) {
+  return error?.code === "ETIMEDOUT" || error?.command === "CONN";
+}
+
+function closeTransporter() {
+  if (transporter?.close) {
+    transporter.close();
+  }
+}
+
+function resetTransporter(key) {
+  if (!key || transporterKey === key) {
+    closeTransporter();
+    transporter = undefined;
+    transporterPromise = undefined;
+    transporterKey = undefined;
+  }
 }
 
 function escapeHtml(value) {
