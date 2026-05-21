@@ -90,10 +90,10 @@ router.post(
     await query(
       `INSERT INTO push_subscriptions (user_id, platform, push_token, endpoint)
       VALUES (?, ?, ?, ?)
-      ON DUPLICATE KEY UPDATE
-        platform = VALUES(platform),
-        endpoint = VALUES(endpoint),
-        is_active = TRUE,
+      ON CONFLICT (endpoint) DO UPDATE SET
+        platform = EXCLUDED.platform,
+        push_token = EXCLUDED.push_token,
+        is_active = true,
         updated_at = CURRENT_TIMESTAMP`,
       [req.user.id, req.body.platform || null, req.body.push_token || null, req.body.endpoint || pushToken]
     );

@@ -1,6 +1,8 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
+const fs = require("fs");
+const path = require("path");
 const { pool, query } = require("../config/db");
 const asyncHandler = require("../utils/asyncHandler");
 const ApiError = require("../utils/apiError");
@@ -87,6 +89,7 @@ const exportTables = [
   "coach_trainers",
   "seasons",
   "matches",
+  "match_scores",
   "team_rankings",
   "drills",
   "training_assignments",
@@ -99,7 +102,13 @@ const exportTables = [
   "injury_logs",
   "lineups",
   "player_comparisons",
+  "notifications",
+  "push_subscriptions",
 ];
+
+const exportSkipColumns = {
+  drill_performance_logs: new Set(["success_rate"]),
+};
 
 function formatPasswordCode(code) {
   return `${code.slice(0, 3)}-${code.slice(3)}`;
@@ -125,7 +134,7 @@ function sqlValue(value) {
   if (value === null || value === undefined) return "NULL";
   if (value instanceof Date) return `'${value.toISOString().slice(0, 19).replace("T", " ")}'`;
   if (typeof value === "number") return String(value);
-  if (typeof value === "boolean") return value ? "1" : "0";
+  if (typeof value === "boolean") return value ? "true" : "false";
 
   return `'${String(value).replace(/\\/g, "\\\\").replace(/'/g, "''")}'`;
 }
@@ -133,14 +142,13 @@ function sqlValue(value) {
 function buildInsertSql(table, rows) {
   if (!rows.length) return `-- No data for ${table}\n`;
 
-  const columns = Object.keys(rows[0]);
+  const skipColumns = exportSkipColumns[table] || new Set();
+  const columns = Object.keys(rows[0]).filter((column) => !skipColumns.has(column));
   const values = rows.map((row) => `(${columns.map((column) => sqlValue(row[column])).join(", ")})`);
 
   return [
-    `LOCK TABLES \`${table}\` WRITE;`,
-    `INSERT INTO \`${table}\` (${columns.map((column) => `\`${column}\``).join(", ")}) VALUES`,
+    `INSERT INTO "${table}" (${columns.map((column) => `"${column}"`).join(", ")}) VALUES`,
     `${values.join(",\n")};`,
-    "UNLOCK TABLES;",
     "",
   ].join("\n");
 }
@@ -364,27 +372,18 @@ router.get("/routes", (req, res) => {
 });
 
 router.get("/database/export", requireRoles("coach"), asyncHandler(async (req, res) => {
-  const dbName = process.env.DB_NAME || "netmind";
+  const schemaPath = path.join(__dirname, "..", "database", "schema.sql");
   const parts = [
     `-- NetMind database export`,
     `-- Generated at ${new Date().toISOString()}`,
-    `CREATE DATABASE IF NOT EXISTS \`${dbName}\`;`,
-    `USE \`${dbName}\`;`,
-    "SET FOREIGN_KEY_CHECKS=0;",
+    fs.readFileSync(schemaPath, "utf8"),
     "",
   ];
 
   for (const table of exportTables) {
-    const createRows = await query(`SHOW CREATE TABLE \`${table}\``);
     const rows = await query(`SELECT * FROM \`${table}\``);
-    const createSql = createRows[0]["Create Table"];
-
-    parts.push(`DROP TABLE IF EXISTS \`${table}\`;`);
-    parts.push(`${createSql};`);
     parts.push(buildInsertSql(table, rows));
   }
-
-  parts.push("SET FOREIGN_KEY_CHECKS=1;");
 
   const fileDate = new Date().toISOString().replace(/[:.]/g, "-");
   res.setHeader("Content-Type", "application/sql; charset=utf-8");
@@ -601,8 +600,10 @@ router.post("/teams/:teamId/members", asyncHandler(async (req, res) => {
 
   await query(
     `INSERT INTO team_members (team_id, player_id, joined_at, is_active)
-    VALUES (?, ?, COALESCE(?, CURRENT_DATE), TRUE)
-    ON DUPLICATE KEY UPDATE joined_at = VALUES(joined_at), is_active = TRUE`,
+    VALUES (?, ?, COALESCE(?, CURRENT_DATE), true)
+    ON CONFLICT (team_id, player_id) DO UPDATE SET
+      joined_at = EXCLUDED.joined_at,
+      is_active = true`,
     [req.params.teamId, req.body.player_id, req.body.joined_at || null]
   );
 
@@ -703,7 +704,9 @@ router.post("/teams/:teamId/trainers", asyncHandler(async (req, res) => {
   await query(
     `INSERT INTO team_trainers (team_id, trainer_id, assigned_by)
     VALUES (?, ?, ?)
-    ON DUPLICATE KEY UPDATE assigned_by = VALUES(assigned_by), assigned_at = CURRENT_TIMESTAMP`,
+    ON CONFLICT (team_id, trainer_id) DO UPDATE SET
+      assigned_by = EXCLUDED.assigned_by,
+      assigned_at = CURRENT_TIMESTAMP`,
     [req.params.teamId, req.body.trainer_id, req.user.id]
   );
 
@@ -752,7 +755,8 @@ router.post("/coaches/:coachId/trainers", asyncHandler(async (req, res) => {
   await query(
     `INSERT INTO coach_trainers (coach_id, trainer_id)
     VALUES (?, ?)
-    ON DUPLICATE KEY UPDATE created_at = CURRENT_TIMESTAMP`,
+    ON CONFLICT (coach_id, trainer_id)
+    DO UPDATE SET created_at = CURRENT_TIMESTAMP`,
     [req.params.coachId, req.body.trainer_id]
   );
 
@@ -1466,7 +1470,7 @@ router.patch("/injury-logs/:injuryId/recover", asyncHandler(async (req, res) => 
 
   await query(
     `UPDATE injury_logs
-    SET recovered_at = ?, days_missed = COALESCE(?, DATEDIFF(?, occurred_at))
+    SET recovered_at = ?, days_missed = COALESCE(?, (?::date - occurred_at::date))
     WHERE id = ?`,
     [recoveredAt, req.body.days_missed || null, recoveredAt, injury.id]
   );
@@ -1547,14 +1551,14 @@ router.post("/seasons/:seasonId/rankings/recalculate", asyncHandler(async (req, 
     `INSERT INTO team_rankings
       (team_id, season_id, ranking_position, wins, losses, win_percentage, points_for, points_against, point_difference)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ON DUPLICATE KEY UPDATE
-      ranking_position = VALUES(ranking_position),
-      wins = VALUES(wins),
-      losses = VALUES(losses),
-      win_percentage = VALUES(win_percentage),
-      points_for = VALUES(points_for),
-      points_against = VALUES(points_against),
-      point_difference = VALUES(point_difference),
+    ON CONFLICT (team_id, season_id) DO UPDATE SET
+      ranking_position = EXCLUDED.ranking_position,
+      wins = EXCLUDED.wins,
+      losses = EXCLUDED.losses,
+      win_percentage = EXCLUDED.win_percentage,
+      points_for = EXCLUDED.points_for,
+      points_against = EXCLUDED.points_against,
+      point_difference = EXCLUDED.point_difference,
       calculated_at = CURRENT_TIMESTAMP`,
     [
       teamId,

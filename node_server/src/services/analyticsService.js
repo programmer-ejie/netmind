@@ -181,13 +181,13 @@ async function finalizeMatchRanking(matchId, rankingPosition = 1) {
     `INSERT INTO team_rankings
       (team_id, season_id, ranking_position, wins, losses, win_percentage, points_for, points_against, point_difference)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ON DUPLICATE KEY UPDATE
-      wins = VALUES(wins),
-      losses = VALUES(losses),
-      win_percentage = VALUES(win_percentage),
-      points_for = VALUES(points_for),
-      points_against = VALUES(points_against),
-      point_difference = VALUES(point_difference),
+    ON CONFLICT (team_id, season_id) DO UPDATE SET
+      wins = EXCLUDED.wins,
+      losses = EXCLUDED.losses,
+      win_percentage = EXCLUDED.win_percentage,
+      points_for = EXCLUDED.points_for,
+      points_against = EXCLUDED.points_against,
+      point_difference = EXCLUDED.point_difference,
       calculated_at = CURRENT_TIMESTAMP`,
     [
       match.team_id,

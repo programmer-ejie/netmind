@@ -135,11 +135,11 @@ router.post("/players/:playerId/wellness-checkins", asyncHandler(async (req, res
     `INSERT INTO wellness_checkins
       (player_id, checkin_date, fatigue_level, rpe, sleep_hours, notes)
     VALUES (?, ?, ?, ?, ?, ?)
-    ON DUPLICATE KEY UPDATE
-      fatigue_level = VALUES(fatigue_level),
-      rpe = VALUES(rpe),
-      sleep_hours = VALUES(sleep_hours),
-      notes = VALUES(notes),
+    ON CONFLICT (player_id, checkin_date) DO UPDATE SET
+      fatigue_level = EXCLUDED.fatigue_level,
+      rpe = EXCLUDED.rpe,
+      sleep_hours = EXCLUDED.sleep_hours,
+      notes = EXCLUDED.notes,
       updated_at = CURRENT_TIMESTAMP`,
     [
       req.params.playerId,

@@ -189,7 +189,8 @@ router.post(
         await query(
           `INSERT INTO coach_trainers (coach_id, trainer_id)
           VALUES (?, ?)
-          ON DUPLICATE KEY UPDATE created_at = CURRENT_TIMESTAMP`,
+          ON CONFLICT (coach_id, trainer_id)
+          DO UPDATE SET created_at = CURRENT_TIMESTAMP`,
           [coachId, existing[0].id]
         );
 
@@ -229,7 +230,8 @@ router.post(
         await connection.execute(
           `INSERT INTO coach_trainers (coach_id, trainer_id)
           VALUES (?, ?)
-          ON DUPLICATE KEY UPDATE created_at = CURRENT_TIMESTAMP`,
+          ON CONFLICT (coach_id, trainer_id)
+          DO UPDATE SET created_at = CURRENT_TIMESTAMP`,
           [coachId, user.id]
         );
       }
