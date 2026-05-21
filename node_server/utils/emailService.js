@@ -4,6 +4,7 @@ const dns = require("dns");
 dns.setDefaultResultOrder?.("ipv4first");
 
 const EMAIL_TRANSPORT_VERSION = "gmail-smtp-ipv4-v2";
+const RESEND_API_URL = "https://api.resend.com/emails";
 
 let transporter;
 let transporterPromise;
@@ -26,6 +27,58 @@ async function createTransporter() {
 
   transporterPromise = createTransporterInternal(user, pass);
   return transporterPromise;
+}
+
+function getSenderEmail() {
+  return process.env.EMAIL_USER?.trim();
+}
+
+function getFromAddress() {
+  return process.env.EMAIL_FROM?.trim() || `"NetMind" <${getSenderEmail()}>`;
+}
+
+async function sendEmail({ to, subject, text, html }) {
+  const resendApiKey = process.env.RESEND_API_KEY?.trim();
+  const provider = process.env.EMAIL_PROVIDER?.trim().toLowerCase();
+
+  if (provider === "resend" || resendApiKey) {
+    if (!resendApiKey) {
+      throw new Error("RESEND_API_KEY must be set when EMAIL_PROVIDER is resend");
+    }
+
+    const response = await fetch(RESEND_API_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${resendApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: getFromAddress(),
+        to,
+        subject,
+        text,
+        html,
+      }),
+    });
+
+    const payload = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      const message = payload?.message || payload?.error || `Resend email failed with ${response.status}`;
+      throw new Error(message);
+    }
+
+    return payload;
+  }
+
+  const transporter = await createTransporter();
+  return transporter.sendMail({
+    from: getFromAddress(),
+    to,
+    subject,
+    text,
+    html,
+  });
 }
 
 async function createTransporterInternal(user, pass) {
@@ -82,8 +135,6 @@ function escapeHtml(value) {
 }
 
 async function sendTemporaryPasswordEmail({ to, name, password }) {
-  const transporter = await createTransporter();
-  const senderEmail = process.env.EMAIL_USER?.trim();
   const safeName = escapeHtml(name);
   const safeEmail = escapeHtml(to);
   const safePassword = escapeHtml(password);
@@ -159,8 +210,7 @@ async function sendTemporaryPasswordEmail({ to, name, password }) {
       </body>
     </html>`;
 
-  await transporter.sendMail({
-    from: `"NetMind" <${senderEmail}>`,
+  await sendEmail({
     to,
     subject,
     text,
@@ -169,13 +219,10 @@ async function sendTemporaryPasswordEmail({ to, name, password }) {
 }
 
 async function sendPasswordResetCodeEmail({ to, name, code }) {
-  const transporter = await createTransporter();
-  const senderEmail = process.env.EMAIL_USER?.trim();
   const safeName = escapeHtml(name || "NetMind user");
   const safeCode = escapeHtml(code);
 
-  await transporter.sendMail({
-    from: `"NetMind" <${senderEmail}>`,
+  await sendEmail({
     to,
     subject: "[NETMIND] Password confirmation code",
     text: [
