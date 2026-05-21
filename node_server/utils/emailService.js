@@ -82,8 +82,10 @@ async function sendEmail({ to, subject, text, html }) {
 }
 
 async function createTransporterInternal(user, pass) {
-  const port = Number(process.env.EMAIL_PORT || 587);
-  const secure = String(process.env.EMAIL_SECURE || "").toLowerCase() === "true" || port === 465;
+  const port = Number(process.env.EMAIL_PORT || 465);
+  const secure = process.env.EMAIL_SECURE
+    ? String(process.env.EMAIL_SECURE).toLowerCase() === "true"
+    : true;
   const smtpHost = process.env.EMAIL_HOST || "smtp.gmail.com";
   const forceIpv4 = process.env.EMAIL_FORCE_IPV4 !== "false";
   const resolvedHost = forceIpv4
