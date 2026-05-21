@@ -6,8 +6,9 @@ dns.setDefaultResultOrder?.("ipv4first");
 const EMAIL_TRANSPORT_VERSION = "gmail-smtp-ipv4-v2";
 
 let transporter;
+let transporterPromise;
 
-function createTransporter() {
+async function createTransporter() {
   const user = process.env.EMAIL_USER?.trim();
   const pass = process.env.EMAIL_PASS?.trim();
 
@@ -19,17 +20,33 @@ function createTransporter() {
     return transporter;
   }
 
+  if (transporterPromise) {
+    return transporterPromise;
+  }
+
+  transporterPromise = createTransporterInternal(user, pass);
+  return transporterPromise;
+}
+
+async function createTransporterInternal(user, pass) {
   const port = Number(process.env.EMAIL_PORT || 587);
   const secure = String(process.env.EMAIL_SECURE || "").toLowerCase() === "true" || port === 465;
+  const smtpHost = process.env.EMAIL_HOST || "smtp.gmail.com";
+  const forceIpv4 = process.env.EMAIL_FORCE_IPV4 !== "false";
+  const resolvedHost = forceIpv4
+    ? (await dns.promises.resolve4(smtpHost))[0]
+    : smtpHost;
+
   console.log(`[email:transport] ${EMAIL_TRANSPORT_VERSION}`, {
-    host: process.env.EMAIL_HOST || "smtp.gmail.com",
+    host: smtpHost,
+    resolvedHost,
     port,
     secure,
     family: 4,
   });
 
   transporter = nodemailer.createTransport({
-    host: process.env.EMAIL_HOST || "smtp.gmail.com",
+    host: resolvedHost,
     port,
     secure,
     requireTLS: !secure,
@@ -43,6 +60,9 @@ function createTransporter() {
     connectionTimeout: Number(process.env.EMAIL_CONNECTION_TIMEOUT_MS || 30000),
     greetingTimeout: Number(process.env.EMAIL_GREETING_TIMEOUT_MS || 30000),
     socketTimeout: Number(process.env.EMAIL_SOCKET_TIMEOUT_MS || 60000),
+    tls: {
+      servername: smtpHost,
+    },
     auth: {
       user,
       pass,
@@ -62,7 +82,7 @@ function escapeHtml(value) {
 }
 
 async function sendTemporaryPasswordEmail({ to, name, password }) {
-  const transporter = createTransporter();
+  const transporter = await createTransporter();
   const senderEmail = process.env.EMAIL_USER?.trim();
   const safeName = escapeHtml(name);
   const safeEmail = escapeHtml(to);
@@ -149,7 +169,7 @@ async function sendTemporaryPasswordEmail({ to, name, password }) {
 }
 
 async function sendPasswordResetCodeEmail({ to, name, code }) {
-  const transporter = createTransporter();
+  const transporter = await createTransporter();
   const senderEmail = process.env.EMAIL_USER?.trim();
   const safeName = escapeHtml(name || "NetMind user");
   const safeCode = escapeHtml(code);
