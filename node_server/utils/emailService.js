@@ -1,6 +1,10 @@
 const nodemailer = require("nodemailer");
 const dns = require("dns");
 
+dns.setDefaultResultOrder?.("ipv4first");
+
+const EMAIL_TRANSPORT_VERSION = "gmail-smtp-ipv4-v2";
+
 let transporter;
 
 function createTransporter() {
@@ -17,12 +21,19 @@ function createTransporter() {
 
   const port = Number(process.env.EMAIL_PORT || 587);
   const secure = String(process.env.EMAIL_SECURE || "").toLowerCase() === "true" || port === 465;
+  console.log(`[email:transport] ${EMAIL_TRANSPORT_VERSION}`, {
+    host: process.env.EMAIL_HOST || "smtp.gmail.com",
+    port,
+    secure,
+    family: 4,
+  });
 
   transporter = nodemailer.createTransport({
     host: process.env.EMAIL_HOST || "smtp.gmail.com",
     port,
     secure,
     requireTLS: !secure,
+    family: 4,
     lookup: (hostname, options, callback) => {
       dns.lookup(hostname, { ...options, family: 4 }, callback);
     },
