@@ -253,12 +253,9 @@ const AdminProfile = ({ currentPath = '#coach/profile' }) => {
       setState((current) => ({ ...current, error: '' }))
       const updated = await updateResource('users', form.id, {
         name: form.name,
-        email: form.email,
-        role: form.role || savedUser?.role || 'coach',
         age: form.age || null,
         birthdate: form.birthdate || null,
         location: form.location || null,
-        is_active: form.is_active ?? true,
       })
       refreshProfile(updated)
       setMessage('Profile details saved.')
