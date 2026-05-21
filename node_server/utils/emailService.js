@@ -1,4 +1,5 @@
 const nodemailer = require("nodemailer");
+const dns = require("dns");
 
 let transporter;
 
@@ -22,6 +23,9 @@ function createTransporter() {
     port,
     secure,
     requireTLS: !secure,
+    lookup: (hostname, options, callback) => {
+      dns.lookup(hostname, { ...options, family: 4 }, callback);
+    },
     pool: true,
     maxConnections: 3,
     maxMessages: 50,
