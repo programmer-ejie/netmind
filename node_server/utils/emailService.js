@@ -4,7 +4,6 @@ const dns = require("dns");
 dns.setDefaultResultOrder?.("ipv4first");
 
 const EMAIL_TRANSPORT_VERSION = "gmail-smtp-ipv4-v2";
-const RESEND_API_URL = "https://api.resend.com/emails";
 
 let transporter;
 let transporterPromise;
@@ -38,39 +37,6 @@ function getFromAddress() {
 }
 
 async function sendEmail({ to, subject, text, html }) {
-  const resendApiKey = process.env.RESEND_API_KEY?.trim();
-  const provider = process.env.EMAIL_PROVIDER?.trim().toLowerCase();
-
-  if (provider === "resend" || resendApiKey) {
-    if (!resendApiKey) {
-      throw new Error("RESEND_API_KEY must be set when EMAIL_PROVIDER is resend");
-    }
-
-    const response = await fetch(RESEND_API_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${resendApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: getFromAddress(),
-        to,
-        subject,
-        text,
-        html,
-      }),
-    });
-
-    const payload = await response.json().catch(() => null);
-
-    if (!response.ok) {
-      const message = payload?.message || payload?.error || `Resend email failed with ${response.status}`;
-      throw new Error(message);
-    }
-
-    return payload;
-  }
-
   const transporter = await createTransporter();
   return transporter.sendMail({
     from: getFromAddress(),

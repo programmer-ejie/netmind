@@ -479,8 +479,8 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
               >
                 Cancel
               </AdminButton>
-              <AdminButton type="submit" variant="danger" disabled={deletingTeam}>
-                {deletingTeam ? 'Deleting...' : 'Delete Team'}
+              <AdminButton type="submit" disabled={deletingTeam}>
+                {deletingTeam ? 'Confirming...' : 'Confirm'}
               </AdminButton>
             </div>
           </form>

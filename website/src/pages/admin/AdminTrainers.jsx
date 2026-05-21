@@ -178,7 +178,7 @@ const AdminTrainers = ({ currentPath = '#coach/trainers' }) => {
     try {
       setError('')
       setDeletingTrainer(true)
-      await deleteResource('users', deleteTrainer.id)
+      await deleteResource('trainers', deleteTrainer.id)
       setDeleteModal(false)
       setDeleteTrainer(null)
       await load()

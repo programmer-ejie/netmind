@@ -394,6 +394,11 @@ function authorizeKnownApiAccess() {
       return (await canAccessPlayer(req.user, match[1])) ? next() : forbid(res);
     }
 
+    match = path.match(/^\/trainers\/([^/]+)$/);
+    if (match && method === "DELETE") {
+      return req.user.role === "coach" && (await canAccessRecord(req.user, "users", match[1])) ? next() : forbid(res);
+    }
+
     match = path.match(/^\/users\/([^/]+)\/password(?:-code(?:\/verify)?|-with-code)?$/);
     if (match) {
       return isSelf(req.user, match[1]) ? next() : forbid(res);

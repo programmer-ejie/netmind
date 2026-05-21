@@ -71,12 +71,29 @@ function generateTemporaryPassword(length = 16) {
 }
 
 function logEmailFailure(context, error) {
+  const port = Number(process.env.EMAIL_PORT || 465);
+  const secure = process.env.EMAIL_SECURE
+    ? String(process.env.EMAIL_SECURE).toLowerCase() === "true"
+    : true;
+
   console.error(`[email:${context}:failed]`, {
+    reason: error?.response || error?.message || "Unknown SMTP error",
+    smtp: {
+      host: process.env.EMAIL_HOST || "smtp.gmail.com",
+      port,
+      secure,
+      user: process.env.EMAIL_USER ? process.env.EMAIL_USER.trim() : undefined,
+      forceIpv4: process.env.EMAIL_FORCE_IPV4 !== "false",
+    },
     code: error?.code,
     command: error?.command,
     responseCode: error?.responseCode,
     response: error?.response,
     message: error?.message,
+    syscall: error?.syscall,
+    address: error?.address,
+    port: error?.port,
+    cause: error?.cause?.message,
   });
 }
 
