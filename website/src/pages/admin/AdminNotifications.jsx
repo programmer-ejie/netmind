@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Bell, CheckCheck, ChevronLeft, ChevronRight, Radio, SearchCheck } from 'lucide-react'
-import AdminLayout, { AdminButton, StatusBadge, formatDate } from './AdminLayout'
+import AdminLayout, { AdminButton, ListSkeleton, StatusBadge, formatDate } from './AdminLayout'
 import { useNotifications } from '../../lib/notifications'
 
 const NOTIFICATIONS_PER_PAGE = 5
@@ -70,8 +70,7 @@ export default function AdminNotifications({ currentPath }) {
             <span className="admin-notifications-empty-icon">
               <Radio size={22} />
             </span>
-            <strong>Loading notifications</strong>
-            <p>Checking your latest team updates.</p>
+            <ListSkeleton rows={4} />
           </div>
         ) : items.length ? (
           <>

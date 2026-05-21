@@ -8,6 +8,7 @@ import AdminLayout, {
   AdminModal,
   AdminSelect,
   EmptyState,
+  TableSkeletonRows,
   formatDate,
 } from './AdminLayout'
 import { API_BASE, apiRequest, createResource, deleteResource, listResource, readSavedUser, updateResource } from '../../lib/api'
@@ -33,6 +34,7 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
   const [deletingTeam, setDeletingTeam] = useState(false)
   const [deleteTeam, setDeleteTeam] = useState(null)
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
   const currentUser = readSavedUser()
 
   const availableOwners = useMemo(() => {
@@ -63,6 +65,7 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
   }, [trainerLinks, trainers])
 
   const load = useCallback(async () => {
+    setLoading(true)
     const teamParams = {
       limit: 100,
       sortDir: 'asc',
@@ -85,10 +88,14 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
     setCoaches(coachRows)
     setTrainers(trainerRows.filter((trainer) => scopedTrainerIds.has(String(trainer.id))))
     setTrainerLinks(scopedTrainerLinks)
+    setLoading(false)
   }, [currentUser?.id, currentUser?.role])
 
   useEffect(() => {
-    load().catch((err) => setError(err.message))
+    load().catch((err) => {
+      setError(err.message)
+      setLoading(false)
+    })
   }, [load])
 
   const openCreate = () => {
@@ -243,7 +250,9 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
               </tr>
             </thead>
             <tbody>
-              {teams.map((team) => (
+              {loading ? (
+                <TableSkeletonRows rows={4} columns={4} />
+              ) : teams.map((team) => (
                 <tr
                   key={team.id}
                   className="admin-click-row admin-team-color-row"
@@ -291,7 +300,7 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
               ))}
             </tbody>
           </table>
-          {!teams.length && <EmptyState>No teams created yet.</EmptyState>}
+          {!loading && !teams.length && <EmptyState>No teams created yet.</EmptyState>}
         </div>
       </AdminCard>
 

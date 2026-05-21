@@ -8,7 +8,9 @@ import AdminLayout, {
   AdminModal,
   AdminSelect,
   EmptyState,
+  ListSkeleton,
   StatusBadge,
+  TableSkeletonRows,
   formatDate,
   getName,
   initials,
@@ -139,6 +141,7 @@ const AdminPlayers = ({ currentPath = '#coach/players' }) => {
   const [stats, setStats] = useState(null)
   const [error, setError] = useState('')
   const [playersPage, setPlayersPage] = useState(1)
+  const [loading, setLoading] = useState(true)
 
   const teamByPlayer = useMemo(() => {
     const map = new Map()
@@ -152,6 +155,7 @@ const AdminPlayers = ({ currentPath = '#coach/players' }) => {
   }, [players, playersPage])
 
   const load = useCallback(async () => {
+    setLoading(true)
     const teamParams = {
       limit: 100,
       ...(currentUser?.role === 'coach' && currentUser?.id ? { coach_id: currentUser.id } : {}),
@@ -175,6 +179,7 @@ const AdminPlayers = ({ currentPath = '#coach/players' }) => {
       setPlayers(playerRows.filter((player) => scopedPlayerIds.has(String(player.id))))
       setTeams(teamRows.filter((team) => trainerTeamIds.has(String(team.id))))
       setMemberships(scopedMemberships)
+      setLoading(false)
       return
     }
 
@@ -185,6 +190,7 @@ const AdminPlayers = ({ currentPath = '#coach/players' }) => {
     setPlayers(playerRows.filter((player) => scopedPlayerIds.has(String(player.id))))
     setTeams(teamRows)
     setMemberships(scopedMemberships)
+    setLoading(false)
   }, [currentUser?.id, currentUser?.role, isTrainerView])
 
   const createPlayer = async (event) => {
@@ -276,7 +282,10 @@ const AdminPlayers = ({ currentPath = '#coach/players' }) => {
   }
 
   useEffect(() => {
-    load().catch((err) => setError(err.message))
+    load().catch((err) => {
+      setError(err.message)
+      setLoading(false)
+    })
 
     if (isStatsPage && statsPlayerId) {
       loadPlayerStats(statsPlayerId).catch((err) => setError(err.message))
@@ -289,7 +298,7 @@ const AdminPlayers = ({ currentPath = '#coach/players' }) => {
 
   const renderStatsContent = () => (
     <>
-      {stats?.loading && <EmptyState>Loading stats...</EmptyState>}
+      {stats?.loading && <ListSkeleton rows={8} />}
       {stats?.error && <div className="admin-alert">{stats.error}</div>}
       {stats && !stats.loading && !stats.error && (
         <div className="admin-stats-modal">
@@ -484,7 +493,9 @@ const AdminPlayers = ({ currentPath = '#coach/players' }) => {
               </tr>
             </thead>
             <tbody>
-              {visiblePlayers.map((player) => (
+              {loading ? (
+                <TableSkeletonRows rows={4} columns={6} />
+              ) : visiblePlayers.map((player) => (
                 <tr key={player.id}>
                   <td>
                     <span className="admin-player">
@@ -524,8 +535,8 @@ const AdminPlayers = ({ currentPath = '#coach/players' }) => {
               ))}
             </tbody>
           </table>
-          {!players.length && <EmptyState>No player accounts yet.</EmptyState>}
-          <div className="admin-pagination" aria-label="Players pagination">
+          {!loading && !players.length && <EmptyState>No player accounts yet.</EmptyState>}
+          {!loading && <div className="admin-pagination" aria-label="Players pagination">
             <button
               type="button"
               className="admin-pagination-button"
@@ -545,7 +556,7 @@ const AdminPlayers = ({ currentPath = '#coach/players' }) => {
             >
               <ChevronRight size={17} />
             </button>
-          </div>
+          </div>}
         </div>
       </AdminCard>
 

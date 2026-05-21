@@ -10,6 +10,7 @@ import AdminLayout, {
   AdminSelect,
   AdminTextarea,
   EmptyState,
+  ListSkeleton,
   formatDate,
   getName,
   initials,
@@ -50,6 +51,7 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
   const [failedLogoIds, setFailedLogoIds] = useState(() => new Set())
   const [error, setError] = useState('')
   const [schedulePage, setSchedulePage] = useState(1)
+  const [loading, setLoading] = useState(true)
 
   const teamById = useMemo(() => {
     const map = new Map()
@@ -63,6 +65,7 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
   }, [schedulePage, schedules])
 
   const load = useCallback(async () => {
+    setLoading(true)
     const teamParams = {
       limit: 100,
       ...(currentUser?.role === 'coach' && currentUser?.id ? { coach_id: currentUser.id } : {}),
@@ -82,16 +85,21 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
 
       setSchedules(scheduleRows.filter((schedule) => trainerTeamIds.has(String(schedule.team_id))))
       setTeams(teamRows.filter((team) => trainerTeamIds.has(String(team.id))))
+      setLoading(false)
       return
     }
 
     const coachTeamIds = new Set(teamRows.map((team) => String(team.id)))
     setSchedules(scheduleRows.filter((schedule) => coachTeamIds.has(String(schedule.team_id))))
     setTeams(teamRows)
+    setLoading(false)
   }, [currentUser?.id, currentUser?.role, isTrainerView])
 
   useEffect(() => {
-    load().catch((err) => setError(err.message))
+    load().catch((err) => {
+      setError(err.message)
+      setLoading(false)
+    })
   }, [load])
 
   useEffect(() => {
@@ -221,7 +229,13 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
 
       <AdminCard className="admin-dashboard-card admin-schedule-list-card">
         <div className="admin-schedule-grid">
-          {visibleSchedules.map((schedule) => {
+          {loading ? (
+            Array.from({ length: 3 }).map((_, index) => (
+              <article className="admin-schedule-card" key={`schedule-skeleton-${index}`}>
+                <ListSkeleton rows={4} />
+              </article>
+            ))
+          ) : visibleSchedules.map((schedule) => {
             const team = teamById.get(String(schedule.team_id))
             const teamName = team?.team_name || getName(teams, schedule.team_id, 'Team')
             const logoSrc = getTeamLogoSrc(team)
@@ -283,8 +297,8 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
             )
           })}
         </div>
-        {!schedules.length && <EmptyState>No training schedules yet.</EmptyState>}
-        <div className="admin-pagination" aria-label="Training schedule pagination">
+        {!loading && !schedules.length && <EmptyState>No training schedules yet.</EmptyState>}
+        {!loading && <div className="admin-pagination" aria-label="Training schedule pagination">
           <button
             type="button"
             className="admin-pagination-button"
@@ -304,7 +318,7 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
           >
             <ChevronRight size={17} />
           </button>
-        </div>
+        </div>}
       </AdminCard>
 
       <AdminModal open={modalOpen} title="Training Schedule" onClose={() => setModalOpen(false)}>

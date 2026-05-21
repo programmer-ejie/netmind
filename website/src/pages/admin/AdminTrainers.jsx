@@ -8,6 +8,7 @@ import AdminLayout, {
   AdminModal,
   EmptyState,
   StatusBadge,
+  TableSkeletonRows,
   formatDate,
   initials,
 } from './AdminLayout'
@@ -46,6 +47,7 @@ const AdminTrainers = ({ currentPath = '#coach/trainers' }) => {
   const [editForm, setEditForm] = useState(null)
   const [deleteTrainer, setDeleteTrainer] = useState(null)
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
 
   const teamsByTrainer = useMemo(() => {
     const map = new Map()
@@ -57,6 +59,7 @@ const AdminTrainers = ({ currentPath = '#coach/trainers' }) => {
   }, [links])
 
   const load = useCallback(async () => {
+    setLoading(true)
     const teamParams = {
       limit: 100,
       ...(currentUser?.role === 'coach' && currentUser?.id ? { coach_id: currentUser.id } : {}),
@@ -75,10 +78,14 @@ const AdminTrainers = ({ currentPath = '#coach/trainers' }) => {
     setTrainers(trainerRows.filter((trainer) => scopedTrainerIds.has(String(trainer.id))))
     setTeams(teamRows)
     setLinks(scopedLinks)
+    setLoading(false)
   }, [currentUser?.id, currentUser?.role])
 
   useEffect(() => {
-    load().catch((err) => setError(err.message))
+    load().catch((err) => {
+      setError(err.message)
+      setLoading(false)
+    })
   }, [load])
 
   const createTrainer = async (event) => {
@@ -210,7 +217,9 @@ const AdminTrainers = ({ currentPath = '#coach/trainers' }) => {
               </tr>
             </thead>
             <tbody>
-              {trainers.map((trainer) => {
+              {loading ? (
+                <TableSkeletonRows rows={4} columns={5} />
+              ) : trainers.map((trainer) => {
                 const trainerTeams = teamsByTrainer.get(String(trainer.id)) || []
 
                 return (
@@ -246,7 +255,7 @@ const AdminTrainers = ({ currentPath = '#coach/trainers' }) => {
               })}
             </tbody>
           </table>
-          {!trainers.length && <EmptyState>No trainer accounts yet.</EmptyState>}
+          {!loading && !trainers.length && <EmptyState>No trainer accounts yet.</EmptyState>}
         </div>
       </AdminCard>
 

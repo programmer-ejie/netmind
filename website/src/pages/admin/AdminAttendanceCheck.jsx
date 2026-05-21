@@ -3,6 +3,7 @@ import { ArrowLeft, CalendarDays, CheckCircle2, Clock3, UserX, Users } from 'luc
 import AdminLayout, {
   AdminCard,
   EmptyState,
+  ListSkeleton,
   StatusBadge,
   formatDate,
 } from './AdminLayout'
@@ -119,7 +120,9 @@ const AdminAttendanceCheck = ({ scheduleId, currentPath = `#trainer/attendance/$
             <span>Jersey</span>
             <span>Status</span>
           </div>
-          {players.map((player) => {
+          {loading ? (
+            <ListSkeleton rows={4} />
+          ) : players.map((player) => {
             return (
               <article className="admin-attendance-player-row" key={player.player_id}>
                 <div className="admin-attendance-player-main">

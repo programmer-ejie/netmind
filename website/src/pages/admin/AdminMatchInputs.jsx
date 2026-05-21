@@ -4,6 +4,7 @@ import AdminLayout, {
   AdminButton,
   AdminCard,
   EmptyState,
+  ListSkeleton,
   formatDate,
   getName,
   initials,
@@ -525,7 +526,11 @@ const AdminMatchInputs = ({ matchId, matchNumber, currentPath = `#coach/matches/
         </div>
       )}
 
-      {!match && !error && <EmptyState>Loading match inputs...</EmptyState>}
+      {!match && !error && (
+        <AdminCard>
+          <ListSkeleton rows={6} />
+        </AdminCard>
+      )}
 
       {selectedPlayer && (
         <div className="admin-offcanvas-backdrop" role="presentation" onMouseDown={() => setSelectedPlayer(null)}>

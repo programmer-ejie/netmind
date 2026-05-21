@@ -247,6 +247,34 @@ export const StatCard = ({ icon: Icon, label, value, tone = 'primary' }) => (
   </AdminCard>
 )
 
+export const StatCardSkeleton = ({ label = 'Loading stat' }) => (
+  <AdminCard className="admin-stat-card admin-stat-card-skeleton" aria-label={label}>
+    <span className="admin-skeleton-square" />
+    <span className="admin-skeleton-line" />
+    <strong className="admin-skeleton-line short" />
+  </AdminCard>
+)
+
+export const TableSkeletonRows = ({ rows = 4, columns = 4 }) => (
+  <>
+    {Array.from({ length: rows }).map((_, rowIndex) => (
+      <tr key={`table-skeleton-${rowIndex}`}>
+        {Array.from({ length: columns }).map((__, columnIndex) => (
+          <td key={`table-skeleton-${rowIndex}-${columnIndex}`}>
+            <span className={`admin-skeleton-line ${columnIndex === 0 ? 'wide' : columnIndex === columns - 1 ? 'short' : ''}`} />
+          </td>
+        ))}
+      </tr>
+    ))}
+  </>
+)
+
+export const ListSkeleton = ({ rows = 4 }) => (
+  <div className="admin-skeleton-list" aria-label="Loading content">
+    {Array.from({ length: rows }).map((_, index) => <span key={`list-skeleton-${index}`} />)}
+  </div>
+)
+
 export const BarSet = ({ data, valueKey = 'value', labelKey = 'label' }) => {
   const values = data.map((item) => Number(item[valueKey]) || 0)
   const max = Math.max(...values, 1)

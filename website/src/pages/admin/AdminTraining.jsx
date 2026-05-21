@@ -10,6 +10,7 @@ import AdminLayout, {
   AdminTextarea,
   EmptyState,
   StatusBadge,
+  TableSkeletonRows,
   drillCategories,
   drillDifficulties,
   formatDate,
@@ -81,6 +82,7 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
   const [error, setError] = useState('')
   const [drillsPage, setDrillsPage] = useState(1)
   const [assignmentsPage, setAssignmentsPage] = useState(1)
+  const [loading, setLoading] = useState(true)
 
   const assignedBy = currentUser?.id || coaches[0]?.id || 1
   const drillMap = useMemo(() => new Map(drills.map((drill) => [String(drill.id), drill])), [drills])
@@ -101,6 +103,7 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
   }, [assignments, assignmentsPage])
 
   const load = useCallback(async () => {
+    setLoading(true)
     const [drillRows, assignmentRows, playerRows, coachRows, memberRows, trainerLinkRows] = await Promise.all([
       listResource('drills', { limit: 100 }),
       listResource('training-assignments', { limit: 100 }),
@@ -136,15 +139,20 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
         && String(assignment.assigned_by) === String(currentUser?.id)
         && visibleDrillIds.has(String(assignment.drill_id))
       )))
+      setLoading(false)
       return
     }
 
     setAssignments(assignmentRows)
     setPlayers(playerRows)
+    setLoading(false)
   }, [currentUser?.id, isTrainerView])
 
   useEffect(() => {
-    load().catch((err) => setError(err.message))
+    load().catch((err) => {
+      setError(err.message)
+      setLoading(false)
+    })
   }, [load])
 
   useEffect(() => {
@@ -314,7 +322,9 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
                 </tr>
               </thead>
               <tbody>
-                {visibleDrills.map((drill) => (
+                {loading ? (
+                  <TableSkeletonRows rows={4} columns={6} />
+                ) : visibleDrills.map((drill) => (
                   <tr key={drill.id}>
                     <td>
                       <strong>{drill.drill_name}</strong>
@@ -351,7 +361,7 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
                 ))}
               </tbody>
             </table>
-            {!drills.length && (
+            {!loading && !drills.length && (
               <EmptyState>
                 <div className="admin-empty-action">
                   <span>No drills created yet.</span>
@@ -362,7 +372,7 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
                 </div>
               </EmptyState>
             )}
-            <div className="admin-pagination" aria-label="Drills pagination">
+            {!loading && <div className="admin-pagination" aria-label="Drills pagination">
               <button
                 type="button"
                 className="admin-pagination-button"
@@ -382,7 +392,7 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
               >
                 <ChevronRight size={17} />
               </button>
-            </div>
+            </div>}
           </div>
         ) : (
           <div className="admin-assignment-panel">
@@ -412,7 +422,9 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
                 </tr>
               </thead>
               <tbody>
-                {visibleAssignments.map((assignment) => (
+                {loading ? (
+                  <TableSkeletonRows rows={4} columns={4} />
+                ) : visibleAssignments.map((assignment) => (
                   <tr key={assignment.id}>
                     <td>
                       <strong>{getName(players, assignment.player_id)}</strong>
@@ -430,7 +442,7 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
                 ))}
               </tbody>
             </table>
-            {!assignments.length && (
+            {!loading && !assignments.length && (
               <EmptyState>
                 <div className="admin-empty-action">
                   <span>No training assignments yet.</span>
@@ -441,7 +453,7 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
                 </div>
               </EmptyState>
             )}
-            <div className="admin-pagination" aria-label="Training assignments pagination">
+            {!loading && <div className="admin-pagination" aria-label="Training assignments pagination">
               <button
                 type="button"
                 className="admin-pagination-button"
@@ -461,7 +473,7 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
               >
                 <ChevronRight size={17} />
               </button>
-            </div>
+            </div>}
             </div>
           </div>
         )}

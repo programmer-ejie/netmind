@@ -8,6 +8,7 @@ import AdminLayout, {
   AdminModal,
   AdminSelect,
   EmptyState,
+  ListSkeleton,
   StatusBadge,
   formatDate,
   initials,
@@ -46,6 +47,7 @@ const AdminTeamDetails = ({ teamId, currentPath = '#coach/teams' }) => {
   const [deletePlayer, setDeletePlayer] = useState(null)
   const [deleteTrainer, setDeleteTrainer] = useState(null)
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
 
   const teamHasTrainer = assignedTrainers.length > 0
   const availableTrainers = teamHasTrainer ? [] : trainers
@@ -53,6 +55,7 @@ const AdminTeamDetails = ({ teamId, currentPath = '#coach/teams' }) => {
 
   const load = useCallback(async () => {
     if (!teamId) return
+    setLoading(true)
 
     const teamRow = await getResource('teams', teamId)
     const coachId = currentUser?.id || teamRow.coach_id
@@ -72,10 +75,14 @@ const AdminTeamDetails = ({ teamId, currentPath = '#coach/teams' }) => {
     setTrainers(allTrainers.filter((trainer) => scopedTrainerIds.has(String(trainer.id))))
     setCoaches(coachRows)
     setSelectedTrainer('')
+    setLoading(false)
   }, [currentUser?.id, teamId])
 
   useEffect(() => {
-    load().catch((err) => setError(err.message))
+    load().catch((err) => {
+      setError(err.message)
+      setLoading(false)
+    })
   }, [load])
 
   const assignTrainer = async (event) => {
@@ -266,7 +273,9 @@ const AdminTeamDetails = ({ teamId, currentPath = '#coach/teams' }) => {
           </div>
 
           <div className="admin-roster-list">
-            {players.map((player) => (
+            {loading ? (
+              <ListSkeleton rows={5} />
+            ) : players.map((player) => (
               <div className="admin-roster-item" key={player.player_id}>
                 <span className="admin-player">
                   <b>{initials(player.name)}</b>
@@ -292,7 +301,7 @@ const AdminTeamDetails = ({ teamId, currentPath = '#coach/teams' }) => {
                 </AdminButton>
               </div>
             ))}
-            {!players.length && <EmptyState>No players in this team yet.</EmptyState>}
+            {!loading && !players.length && <EmptyState>No players in this team yet.</EmptyState>}
           </div>
         </AdminCard>
 
@@ -302,7 +311,9 @@ const AdminTeamDetails = ({ teamId, currentPath = '#coach/teams' }) => {
             <StatusBadge tone="secondary">{assignedTrainers.length} assigned</StatusBadge>
           </div>
           <div className="admin-list">
-            {assignedTrainers.map((trainer) => (
+            {loading ? (
+              <ListSkeleton rows={3} />
+            ) : assignedTrainers.map((trainer) => (
               <div className="admin-list-item" key={trainer.trainer_id}>
                 <span className="admin-avatar">{initials(trainer.name)}</span>
                 <div>
@@ -314,7 +325,7 @@ const AdminTeamDetails = ({ teamId, currentPath = '#coach/teams' }) => {
                 </AdminButton>
               </div>
             ))}
-            {!assignedTrainers.length && <EmptyState>No trainers assigned yet.</EmptyState>}
+            {!loading && !assignedTrainers.length && <EmptyState>No trainers assigned yet.</EmptyState>}
           </div>
         </AdminCard>
       </div>

@@ -8,7 +8,9 @@ import AdminLayout, {
   AdminModal,
   AdminSelect,
   EmptyState,
+  StatCardSkeleton,
   StatusBadge,
+  TableSkeletonRows,
   formatDate,
   getName,
 } from './AdminLayout'
@@ -82,6 +84,7 @@ const AdminMatches = ({ currentPath = '#coach/matches' }) => {
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(blankMatch)
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
   const ownedTeams = useMemo(() => (
     teams.filter((team) => String(team.coach_id) === String(currentUser?.id))
   ), [currentUser?.id, teams])
@@ -200,6 +203,7 @@ const AdminMatches = ({ currentPath = '#coach/matches' }) => {
   }
 
   const load = useCallback(async () => {
+    setLoading(true)
     const [matchRows, scoreRows, teamRows, opponentRows] = await Promise.all([
       listResource('matches', { limit: 100, sortBy: 'match_date', sortDir: 'asc' }),
       listResource('match-scores', { limit: 100, sortBy: 'match_number', sortDir: 'asc' }),
@@ -218,10 +222,14 @@ const AdminMatches = ({ currentPath = '#coach/matches' }) => {
     setMatchScores(scoreRows)
     setTeams(allTeamRows)
     setOpponentTeamOptions(opponentRows)
+    setLoading(false)
   }, [currentUser?.id])
 
   useEffect(() => {
-    load().catch((err) => setError(err.message))
+    load().catch((err) => {
+      setError(err.message)
+      setLoading(false)
+    })
   }, [load])
 
   useEffect(() => {
@@ -326,6 +334,14 @@ const AdminMatches = ({ currentPath = '#coach/matches' }) => {
       {error && <div className="admin-alert">{error}</div>}
 
       <div className="admin-match-stats">
+        {loading ? (
+          <>
+            <StatCardSkeleton label="Loading practice match count" />
+            <StatCardSkeleton label="Loading actual match count" />
+            <StatCardSkeleton label="Loading scheduled match count" />
+          </>
+        ) : (
+          <>
         <AdminCard className="admin-match-stat practice">
           <span><ClipboardList size={19} /></span>
           <div>
@@ -350,6 +366,8 @@ const AdminMatches = ({ currentPath = '#coach/matches' }) => {
             <small>{countLabel(totalSets(matches), 'set')} total</small>
           </div>
         </AdminCard>
+          </>
+        )}
       </div>
 
       <AdminCard className="admin-matches-card">
@@ -412,7 +430,25 @@ const AdminMatches = ({ currentPath = '#coach/matches' }) => {
           </div>
         </div>
 
-        {visibleMatches.length ? (
+        {loading ? (
+          <div className="admin-table admin-matches-table admin-matches-table-centered">
+            <table className="admin-native-table">
+              <thead>
+                <tr>
+                  <th>Match</th>
+                  <th>Date</th>
+                  <th>Best Of</th>
+                  <th>Type</th>
+                  <th>Result</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <TableSkeletonRows rows={5} columns={6} />
+              </tbody>
+            </table>
+          </div>
+        ) : visibleMatches.length ? (
           <div className="admin-table admin-matches-table admin-matches-table-centered">
             <table className="admin-native-table">
               <thead>
