@@ -76,32 +76,77 @@ const average = (values = []) => {
 
 const seriesFor = (entries, metric) => entries.filter((entry) => entry.metric === metric)
 const valuesFor = (entries, metric) => seriesFor(entries, metric).map((entry) => entry.value)
+const latestValue = (values = []) => values.length ? values[values.length - 1] : null
+const previousValue = (values = []) => values.length >= 2 ? values[values.length - 2] : null
+const percentChange = (previous, latest) => previous ? ((latest - previous) / previous) * 100 : 0
+const recentRange = (values = [], count = 3) => {
+  const recent = values.slice(-count)
+  if (recent.length < count) return null
+  return Math.max(...recent) - Math.min(...recent)
+}
+
+const addTrendRecommendation = ({
+  values,
+  label,
+  unit = '',
+  goodThreshold = 4,
+  badThreshold = -5,
+  improveText,
+  declineText,
+  steadyText,
+  suggestion,
+  needsImprovement,
+  keepItUp,
+}) => {
+  const previous = previousValue(values)
+  const latest = latestValue(values)
+  if (previous === null || latest === null) return
+
+  const change = percentChange(previous, latest)
+  const suffix = unit ? ` ${unit}` : ''
+
+  if (change <= badThreshold) {
+    needsImprovement.push({
+      title: `${label} dropped ${Math.abs(change).toFixed(0)}% (${previous.toFixed(1)}${suffix} to ${latest.toFixed(1)}${suffix})`,
+      suggestion: declineText || suggestion,
+    })
+  } else if (change >= goodThreshold) {
+    keepItUp.push(improveText || `${label} improved ${change.toFixed(0)}% over the last entry.`)
+  } else if (steadyText) {
+    keepItUp.push(steadyText)
+  }
+}
 
 const buildPlayerAnalysis = (logs = []) => {
   const entries = extractMeasurementEntries(logs)
   if (entries.length < 5) return { ready: false, entries }
 
   const jumpValues = valuesFor(entries, 'highest_jump')
+  const totalJumpValues = valuesFor(entries, 'total_jumps')
   const spikeValues = valuesFor(entries, 'strongest_spike')
+  const totalSpikeValues = valuesFor(entries, 'total_spikes')
   const heartValues = valuesFor(entries, 'avg_heart_rate')
   const needsImprovement = []
   const keepItUp = []
 
-  if (jumpValues.length >= 2) {
-    const previous = jumpValues[jumpValues.length - 2]
-    const latest = jumpValues[jumpValues.length - 1]
-    const percent = previous ? ((latest - previous) / previous) * 100 : 0
+  addTrendRecommendation({
+    values: jumpValues,
+    label: 'Jump height',
+    unit: 'in',
+    declineText: 'Add plyometrics 2x/week, reduce heavy jump volume for one session, and review approach mechanics.',
+    steadyText: 'Jump height is holding steady across recent sessions.',
+    needsImprovement,
+    keepItUp,
+  })
 
-    if (percent <= -5) {
-      needsImprovement.push({
-        title: `Jump height dropped ${Math.abs(percent).toFixed(0)}% (${previous.toFixed(1)} in -> ${latest.toFixed(1)} in)`,
-        suggestion: 'Add plyometrics 2x/week and review landing mechanics.',
-      })
-    } else if (percent >= 4) {
-      keepItUp.push(`Jump output improved ${percent.toFixed(0)}% over the last entry.`)
-    } else {
-      keepItUp.push('Jump height is holding steady across recent sessions.')
-    }
+  const jumpRange = recentRange(jumpValues, 3)
+  if (jumpRange !== null && jumpRange >= 5) {
+    needsImprovement.push({
+      title: `Jump consistency varies by ${jumpRange.toFixed(1)} inches recently`,
+      suggestion: 'Use a fixed approach rhythm and film takeoff timing before adding more volume.',
+    })
+  } else if (jumpRange !== null) {
+    keepItUp.push('Jump consistency is controlled across the last three jump readings.')
   }
 
   if (spikeValues.length >= 3) {
@@ -115,6 +160,68 @@ const buildPlayerAnalysis = (logs = []) => {
       })
     } else if (recent[recent.length - 1] >= Math.max(...recent.slice(0, -1))) {
       keepItUp.push('Spike speed is trending upward in recent sessions.')
+    }
+  }
+
+  addTrendRecommendation({
+    values: spikeValues,
+    label: 'Strongest spike',
+    unit: 'km/h',
+    goodThreshold: 3,
+    badThreshold: -4,
+    declineText: 'Check shoulder fatigue and add medicine-ball throws before max-speed attacks.',
+    needsImprovement,
+    keepItUp,
+  })
+
+  const latestTotalJumps = latestValue(totalJumpValues)
+  const latestTotalSpikes = latestValue(totalSpikeValues)
+  if (latestTotalJumps !== null) {
+    if (latestTotalJumps >= 70) {
+      needsImprovement.push({
+        title: `Jump load is high at ${latestTotalJumps.toFixed(0)} jumps`,
+        suggestion: 'Reduce extra jump drills next session and prioritize landing quality.',
+      })
+    } else if (latestTotalJumps >= 35) {
+      keepItUp.push('Jump volume is in a productive training range.')
+    } else {
+      needsImprovement.push({
+        title: `Jump volume is low at ${latestTotalJumps.toFixed(0)} jumps`,
+        suggestion: 'Add controlled approach-jump sets if the player is not on a recovery day.',
+      })
+    }
+  }
+
+  if (latestTotalSpikes !== null) {
+    if (latestTotalSpikes >= 45) {
+      needsImprovement.push({
+        title: `Spike volume is high at ${latestTotalSpikes.toFixed(0)} spikes`,
+        suggestion: 'Limit max-effort swings and add shoulder recovery work after practice.',
+      })
+    } else if (latestTotalSpikes >= 15) {
+      keepItUp.push('Spike volume is enough to evaluate attack rhythm without overloading the shoulder.')
+    } else {
+      needsImprovement.push({
+        title: `Spike volume is low at ${latestTotalSpikes.toFixed(0)} spikes`,
+        suggestion: 'Add target-based attack reps when shoulder status is clear.',
+      })
+    }
+  }
+
+  if (latestTotalJumps !== null && latestTotalSpikes !== null && latestTotalJumps > 0) {
+    const spikeRate = (latestTotalSpikes / latestTotalJumps) * 100
+    if (spikeRate < 25) {
+      needsImprovement.push({
+        title: `Attack conversion is low at ${spikeRate.toFixed(0)} spikes per 100 jumps`,
+        suggestion: 'Pair approach jumps with controlled arm-swing timing instead of isolated jumping.',
+      })
+    } else if (spikeRate <= 75) {
+      keepItUp.push('Jump-to-spike balance looks useful for volleyball-specific power.')
+    } else {
+      needsImprovement.push({
+        title: `Spike-to-jump ratio is heavy at ${spikeRate.toFixed(0)} spikes per 100 jumps`,
+        suggestion: 'Add non-swing jump mechanics to protect shoulder load while keeping leg power work.',
+      })
     }
   }
 
@@ -134,6 +241,23 @@ const buildPlayerAnalysis = (logs = []) => {
     }
   }
 
+  const latestHeart = latestValue(heartValues)
+  if (latestHeart !== null) {
+    if (latestHeart >= 175) {
+      needsImprovement.push({
+        title: `Heart-rate load is very high at ${latestHeart.toFixed(0)} bpm`,
+        suggestion: 'Use longer rest blocks and avoid stacking max jump and max spike sets.',
+      })
+    } else if (latestHeart >= 150 && latestHeart <= 165) {
+      keepItUp.push('Heart rate is in a strong volleyball conditioning zone for power work.')
+    } else if (latestHeart < 120) {
+      needsImprovement.push({
+        title: `Heart-rate load is low at ${latestHeart.toFixed(0)} bpm`,
+        suggestion: 'Increase drill tempo if the goal is conditioning, or mark the day as recovery.',
+      })
+    }
+  }
+
   if (!needsImprovement.length) {
     needsImprovement.push({
       title: 'No major regression detected in the latest measurements',
@@ -145,9 +269,8 @@ const buildPlayerAnalysis = (logs = []) => {
     keepItUp.push('Consistent data logging is improving the quality of player decisions.')
   }
 
-  const bestHeart = heartValues.length ? heartValues[heartValues.length - 1] : null
-  const tip = bestHeart
-    ? `Target controlled spikes while heart rate is near ${Math.max(120, bestHeart - 5).toFixed(0)}-${(bestHeart + 5).toFixed(0)} bpm.`
+  const tip = latestHeart
+    ? `Target controlled spikes while heart rate is near ${Math.max(120, latestHeart - 5).toFixed(0)}-${(latestHeart + 5).toFixed(0)} bpm, then compare jump height after the set.`
     : 'Capture heart rate with jump and spike values next session to unlock better workload guidance.'
 
   return { ready: true, entries, needsImprovement, keepItUp, tip }
@@ -157,36 +280,83 @@ const MeasurementTrendChart = ({ entries = [] }) => {
   const width = 560
   const height = 180
   const padding = 28
-  const chartEntries = entries.slice(-10)
-  const grouped = ['jump', 'spike', 'heart'].map((type) => ({
-    type,
-    values: chartEntries.filter((entry) => entry.type === type),
-  })).filter((item) => item.values.length)
+  const chartEntries = entries.slice(-24)
+  const types = ['jump', 'spike', 'heart']
+  const maxByType = types.reduce((map, type) => {
+    const values = chartEntries.filter((entry) => entry.type === type).map((entry) => entry.value)
+    map[type] = Math.max(...values, 1)
+    return map
+  }, {})
+  const buckets = chartEntries.reduce((map, entry) => {
+    const date = entry.date || 'Session'
+    const bucket = map.get(date) || {
+      date,
+      jump: [],
+      spike: [],
+      heart: [],
+    }
+    bucket[entry.type].push((entry.value / maxByType[entry.type]) * 100)
+    map.set(date, bucket)
+    return map
+  }, new Map())
+  const points = [...buckets.values()].slice(-8).map((bucket) => ({
+    date: bucket.date,
+    jump: average(bucket.jump) || 0,
+    spike: average(bucket.spike) || 0,
+    heart: average(bucket.heart) || 0,
+  }))
+  const maxStack = Math.max(...points.map((point) => point.jump + point.spike + point.heart), 100)
   const xFor = (index, count) => padding + (count <= 1 ? 0 : (index / (count - 1)) * (width - padding * 2))
-  const yFor = (value, values) => {
-    const seriesValues = values.map((entry) => entry.value)
-    const minValue = Math.min(...seriesValues)
-    const maxValue = Math.max(...seriesValues)
-    return height - padding - ((value - minValue) / Math.max(maxValue - minValue, 1)) * (height - padding * 2)
+  const yFor = (value) => height - padding - (value / maxStack) * (height - padding * 2)
+  const areaPath = (type, previousTypes = []) => {
+    if (!points.length) return ''
+
+    const top = points.map((point, index) => {
+      const lower = previousTypes.reduce((sum, item) => sum + point[item], 0)
+      return `${xFor(index, points.length)},${yFor(lower + point[type])}`
+    })
+    const bottom = points.map((point, index) => {
+      const lower = previousTypes.reduce((sum, item) => sum + point[item], 0)
+      return `${xFor(index, points.length)},${yFor(lower)}`
+    }).reverse()
+
+    return `M ${top.join(' L ')} L ${bottom.join(' L ')} Z`
+  }
+  const linePoints = (type, previousTypes = []) => (
+    points.map((point, index) => {
+      const lower = previousTypes.reduce((sum, item) => sum + point[item], 0)
+      return `${xFor(index, points.length)},${yFor(lower + point[type])}`
+    }).join(' ')
+  )
+  const layers = [
+    { type: 'jump', previous: [] },
+    { type: 'spike', previous: ['jump'] },
+    { type: 'heart', previous: ['jump', 'spike'] },
+  ]
+
+  if (!points.length) {
+    return (
+      <div className="admin-analysis-chart admin-analysis-chart-empty">
+        <span>No measurement trend yet.</span>
+      </div>
+    )
   }
 
   return (
-    <svg className="admin-analysis-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Player measurement trend chart">
+    <svg className="admin-analysis-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Player stacked area measurement trend chart">
       <line className="admin-analysis-chart-grid" x1={padding} x2={width - padding} y1={height - padding} y2={height - padding} />
-      {grouped.map((series) => {
-        const points = series.values.map((entry, index) => `${xFor(index, series.values.length)},${yFor(entry.value, series.values)}`).join(' ')
-
-        return (
-          <g className={`admin-analysis-series ${series.type}`} key={series.type}>
-            <polyline points={points} />
-            {series.values.map((entry, index) => (
-              <circle key={`${series.type}-${entry.id}`} cx={xFor(index, series.values.length)} cy={yFor(entry.value, series.values)} r="4">
-                <title>{`${series.type}: ${entry.value} (${entry.date})`}</title>
-              </circle>
-            ))}
-          </g>
-        )
-      })}
+      <line className="admin-analysis-chart-grid" x1={padding} x2={width - padding} y1={padding} y2={padding} />
+      {layers.map((layer) => (
+        <g className={`admin-analysis-area ${layer.type}`} key={layer.type}>
+          <path d={areaPath(layer.type, layer.previous)} />
+          <polyline points={linePoints(layer.type, layer.previous)} />
+        </g>
+      ))}
+      {points.map((point, index) => (
+        <text className="admin-analysis-axis-label" key={point.date} x={xFor(index, points.length)} y={height - 8}>
+          {String(point.date).slice(5)}
+        </text>
+      ))}
     </svg>
   )
 }
