@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, BarChart3, ChevronLeft, ChevronRight, Edit3, Plus, Trash2 } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, BarChart3, CheckCircle2, ChevronLeft, ChevronRight, Edit3, Lightbulb, Plus, Trash2 } from 'lucide-react'
 import AdminLayout, {
   AdminButton,
   AdminCard,
@@ -28,6 +28,223 @@ const blankCreate = {
   team_id: '',
 }
 const PLAYERS_PER_PAGE = 4
+
+const getLogMetric = (log) => String(log.notes || '').match(/metric:\s*([a-z_]+)/i)?.[1] || ''
+const getLogDate = (log) => (
+  String(log.notes || '').match(/session_date:\s*([0-9-]+)/i)?.[1]
+  || String(log.created_at || '').slice(0, 10)
+)
+const toNumber = (value) => {
+  const number = Number(value)
+  return Number.isFinite(number) ? number : null
+}
+
+const extractMeasurementEntries = (logs = []) => (
+  logs
+    .map((log) => {
+      const metric = getLogMetric(log)
+      const value = toNumber(log.value)
+      if (value === null || !metric) return null
+
+      const type = metric === 'highest_jump' || metric === 'total_jumps'
+        ? 'jump'
+        : metric === 'strongest_spike' || metric === 'total_spikes'
+          ? 'spike'
+          : metric === 'avg_heart_rate'
+            ? 'heart'
+            : ''
+
+      if (!type) return null
+
+      return {
+        id: log.id,
+        date: getLogDate(log),
+        metric,
+        type,
+        value,
+      }
+    })
+    .filter(Boolean)
+    .sort((first, second) => first.date.localeCompare(second.date) || Number(first.id || 0) - Number(second.id || 0))
+)
+
+const average = (values = []) => {
+  const validValues = values.filter((value) => Number.isFinite(value))
+  if (!validValues.length) return null
+  return validValues.reduce((sum, value) => sum + value, 0) / validValues.length
+}
+
+const seriesFor = (entries, metric) => entries.filter((entry) => entry.metric === metric)
+const valuesFor = (entries, metric) => seriesFor(entries, metric).map((entry) => entry.value)
+
+const buildPlayerAnalysis = (logs = []) => {
+  const entries = extractMeasurementEntries(logs)
+  if (entries.length < 5) return { ready: false, entries }
+
+  const jumpValues = valuesFor(entries, 'highest_jump')
+  const spikeValues = valuesFor(entries, 'strongest_spike')
+  const heartValues = valuesFor(entries, 'avg_heart_rate')
+  const needsImprovement = []
+  const keepItUp = []
+
+  if (jumpValues.length >= 2) {
+    const previous = jumpValues[jumpValues.length - 2]
+    const latest = jumpValues[jumpValues.length - 1]
+    const percent = previous ? ((latest - previous) / previous) * 100 : 0
+
+    if (percent <= -5) {
+      needsImprovement.push({
+        title: `Jump height dropped ${Math.abs(percent).toFixed(0)}% (${previous.toFixed(1)} in -> ${latest.toFixed(1)} in)`,
+        suggestion: 'Add plyometrics 2x/week and review landing mechanics.',
+      })
+    } else if (percent >= 4) {
+      keepItUp.push(`Jump output improved ${percent.toFixed(0)}% over the last entry.`)
+    } else {
+      keepItUp.push('Jump height is holding steady across recent sessions.')
+    }
+  }
+
+  if (spikeValues.length >= 3) {
+    const recent = spikeValues.slice(-3)
+    const range = Math.max(...recent) - Math.min(...recent)
+
+    if (range <= 3) {
+      needsImprovement.push({
+        title: `Spike speed plateaued (${Math.min(...recent).toFixed(0)}-${Math.max(...recent).toFixed(0)} km/h recently)`,
+        suggestion: 'Add wrist strength and approach-speed work next block.',
+      })
+    } else if (recent[recent.length - 1] >= Math.max(...recent.slice(0, -1))) {
+      keepItUp.push('Spike speed is trending upward in recent sessions.')
+    }
+  }
+
+  if (heartValues.length >= 2) {
+    const early = average(heartValues.slice(0, Math.ceil(heartValues.length / 2)))
+    const recent = average(heartValues.slice(-Math.ceil(heartValues.length / 2)))
+    if (early !== null && recent !== null) {
+      const change = early ? ((recent - early) / early) * 100 : 0
+      if (change <= -5) {
+        keepItUp.push(`Average heart-rate load improved ${Math.abs(change).toFixed(0)}%.`)
+      } else if (change >= 8) {
+        needsImprovement.push({
+          title: `Average heart-rate load rose ${change.toFixed(0)}%`,
+          suggestion: 'Add recovery intervals and monitor fatigue before high-volume drills.',
+        })
+      }
+    }
+  }
+
+  if (!needsImprovement.length) {
+    needsImprovement.push({
+      title: 'No major regression detected in the latest measurements',
+      suggestion: 'Keep collecting jump, spike, and heart-rate data each session.',
+    })
+  }
+
+  if (!keepItUp.length) {
+    keepItUp.push('Consistent data logging is improving the quality of player decisions.')
+  }
+
+  const bestHeart = heartValues.length ? heartValues[heartValues.length - 1] : null
+  const tip = bestHeart
+    ? `Target controlled spikes while heart rate is near ${Math.max(120, bestHeart - 5).toFixed(0)}-${(bestHeart + 5).toFixed(0)} bpm.`
+    : 'Capture heart rate with jump and spike values next session to unlock better workload guidance.'
+
+  return { ready: true, entries, needsImprovement, keepItUp, tip }
+}
+
+const MeasurementTrendChart = ({ entries = [] }) => {
+  const width = 560
+  const height = 180
+  const padding = 28
+  const chartEntries = entries.slice(-10)
+  const grouped = ['jump', 'spike', 'heart'].map((type) => ({
+    type,
+    values: chartEntries.filter((entry) => entry.type === type),
+  })).filter((item) => item.values.length)
+  const xFor = (index, count) => padding + (count <= 1 ? 0 : (index / (count - 1)) * (width - padding * 2))
+  const yFor = (value, values) => {
+    const seriesValues = values.map((entry) => entry.value)
+    const minValue = Math.min(...seriesValues)
+    const maxValue = Math.max(...seriesValues)
+    return height - padding - ((value - minValue) / Math.max(maxValue - minValue, 1)) * (height - padding * 2)
+  }
+
+  return (
+    <svg className="admin-analysis-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Player measurement trend chart">
+      <line className="admin-analysis-chart-grid" x1={padding} x2={width - padding} y1={height - padding} y2={height - padding} />
+      {grouped.map((series) => {
+        const points = series.values.map((entry, index) => `${xFor(index, series.values.length)},${yFor(entry.value, series.values)}`).join(' ')
+
+        return (
+          <g className={`admin-analysis-series ${series.type}`} key={series.type}>
+            <polyline points={points} />
+            {series.values.map((entry, index) => (
+              <circle key={`${series.type}-${entry.id}`} cx={xFor(index, series.values.length)} cy={yFor(entry.value, series.values)} r="4">
+                <title>{`${series.type}: ${entry.value} (${entry.date})`}</title>
+              </circle>
+            ))}
+          </g>
+        )
+      })}
+    </svg>
+  )
+}
+
+const PlayerPerformanceAnalysis = ({ player, logs = [] }) => {
+  const analysis = buildPlayerAnalysis(logs)
+
+  if (!analysis.ready) {
+    return (
+      <div className="admin-player-analysis admin-player-analysis-pending">
+        <div>
+          <span className="admin-kicker">Performance Analysis</span>
+          <h4>Collecting baseline</h4>
+          <p>{Math.max(0, 5 - analysis.entries.length)} more measurement entries needed before suggestions appear.</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <section className="admin-player-analysis">
+      <div className="admin-player-analysis-head">
+        <div>
+          <span className="admin-kicker">Performance Analysis</span>
+          <h4><BarChart3 size={20} /> {player?.name || 'Player'}</h4>
+        </div>
+        <div className="admin-analysis-legend">
+          <span className="jump">Jump</span>
+          <span className="spike">Spike</span>
+          <span className="heart">Heart Rate</span>
+        </div>
+      </div>
+
+      <MeasurementTrendChart entries={analysis.entries} />
+
+      <div className="admin-player-analysis-grid">
+        <div className="admin-analysis-list needs">
+          <h5><AlertTriangle size={16} /> Needs Improvement</h5>
+          {analysis.needsImprovement.map((item) => (
+            <article key={item.title}>
+              <strong>{item.title}</strong>
+              <p>{item.suggestion}</p>
+            </article>
+          ))}
+        </div>
+        <div className="admin-analysis-list keep">
+          <h5><CheckCircle2 size={16} /> Keep It Up</h5>
+          {analysis.keepItUp.map((item) => <p key={item}>{item}</p>)}
+        </div>
+      </div>
+
+      <div className="admin-analysis-tip">
+        <Lightbulb size={18} />
+        <p>{analysis.tip}</p>
+      </div>
+    </section>
+  )
+}
 
 const buildActionRadar = (actions = [], logs = []) => {
   const totals = new Map()
@@ -333,6 +550,7 @@ const AdminPlayers = ({ currentPath = '#coach/players' }) => {
                 <small>Avg RPE</small>
               </span>
             </div>
+            <PlayerPerformanceAnalysis player={stats.player} logs={stats.logs || []} />
           </div>
 
           <div className="admin-stat-grid compact admin-player-stat-grid">
