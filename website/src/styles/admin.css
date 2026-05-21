@@ -3184,17 +3184,20 @@
   display: grid;
   border: 1px solid var(--admin-border);
   border-radius: 8px;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
+  width: 100%;
 }
 
 .admin-attendance-table-head,
 .admin-attendance-player-row {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) 140px 120px 170px minmax(180px, 220px);
+  grid-template-columns: minmax(280px, 1.35fr) minmax(96px, 0.42fr) minmax(96px, 0.42fr) minmax(168px, 0.58fr) minmax(248px, 0.8fr);
   align-items: center;
   justify-items: center;
-  gap: 14px;
-  padding: 14px 16px;
+  column-gap: 18px;
+  min-width: 980px;
+  padding: 16px 22px;
   text-align: center;
 }
 
@@ -3213,7 +3216,7 @@
 
 .admin-attendance-table-head span:last-child,
 .admin-attendance-player-row .admin-attendance-action {
-  padding-right: 16px;
+  padding-right: 8px;
 }
 
 .admin-attendance-table-head {
@@ -3227,6 +3230,7 @@
 .admin-attendance-player-row {
   background: var(--admin-card);
   border-top: 1px solid var(--admin-border);
+  min-height: 104px;
 }
 
 .admin-attendance-player-row > span {
@@ -3260,12 +3264,15 @@
 .admin-attendance-action {
   display: grid;
   justify-items: center;
-  gap: 6px;
+  gap: 8px;
+  min-width: 0;
+  width: 100%;
 }
 
 .admin-attendance-input-button {
   min-height: 38px;
-  padding: 0 12px;
+  min-width: 150px;
+  padding: 0 14px;
   white-space: nowrap;
 }
 
@@ -3273,12 +3280,26 @@
   flex: 0 0 auto;
 }
 
-.admin-attendance-action small {
+.admin-attendance-input-summary {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  max-width: 230px;
+}
+
+.admin-attendance-input-summary span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border: 1px solid color-mix(in oklab, var(--admin-primary) 18%, var(--admin-border));
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--admin-primary) 9%, var(--admin-card));
   color: var(--admin-muted);
   font-size: 11px;
   font-weight: 800;
-  line-height: 1.35;
-  text-align: center;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .admin-unit-input {
@@ -7490,9 +7511,7 @@
   }
 
   .admin-attendance-overview,
-  .admin-attendance-kpis,
-  .admin-attendance-table-head,
-  .admin-attendance-player-row {
+  .admin-attendance-kpis {
     grid-template-columns: 1fr;
   }
 
@@ -7502,5 +7521,94 @@
 
   .admin-attendance-table-head {
     display: none;
+  }
+
+  .admin-attendance-table {
+    display: grid;
+    gap: 12px;
+    border: 0;
+    border-radius: 0;
+    overflow: visible;
+  }
+
+  .admin-attendance-player-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-items: stretch;
+    gap: 12px;
+    min-width: 0;
+    min-height: 0;
+    padding: 16px;
+    border: 1px solid var(--admin-border);
+    border-radius: 8px;
+  }
+
+  .admin-attendance-player-main {
+    grid-column: 1 / -1;
+  }
+
+  .admin-attendance-player-row > span,
+  .admin-attendance-player-row .admin-badge,
+  .admin-attendance-player-row .admin-attendance-action {
+    justify-self: stretch;
+    text-align: left;
+  }
+
+  .admin-attendance-player-row > span {
+    display: grid;
+    gap: 5px;
+    min-height: 54px;
+    padding: 10px 12px;
+    border: 1px solid var(--admin-border);
+    border-radius: 8px;
+    background: color-mix(in oklab, var(--admin-soft) 30%, transparent);
+  }
+
+  .admin-attendance-player-row > span:nth-of-type(1)::before {
+    content: "Position";
+  }
+
+  .admin-attendance-player-row > span:nth-of-type(2)::before {
+    content: "Jersey";
+  }
+
+  .admin-attendance-player-row > span::before {
+    color: var(--admin-muted);
+    font-size: 10px;
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+
+  .admin-attendance-player-row .admin-badge {
+    display: grid;
+    grid-column: 1 / -1;
+    justify-content: start;
+    gap: 7px;
+    width: 100%;
+    min-height: 54px;
+    padding: 10px 12px;
+    border-radius: 8px;
+  }
+
+  .admin-attendance-player-row .admin-badge::before {
+    content: "Status";
+    color: var(--admin-muted);
+    font-size: 10px;
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+
+  .admin-attendance-player-row .admin-attendance-action {
+    grid-column: 1 / -1;
+    justify-items: stretch;
+    padding-right: 0;
+  }
+
+  .admin-attendance-input-button {
+    width: 100%;
+  }
+
+  .admin-attendance-input-summary {
+    justify-content: flex-start;
+    max-width: none;
   }
 }

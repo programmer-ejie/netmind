@@ -20,6 +20,7 @@ const AdminAttendanceCheck = ({ scheduleId, currentPath = `#trainer/attendance/$
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [inputPlayer, setInputPlayer] = useState(null)
+  const [inputMode, setInputMode] = useState('add')
   const [trainerInput, setTrainerInput] = useState({ highest_jump: '', strongest_spike: '' })
   const [savingInput, setSavingInput] = useState(false)
 
@@ -57,7 +58,10 @@ const AdminAttendanceCheck = ({ scheduleId, currentPath = `#trainer/attendance/$
   const teamName = team?.team_name || 'Team'
 
   const openTrainerInput = (player) => {
+    const hasTrainerInput = Boolean(player.trainer_input)
+
     setInputPlayer(player)
+    setInputMode(hasTrainerInput ? 'view' : 'add')
     setTrainerInput({
       highest_jump: player.trainer_input?.highest_jump ?? '',
       strongest_spike: player.trainer_input?.strongest_spike ?? '',
@@ -94,6 +98,7 @@ const AdminAttendanceCheck = ({ scheduleId, currentPath = `#trainer/attendance/$
           : player
       )))
       setInputPlayer(null)
+      setInputMode('add')
       setTrainerInput({ highest_jump: '', strongest_spike: '' })
       setError('')
     } catch (err) {
@@ -198,12 +203,13 @@ const AdminAttendanceCheck = ({ scheduleId, currentPath = `#trainer/attendance/$
                     onClick={() => openTrainerInput(player)}
                   >
                     <Gauge size={16} />
-                    {player.trainer_input ? 'Edit Input' : 'Add Input'}
+                    {player.trainer_input ? 'View Input' : 'Add Input'}
                   </AdminButton>
                   {player.trainer_input ? (
-                    <small>
-                      Jump {player.trainer_input.highest_jump ?? '-'} in - Spike {player.trainer_input.strongest_spike ?? '-'} km/h
-                    </small>
+                    <div className="admin-attendance-input-summary" aria-label="Trainer input summary">
+                      <span>{player.trainer_input.highest_jump ?? '-'} in</span>
+                      <span>{player.trainer_input.strongest_spike ?? '-'} km/h</span>
+                    </div>
                   ) : null}
                 </div>
               </article>
@@ -228,7 +234,7 @@ const AdminAttendanceCheck = ({ scheduleId, currentPath = `#trainer/attendance/$
           >
             <div className="admin-offcanvas-header">
               <div>
-                <p className="admin-kicker">Trainer Input</p>
+                <p className="admin-kicker">{inputMode === 'view' ? 'Trainer Input Review' : 'Trainer Input'}</p>
                 <h2>{inputPlayer.name}</h2>
                 <small>{formatDate(schedule?.session_date)} - {schedule?.session_type || 'training'}</small>
               </div>
@@ -252,7 +258,7 @@ const AdminAttendanceCheck = ({ scheduleId, currentPath = `#trainer/attendance/$
               <AdminField label="Highest Jump" className="admin-trainer-input-field">
                 <div className="admin-unit-input">
                   <AdminInput
-                    disabled={savingInput}
+                    disabled={savingInput || inputMode === 'view'}
                     min="0"
                     step="0.1"
                     type="number"
@@ -266,7 +272,7 @@ const AdminAttendanceCheck = ({ scheduleId, currentPath = `#trainer/attendance/$
               <AdminField label="Strongest Spike" className="admin-trainer-input-field">
                 <div className="admin-unit-input">
                   <AdminInput
-                    disabled={savingInput}
+                    disabled={savingInput || inputMode === 'view'}
                     min="0"
                     step="0.1"
                     type="number"
@@ -278,8 +284,12 @@ const AdminAttendanceCheck = ({ scheduleId, currentPath = `#trainer/attendance/$
                 </div>
               </AdminField>
               <div className="admin-profile-offcanvas-actions">
-                <AdminButton type="button" variant="secondary" onClick={() => setInputPlayer(null)} disabled={savingInput}>Cancel</AdminButton>
-                <AdminButton type="submit" disabled={savingInput}>{savingInput ? 'Saving...' : 'Save Input'}</AdminButton>
+                <AdminButton type="button" variant="secondary" onClick={() => setInputPlayer(null)} disabled={savingInput}>
+                  {inputMode === 'view' ? 'Close' : 'Cancel'}
+                </AdminButton>
+                {inputMode !== 'view' && (
+                  <AdminButton type="submit" disabled={savingInput}>{savingInput ? 'Saving...' : 'Save Input'}</AdminButton>
+                )}
               </div>
             </form>
           </aside>

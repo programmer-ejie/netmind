@@ -78,6 +78,11 @@ function logDateTime(value?: string | null) {
   return Number.isNaN(date.getTime()) ? 0 : date.getTime();
 }
 
+function dateKey(value?: string | null) {
+  if (!value) return '';
+  return String(value).slice(0, 10);
+}
+
 function sortAttendanceLogs(logs: AttendanceLog[]) {
   return [...logs].sort((first, second) => {
     const sessionOrder = logDateTime(second.session_date) - logDateTime(first.session_date);
@@ -88,6 +93,19 @@ function sortAttendanceLogs(logs: AttendanceLog[]) {
 
     return Number(second.id) - Number(first.id);
   });
+}
+
+function findExistingAttendanceLog(info: AttendanceQrInfo, logs: AttendanceLog[]) {
+  return logs.find((log) => (
+    String(log.team_id) === String(info.team_id)
+    && String(log.session_type) === String(info.session_type)
+    && dateKey(log.session_date) === dateKey(info.session_date)
+  ));
+}
+
+function getLogPage(logs: AttendanceLog[], logId: number | string) {
+  const index = logs.findIndex((log) => String(log.id) === String(logId));
+  return index < 0 ? 1 : Math.floor(index / LOGS_PER_PAGE) + 1;
 }
 
 function readMetric(log: PerformanceLog) {
@@ -267,6 +285,19 @@ export default function AttendanceScreen() {
         return;
       }
 
+      const existingLog = findExistingAttendanceLog(info, attendanceLogs);
+
+      if (existingLog) {
+        setPendingToken('');
+        setScannerOpen(false);
+        setReportForm(initialReportForm);
+        setLogsPage(getLogPage(attendanceLogs, existingLog.id));
+        setActiveTab('logs');
+        setStatus('success');
+        setMessage(`Already submitted for ${formatDate(info.session_date)}.`);
+        return;
+      }
+
       setPendingToken(token);
       setScannerOpen(false);
       setReportForm(initialReportForm);
@@ -277,7 +308,7 @@ export default function AttendanceScreen() {
       setMessage(error instanceof Error ? error.message : 'Unable to check this QR.');
       resetScannerSoon();
     }
-  }, [currentUser?.id, resetScannerSoon, scanned]);
+  }, [attendanceLogs, currentUser?.id, resetScannerSoon, scanned]);
 
   const updateReport = (field: keyof ReportForm, value: string) => {
     setReportForm((current) => ({ ...current, [field]: value.replace(/[^\d.]/g, '') }));
@@ -448,6 +479,14 @@ export default function AttendanceScreen() {
       ) : (
         <>
           <SectionTitle>Logs</SectionTitle>
+          {status === 'success' ? (
+            <Card style={styles.noticeCard}>
+              <View style={[styles.noticeIcon, { backgroundColor: colors.courtSoft }]}>
+                <MaterialIcons name="check-circle" size={20} color={colors.court} />
+              </View>
+              <Text style={[styles.noticeText, { color: colors.ink }]}>{message}</Text>
+            </Card>
+          ) : null}
           {loadingLogs ? (
             <Card style={styles.loadingCard}>
               <ActivityIndicator color={colors.court} />
@@ -745,6 +784,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     gap: 10,
+  },
+  noticeCard: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+    padding: 12,
+  },
+  noticeIcon: {
+    alignItems: 'center',
+    borderRadius: 8,
+    height: 36,
+    justifyContent: 'center',
+    width: 36,
+  },
+  noticeText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '800',
+    lineHeight: 18,
   },
   logList: {
     gap: 10,
