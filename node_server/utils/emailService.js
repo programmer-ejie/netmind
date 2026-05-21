@@ -14,11 +14,20 @@ function createTransporter() {
     return transporter;
   }
 
+  const port = Number(process.env.EMAIL_PORT || 587);
+  const secure = String(process.env.EMAIL_SECURE || "").toLowerCase() === "true" || port === 465;
+
   transporter = nodemailer.createTransport({
-    service: "gmail",
+    host: process.env.EMAIL_HOST || "smtp.gmail.com",
+    port,
+    secure,
+    requireTLS: !secure,
     pool: true,
     maxConnections: 3,
     maxMessages: 50,
+    connectionTimeout: Number(process.env.EMAIL_CONNECTION_TIMEOUT_MS || 30000),
+    greetingTimeout: Number(process.env.EMAIL_GREETING_TIMEOUT_MS || 30000),
+    socketTimeout: Number(process.env.EMAIL_SOCKET_TIMEOUT_MS || 60000),
     auth: {
       user,
       pass,
