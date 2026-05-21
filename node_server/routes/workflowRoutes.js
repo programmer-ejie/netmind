@@ -1233,9 +1233,9 @@ router.post("/training-schedules/:scheduleId/qr-token", qrTokenLimiter, asyncHan
   const existingRows = await query(
     `SELECT
       token,
-      DATE_FORMAT(expires_at, '%Y-%m-%dT%H:%i:%s.000Z') AS expires_at_iso
+      TO_CHAR(expires_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS".000Z"') AS expires_at_iso
     FROM training_schedule_qr_tokens
-    WHERE training_schedule_id = ? AND expires_at > UTC_TIMESTAMP()
+    WHERE training_schedule_id = ? AND expires_at > CURRENT_TIMESTAMP
     ORDER BY expires_at DESC
     LIMIT 1`,
     [schedule.id]
@@ -1327,8 +1327,8 @@ router.get("/attendance-qr/:token", asyncHandler(async (req, res) => {
   const rows = await query(
     `SELECT
       qr.*,
-      DATE_FORMAT(qr.expires_at, '%Y-%m-%dT%H:%i:%s.000Z') AS expires_at_iso,
-      qr.expires_at <= UTC_TIMESTAMP() AS expired,
+      TO_CHAR(qr.expires_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS".000Z"') AS expires_at_iso,
+      qr.expires_at <= CURRENT_TIMESTAMP AS expired,
       ts.team_id,
       ts.session_type,
       ts.session_date
@@ -1358,7 +1358,7 @@ router.post("/attendance-qr/:token/check-in", qrAttendanceCheckInLimiter, asyncH
   const rows = await query(
     `SELECT
       qr.*,
-      qr.expires_at <= UTC_TIMESTAMP() AS expired,
+      qr.expires_at <= CURRENT_TIMESTAMP AS expired,
       ts.team_id,
       ts.session_type,
       ts.session_date

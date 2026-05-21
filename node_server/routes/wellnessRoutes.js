@@ -30,7 +30,7 @@ router.get("/players/:playerId/wellness-checkins", asyncHandler(async (req, res)
   let dateFilter = "";
 
   if (req.query.month) {
-    dateFilter = "AND DATE_FORMAT(checkin_date, '%Y-%m') = ?";
+    dateFilter = "AND TO_CHAR(checkin_date, 'YYYY-MM') = ?";
     params.push(req.query.month);
   }
 
@@ -38,7 +38,7 @@ router.get("/players/:playerId/wellness-checkins", asyncHandler(async (req, res)
     `SELECT
       id,
       player_id,
-      DATE_FORMAT(checkin_date, '%Y-%m-%d') AS checkin_date,
+      TO_CHAR(checkin_date, 'YYYY-MM-DD') AS checkin_date,
       fatigue_level,
       rpe,
       sleep_hours,
@@ -65,7 +65,7 @@ router.get("/wellness-checkins", asyncHandler(async (req, res) => {
   }
 
   if (req.query.month) {
-    filters.push("DATE_FORMAT(checkin_date, '%Y-%m') = ?");
+    filters.push("TO_CHAR(checkin_date, 'YYYY-MM') = ?");
     params.push(req.query.month);
   }
 
@@ -99,7 +99,7 @@ router.get("/wellness-checkins", asyncHandler(async (req, res) => {
     `SELECT
       id,
       player_id,
-      DATE_FORMAT(checkin_date, '%Y-%m-%d') AS checkin_date,
+      TO_CHAR(checkin_date, 'YYYY-MM-DD') AS checkin_date,
       fatigue_level,
       rpe,
       sleep_hours,
@@ -155,7 +155,7 @@ router.post("/players/:playerId/wellness-checkins", asyncHandler(async (req, res
     `SELECT
       id,
       player_id,
-      DATE_FORMAT(checkin_date, '%Y-%m-%d') AS checkin_date,
+      TO_CHAR(checkin_date, 'YYYY-MM-DD') AS checkin_date,
       fatigue_level,
       rpe,
       sleep_hours,
