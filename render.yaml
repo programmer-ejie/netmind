@@ -27,6 +27,16 @@ services:
         sync: false
       - key: EMAIL_PASS
         sync: false
+      - key: EMAIL_PROVIDER
+        value: brevo
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_SENDER_EMAIL
+        sync: false
+      - key: BREVO_SENDER_NAME
+        value: NetMind
+      - key: EMAIL_GMAIL_API_FALLBACK
+        value: "true"
       - key: GOOGLE_DRIVE_AUTH_MODE
         sync: false
       - key: GOOGLE_DRIVE_FOLDER_ID
@@ -46,4 +56,6 @@ services:
       - key: GOOGLE_REDIRECT_URI
         sync: false
       - key: GOOGLE_REFRESH_TOKEN
+        sync: false
+      - key: GOOGLE_EMAIL_REFRESH_TOKEN
         sync: false

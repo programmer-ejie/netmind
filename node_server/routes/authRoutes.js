@@ -90,6 +90,8 @@ function logEmailFailure(context, error) {
     responseCode: error?.responseCode,
     response: error?.response,
     attempts: error?.smtpAttempts,
+    brevoApi: error?.brevoApi,
+    gmailApi: error?.gmailApi,
     message: error?.message,
     syscall: error?.syscall,
     address: error?.address,

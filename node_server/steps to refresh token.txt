@@ -2,12 +2,20 @@
 // OAuth redirect URI uses GOOGLE_REDIRECT_URI when set.
 // Otherwise it defaults to BACKEND_BASE_URL/oauth2callback, or http://localhost:5001/oauth2callback.
 // Add the exact redirect URI to Google Cloud Console before generating a code.
+// The auth URL now asks for both Drive and Gmail send permission:
+// https://www.googleapis.com/auth/drive
+// https://www.googleapis.com/auth/gmail.send
 
 // to get the code
 npm run drive:auth-url
 
 //to get the new refresh token
 npm run drive:exchange-code -- "{the code}"
+
+// For Render email fallback, add the returned token as GOOGLE_EMAIL_REFRESH_TOKEN
+// or replace GOOGLE_REFRESH_TOKEN with it if you want one token for both Drive and Gmail.
+// Then test the HTTPS email path:
+npm run email:test-api
 
 //to test the connection and token refresh, you can run the following command which will attempt to upload a test file to Google Drive using the OAuth credentials: 
 npm run drive:test-oauth
