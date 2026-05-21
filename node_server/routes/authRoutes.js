@@ -70,6 +70,16 @@ function generateTemporaryPassword(length = 16) {
   return Array.from(bytes, (byte) => chars[byte % chars.length]).join("");
 }
 
+function logEmailFailure(context, error) {
+  console.error(`[email:${context}:failed]`, {
+    code: error?.code,
+    command: error?.command,
+    responseCode: error?.responseCode,
+    response: error?.response,
+    message: error?.message,
+  });
+}
+
 router.post(
   "/register-coach",
   registrationLimiter,
@@ -135,7 +145,9 @@ router.post(
         password: temporaryPassword,
       });
       emailMs = Math.round(performance.now() - emailStartedAt);
-    } catch {
+    } catch (error) {
+      logEmailFailure("temporary-password-coach", error);
+
       if (user?.id) {
         await query("DELETE FROM users WHERE id = ? AND role = 'coach'", [user.id]);
       }
@@ -253,7 +265,9 @@ router.post(
         password: temporaryPassword,
       });
       emailMs = Math.round(performance.now() - emailStartedAt);
-    } catch {
+    } catch (error) {
+      logEmailFailure("temporary-password-trainer", error);
+
       if (user?.id) {
         await query("DELETE FROM users WHERE id = ? AND role = 'trainer'", [user.id]);
       }
@@ -343,7 +357,9 @@ router.post(
         password: temporaryPassword,
       });
       emailMs = Math.round(performance.now() - emailStartedAt);
-    } catch {
+    } catch (error) {
+      logEmailFailure("temporary-password-player", error);
+
       if (user?.id) {
         await query("DELETE FROM users WHERE id = ? AND role = 'player'", [user.id]);
       }

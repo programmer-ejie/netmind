@@ -3,8 +3,8 @@ const nodemailer = require("nodemailer");
 let transporter;
 
 function createTransporter() {
-  const user = process.env.EMAIL_USER;
-  const pass = process.env.EMAIL_PASS;
+  const user = process.env.EMAIL_USER?.trim();
+  const pass = process.env.EMAIL_PASS?.trim();
 
   if (!user || !pass) {
     throw new Error("EMAIL_USER and EMAIL_PASS must be set in .env");
@@ -39,6 +39,7 @@ function escapeHtml(value) {
 
 async function sendTemporaryPasswordEmail({ to, name, password }) {
   const transporter = createTransporter();
+  const senderEmail = process.env.EMAIL_USER?.trim();
   const safeName = escapeHtml(name);
   const safeEmail = escapeHtml(to);
   const safePassword = escapeHtml(password);
@@ -115,7 +116,7 @@ async function sendTemporaryPasswordEmail({ to, name, password }) {
     </html>`;
 
   await transporter.sendMail({
-    from: `"NetMind" <${process.env.EMAIL_USER}>`,
+    from: `"NetMind" <${senderEmail}>`,
     to,
     subject,
     text,
@@ -125,11 +126,12 @@ async function sendTemporaryPasswordEmail({ to, name, password }) {
 
 async function sendPasswordResetCodeEmail({ to, name, code }) {
   const transporter = createTransporter();
+  const senderEmail = process.env.EMAIL_USER?.trim();
   const safeName = escapeHtml(name || "NetMind user");
   const safeCode = escapeHtml(code);
 
   await transporter.sendMail({
-    from: `"NetMind" <${process.env.EMAIL_USER}>`,
+    from: `"NetMind" <${senderEmail}>`,
     to,
     subject: "[NETMIND] Password confirmation code",
     text: [
