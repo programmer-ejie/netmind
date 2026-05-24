@@ -4114,6 +4114,60 @@
   display: none;
 }
 
+.admin-match-roster-skeleton-grid {
+  pointer-events: none;
+}
+
+.admin-match-roster-skeleton-copy {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.admin-match-roster-logo-skeleton {
+  width: 54px;
+  height: 54px;
+  border-radius: 12px;
+  flex: 0 0 auto;
+}
+
+.admin-match-player-skeleton {
+  cursor: wait;
+}
+
+.admin-match-player-skeleton > .admin-skeleton-square {
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+}
+
+.admin-match-player-skeleton span:not(.admin-skeleton-square) {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.admin-match-player-skeleton i {
+  width: auto;
+  height: 14px;
+  border-radius: 999px;
+  display: block;
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--admin-primary) 8%, var(--admin-soft)),
+    color-mix(in oklab, var(--admin-primary) 18%, var(--admin-soft)),
+    color-mix(in oklab, var(--admin-primary) 8%, var(--admin-soft))
+  );
+  background-size: 220% 100%;
+  font-style: normal;
+  opacity: 1;
+  animation: admin-skeleton 1.2s ease-in-out infinite;
+}
+
+.admin-roster-versus-skeleton {
+  opacity: 0.92;
+}
+
 .admin-offcanvas-backdrop {
   position: fixed;
   inset: 0;
