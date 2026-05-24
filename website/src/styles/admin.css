@@ -5432,6 +5432,15 @@
   justify-content: flex-start;
 }
 
+.admin-teams-table .admin-native-table th:last-child,
+.admin-teams-table .admin-native-table td:last-child {
+  text-align: center;
+}
+
+.admin-teams-table .admin-native-table td:last-child .admin-actions {
+  justify-content: center;
+}
+
 .admin-roster-list {
   display: grid;
   gap: 12px;
