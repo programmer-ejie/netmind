@@ -8,7 +8,6 @@ import AdminLayout, {
   AdminModal,
   AdminSelect,
   EmptyState,
-  ListSkeleton,
   StatusBadge,
   TableSkeletonRows,
   formatDate,
@@ -402,6 +401,115 @@ const PlayerPerformanceAnalysis = ({ player, logs = [] }) => {
   )
 }
 
+const PlayerStatsSkeleton = () => (
+  <div className="admin-stats-modal admin-player-stats-skeleton" aria-label="Loading player stats">
+    <div className="admin-player-summary admin-player-summary-skeleton">
+      <div className="admin-player-summary-main">
+        <span className="admin-skeleton-square admin-player-summary-avatar-skeleton" />
+        <div className="admin-player-summary-copy-skeleton">
+          <span className="admin-skeleton-line short" />
+          <span className="admin-skeleton-line admin-player-name-skeleton" />
+          <span className="admin-skeleton-line wide" />
+          <div className="admin-player-summary-tags admin-player-summary-tags-skeleton">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <span className="admin-skeleton-pill" key={`summary-tag-skeleton-${index}`} />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="admin-player-summary-metrics">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <span className="admin-player-summary-metric-skeleton" key={`summary-metric-skeleton-${index}`}>
+            <i />
+            <b />
+          </span>
+        ))}
+      </div>
+
+      <div className="admin-player-analysis admin-player-analysis-skeleton">
+        <div className="admin-player-analysis-head">
+          <div className="admin-player-analysis-title-skeleton">
+            <span className="admin-skeleton-line short" />
+            <span className="admin-skeleton-line wide" />
+          </div>
+          <div className="admin-analysis-legend admin-analysis-legend-skeleton">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <span key={`analysis-legend-skeleton-${index}`} />
+            ))}
+          </div>
+        </div>
+        <div className="admin-analysis-chart admin-analysis-chart-skeleton">
+          <span className="admin-chart-line one" />
+          <span className="admin-chart-line two" />
+          <span className="admin-chart-line three" />
+          <i className="admin-chart-point first" />
+          <i className="admin-chart-point second" />
+          <i className="admin-chart-point third" />
+        </div>
+      </div>
+    </div>
+
+    <div className="admin-stat-grid compact admin-player-stat-grid">
+      {Array.from({ length: 6 }).map((_, index) => (
+        <AdminCard className="admin-player-stat-card admin-player-stat-card-skeleton" key={`player-stat-card-skeleton-${index}`}>
+          <span className="admin-skeleton-line" />
+          <strong className="admin-skeleton-line short" />
+        </AdminCard>
+      ))}
+    </div>
+
+    <div className="admin-player-stats-layout">
+      <section className="admin-stats-section admin-stats-panel admin-stats-panel-large admin-stats-panel-skeleton">
+        <div className="admin-section-title">
+          <span className="admin-skeleton-line wide" />
+          <span className="admin-skeleton-pill" />
+        </div>
+        <div className="admin-performance-radar admin-performance-radar-skeleton">
+          <div className="admin-performance-radar-copy-skeleton">
+            <span className="admin-skeleton-line short" />
+            <strong className="admin-skeleton-line wide" />
+            <small className="admin-skeleton-line" />
+          </div>
+          <div className="admin-radar-target-skeleton">
+            <span />
+            <span />
+            <span />
+            <i />
+          </div>
+          <div className="admin-performance-radar-legend admin-performance-radar-legend-skeleton">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <span key={`radar-legend-skeleton-${index}`} />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <div className="admin-player-stats-side">
+        {['training', 'health'].map((section) => (
+          <section className="admin-stats-section admin-stats-panel admin-stats-side-skeleton" key={`stats-side-skeleton-${section}`}>
+            <div className="admin-section-title">
+              <span className="admin-skeleton-line wide" />
+              <span className="admin-skeleton-pill" />
+            </div>
+            <div className="admin-info-list">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <article className="admin-info-row admin-info-row-skeleton" key={`${section}-row-skeleton-${index}`}>
+                  <div>
+                    <span className="admin-skeleton-line wide" />
+                    <small className="admin-skeleton-line" />
+                  </div>
+                  <span className="admin-skeleton-pill" />
+                </article>
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+    </div>
+  </div>
+)
+
 const buildActionRadar = (actions = [], logs = []) => {
   const totals = new Map()
 
@@ -671,7 +779,7 @@ const AdminPlayers = ({ currentPath = '#coach/players' }) => {
 
   const renderStatsContent = () => (
     <>
-      {stats?.loading && <ListSkeleton rows={8} />}
+      {stats?.loading && <PlayerStatsSkeleton />}
       {stats?.error && <div className="admin-alert">{stats.error}</div>}
       {stats && !stats.loading && !stats.error && (
         <div className="admin-stats-modal">

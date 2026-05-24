@@ -5680,7 +5680,16 @@
 .admin-skeleton-bars span,
 .admin-skeleton-line,
 .admin-skeleton-list span,
-.admin-skeleton-square {
+.admin-skeleton-square,
+.admin-skeleton-pill,
+.admin-player-summary-metric-skeleton i,
+.admin-player-summary-metric-skeleton b,
+.admin-chart-line,
+.admin-chart-point,
+.admin-analysis-legend-skeleton span,
+.admin-radar-target-skeleton span,
+.admin-radar-target-skeleton i,
+.admin-performance-radar-legend-skeleton span {
   display: block;
   background: linear-gradient(
     90deg,
@@ -5719,6 +5728,12 @@
 
 .admin-skeleton-line.short {
   width: 48px;
+}
+
+.admin-skeleton-pill {
+  width: 86px;
+  height: 30px;
+  border-radius: 999px;
 }
 
 .admin-skeleton-list {
@@ -5787,6 +5802,207 @@
 
 .admin-analytics-side-skeleton span:nth-child(3) {
   width: 58%;
+}
+
+.admin-player-stats-skeleton {
+  pointer-events: none;
+}
+
+.admin-player-summary-skeleton {
+  align-items: start;
+}
+
+.admin-player-summary-avatar-skeleton {
+  width: 72px;
+  height: 72px;
+  border-radius: 10px;
+}
+
+.admin-player-summary-copy-skeleton {
+  display: grid;
+  gap: 9px;
+}
+
+.admin-player-summary-copy-skeleton .admin-player-name-skeleton {
+  width: min(360px, 100%);
+  height: 30px;
+}
+
+.admin-player-summary-tags-skeleton {
+  margin-top: 8px;
+}
+
+.admin-player-summary-metric-skeleton {
+  gap: 9px;
+}
+
+.admin-player-summary-metric-skeleton i {
+  width: 46px;
+  height: 22px;
+  border-radius: 999px;
+}
+
+.admin-player-summary-metric-skeleton b {
+  width: 72px;
+  height: 12px;
+  border-radius: 999px;
+}
+
+.admin-player-analysis-skeleton {
+  min-height: 286px;
+}
+
+.admin-player-analysis-title-skeleton {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-analysis-legend-skeleton span {
+  width: 104px;
+  height: 28px;
+  border-radius: 999px;
+}
+
+.admin-analysis-legend-skeleton span::before {
+  display: none;
+}
+
+.admin-analysis-chart-skeleton {
+  position: relative;
+  overflow: hidden;
+}
+
+.admin-chart-line {
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  height: 4px;
+  border-radius: 999px;
+  transform-origin: center;
+}
+
+.admin-chart-line.one {
+  top: 58%;
+  transform: rotate(-11deg);
+}
+
+.admin-chart-line.two {
+  top: 66%;
+  transform: rotate(-5deg);
+}
+
+.admin-chart-line.three {
+  top: 48%;
+  transform: rotate(9deg);
+}
+
+.admin-chart-point {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border: 4px solid var(--admin-card);
+  border-radius: 999px;
+}
+
+.admin-chart-point.first {
+  left: 24%;
+  top: 61%;
+}
+
+.admin-chart-point.second {
+  left: 62%;
+  top: 54%;
+}
+
+.admin-chart-point.third {
+  right: 8%;
+  top: 42%;
+}
+
+.admin-player-stat-card-skeleton {
+  gap: 12px;
+}
+
+.admin-player-stat-card-skeleton::after {
+  background: color-mix(in oklab, var(--admin-primary) 20%, var(--admin-soft));
+}
+
+.admin-stats-panel-skeleton .admin-section-title,
+.admin-stats-side-skeleton .admin-section-title {
+  align-items: center;
+}
+
+.admin-performance-radar-skeleton {
+  min-height: 340px;
+}
+
+.admin-performance-radar-copy-skeleton {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-radar-target-skeleton {
+  position: relative;
+  width: min(280px, 100%);
+  aspect-ratio: 1;
+  margin: 0 auto;
+}
+
+.admin-radar-target-skeleton span {
+  position: absolute;
+  inset: 50%;
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+  background: transparent;
+  border: 2px solid color-mix(in oklab, var(--admin-primary) 16%, var(--admin-border));
+  animation: none;
+}
+
+.admin-radar-target-skeleton span:nth-child(1) {
+  width: 88%;
+  height: 88%;
+}
+
+.admin-radar-target-skeleton span:nth-child(2) {
+  width: 62%;
+  height: 62%;
+}
+
+.admin-radar-target-skeleton span:nth-child(3) {
+  width: 36%;
+  height: 36%;
+}
+
+.admin-radar-target-skeleton i {
+  position: absolute;
+  inset: 23% 17% 21% 24%;
+  clip-path: polygon(48% 0, 92% 34%, 78% 92%, 18% 76%, 6% 28%);
+  opacity: 0.85;
+}
+
+.admin-performance-radar-legend-skeleton {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-performance-radar-legend-skeleton span {
+  width: 100%;
+  height: 35px;
+  border-radius: 8px;
+}
+
+.admin-info-row-skeleton {
+  min-height: 70px;
+}
+
+.admin-info-row-skeleton div {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-info-row-skeleton .admin-skeleton-pill {
+  width: 74px;
+  height: 28px;
 }
 
 @keyframes admin-skeleton {
