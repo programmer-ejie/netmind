@@ -390,12 +390,22 @@ const AdminTrainers = ({ currentPath = '#coach/trainers' }) => {
                 Cancel
               </AdminButton>
               <AdminButton type="submit" className="admin-confirm-button" disabled={deletingTrainer}>
-                {deletingTrainer ? 'Confirming...' : 'Confirm'}
+                Confirm
               </AdminButton>
             </div>
           </form>
         )}
       </AdminModal>
+
+      {deletingTrainer && (
+        <div className="admin-sync-backdrop" role="presentation">
+          <section className="admin-sync-modal" role="status" aria-live="polite">
+            <div className="admin-sync-spinner" />
+            <h2>Deleting Trainer</h2>
+            <p>Removing the trainer account and refreshing the trainer list.</p>
+          </section>
+        </div>
+      )}
 
     </AdminLayout>
   )
