@@ -703,7 +703,7 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
               Cancel
             </AdminButton>
             <AdminButton type="submit" className="admin-confirm-button" disabled={savingAssignment}>
-              {savingAssignment ? editingAssignment ? 'Saving...' : 'Assigning...' : editingAssignment ? 'Save Assignment' : 'Assign Training'}
+              {savingAssignment ? editingAssignment ? 'Saving...' : 'Assigning...' : editingAssignment ? 'Save' : 'Assign Training'}
             </AdminButton>
           </div>
         </form>
