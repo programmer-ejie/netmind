@@ -307,10 +307,12 @@ export const AdminLayout = ({ children, title, kicker, currentPath }) => {
   const searchHidden = /^#(coach|trainer)\/(profile|settings)/.test(hash)
   const navRef = useRef(null)
   const contentRef = useRef(null)
+  const searchInputRef = useRef(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const sidebarVisible = window.innerWidth > 1100 ? !sidebarCollapsed : sidebarOpen
   const [searchTerm, setSearchTerm] = useState('')
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [headerProfile, setHeaderProfile] = useState(() => readSavedUser())
@@ -369,7 +371,12 @@ export const AdminLayout = ({ children, title, kicker, currentPath }) => {
 
   useEffect(() => {
     setSearchTerm('')
+    setMobileSearchOpen(false)
   }, [currentPath])
+
+  useEffect(() => {
+    if (mobileSearchOpen) searchInputRef.current?.focus()
+  }, [mobileSearchOpen])
 
   useEffect(() => {
     const content = contentRef.current
@@ -419,7 +426,7 @@ export const AdminLayout = ({ children, title, kicker, currentPath }) => {
   }
 
   return (
-    <main className={`admin-page ${sidebarOpen ? 'sidebar-open' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${isDark ? 'admin-dark' : ''}`}>
+    <main className={`admin-page ${sidebarOpen ? 'sidebar-open' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${mobileSearchOpen ? 'mobile-search-open' : ''} ${isDark ? 'admin-dark' : ''}`}>
       <button
         type="button"
         className="admin-sidebar-backdrop"
@@ -492,6 +499,7 @@ export const AdminLayout = ({ children, title, kicker, currentPath }) => {
                 <div className="admin-search-wrap">
                   <Search size={18} />
                   <input
+                    ref={searchInputRef}
                     className="admin-search"
                     type="search"
                     placeholder="Search..."
@@ -506,6 +514,17 @@ export const AdminLayout = ({ children, title, kicker, currentPath }) => {
               <h1>{title}</h1>
             </div>
             <div className="admin-header-actions">
+              {!searchHidden && (
+                <button
+                  className="admin-icon-button admin-mobile-search-toggle"
+                  aria-label={mobileSearchOpen ? 'Close search' : 'Open search'}
+                  aria-expanded={mobileSearchOpen}
+                  onClick={() => setMobileSearchOpen((current) => !current)}
+                  type="button"
+                >
+                  <Search size={20} />
+                </button>
+              )}
               <button
                 className="admin-icon-button"
                 aria-label="Toggle dark mode"
