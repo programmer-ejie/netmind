@@ -78,6 +78,10 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
   const [deleteDrill, setDeleteDrill] = useState(null)
   const [savingDrill, setSavingDrill] = useState(false)
   const [deletingDrill, setDeletingDrill] = useState(false)
+  const [editingAssignment, setEditingAssignment] = useState(null)
+  const [deleteAssignment, setDeleteAssignment] = useState(null)
+  const [savingAssignment, setSavingAssignment] = useState(false)
+  const [deletingAssignment, setDeletingAssignment] = useState(false)
   const [drillForm, setDrillForm] = useState(blankDrill)
   const [assignmentForm, setAssignmentForm] = useState(blankAssignment)
   const [error, setError] = useState('')
@@ -175,8 +179,29 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
   }
 
   const openAssignTraining = () => {
+    setEditingAssignment(null)
     setAssignmentForm(blankAssignment)
     setAssignModal(true)
+  }
+
+  const openEditAssignment = (assignment) => {
+    setEditingAssignment(assignment)
+    setAssignmentForm({
+      player_id: String(assignment.player_id || ''),
+      drill_id: String(assignment.drill_id || ''),
+      due_date: assignment.due_date ? String(assignment.due_date).slice(0, 10) : '',
+      focus_area: assignment.focus_area || '',
+    })
+    setAssignModal(true)
+  }
+
+  const openDeleteAssignment = (assignment) => {
+    setDeleteAssignment(assignment)
+  }
+
+  const closeDeleteAssignment = () => {
+    if (deletingAssignment) return
+    setDeleteAssignment(null)
   }
 
   const openEditDrill = (drill) => {
@@ -249,23 +274,51 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
   const assignTraining = async (event) => {
     event.preventDefault()
     const drill = drillMap.get(String(assignmentForm.drill_id))
+    const payload = {
+      player_id: assignmentForm.player_id,
+      assigned_by: assignedBy,
+      drill_id: assignmentForm.drill_id,
+      focus_area: assignmentForm.focus_area || drill?.category,
+      drill_description: drill?.description,
+      due_date: assignmentForm.due_date || null,
+    }
 
     try {
-      await apiRequest(`/drills/${assignmentForm.drill_id}/assign`, {
-        method: 'POST',
-        body: {
-          player_id: assignmentForm.player_id,
-          assigned_by: assignedBy,
-          focus_area: assignmentForm.focus_area || drill?.category,
-          drill_description: drill?.description,
-          due_date: assignmentForm.due_date || null,
-        },
-      })
+      setSavingAssignment(true)
+      setError('')
+      if (editingAssignment) {
+        await updateResource('training-assignments', editingAssignment.id, payload)
+      } else {
+        await apiRequest(`/drills/${assignmentForm.drill_id}/assign`, {
+          method: 'POST',
+          body: payload,
+        })
+      }
       setAssignmentForm(blankAssignment)
       setAssignModal(false)
       await load()
+      setEditingAssignment(null)
     } catch (err) {
       setError(err.message)
+    } finally {
+      setSavingAssignment(false)
+    }
+  }
+
+  const removeAssignment = async (event) => {
+    event.preventDefault()
+    if (!deleteAssignment) return
+
+    try {
+      setDeletingAssignment(true)
+      setError('')
+      await deleteResource('training-assignments', deleteAssignment.id)
+      setDeleteAssignment(null)
+      await load()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setDeletingAssignment(false)
     }
   }
 
@@ -425,11 +478,12 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
                   <th>Training Plan</th>
                   <th>Due Date</th>
                   <th>Status</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <TableSkeletonRows rows={4} columns={4} />
+                  <TableSkeletonRows rows={4} columns={5} />
                 ) : visibleAssignments.map((assignment) => (
                   <tr key={assignment.id}>
                     <td>
@@ -443,6 +497,16 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
                       <StatusBadge tone={getAssignmentStatusTone(assignment.status)}>
                         {formatStatusLabel(assignment.status)}
                       </StatusBadge>
+                    </td>
+                    <td>
+                      <div className="admin-actions">
+                        <AdminButton variant="secondary" onClick={() => openEditAssignment(assignment)} aria-label="Edit assignment">
+                          <Edit3 size={15} />
+                        </AdminButton>
+                        <AdminButton variant="danger" onClick={() => openDeleteAssignment(assignment)} aria-label="Delete assignment">
+                          <Trash2 size={15} />
+                        </AdminButton>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -589,13 +653,19 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
 
       <AdminModal
         open={assignModal}
-        title="Assign Training"
-        onClose={() => setAssignModal(false)}
+        title={editingAssignment ? 'Edit Assignment' : 'Assign Training'}
+        subtitle={editingAssignment ? 'Update the assigned player and drill.' : ''}
+        onClose={() => {
+          if (!savingAssignment) {
+            setAssignModal(false)
+            setEditingAssignment(null)
+          }
+        }}
       >
         <form className="admin-form admin-form-grid" onSubmit={assignTraining}>
           <div className="admin-password-tip admin-form-span">
             <Info size={18} />
-            <p>Choose a player and drill, then add simple targets the player can track.</p>
+            <p>{editingAssignment ? 'Select a new player or drill, then adjust the focus area and due date.' : 'Choose a player and drill, then add simple targets the player can track.'}</p>
           </div>
 
           <AdminField label="Player">
@@ -621,11 +691,85 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
             />
           </AdminField>
           <div className="admin-form-actions admin-form-span">
-            <AdminButton type="button" variant="secondary" onClick={() => setAssignModal(false)}>Cancel</AdminButton>
-            <AdminButton type="submit" className="admin-confirm-button">Assign Training</AdminButton>
+            <AdminButton
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setAssignModal(false)
+                setEditingAssignment(null)
+              }}
+              disabled={savingAssignment}
+            >
+              Cancel
+            </AdminButton>
+            <AdminButton type="submit" className="admin-confirm-button" disabled={savingAssignment}>
+              {savingAssignment ? editingAssignment ? 'Saving...' : 'Assigning...' : editingAssignment ? 'Save Assignment' : 'Assign Training'}
+            </AdminButton>
           </div>
         </form>
       </AdminModal>
+
+      {savingAssignment && (
+        <div className="admin-sync-backdrop" role="presentation">
+          <section className="admin-sync-modal" role="status" aria-live="polite">
+            <div className="admin-sync-spinner" />
+            <h2>{editingAssignment ? 'Saving Assignment' : 'Assigning Training'}</h2>
+            <p>{editingAssignment ? 'Updating the training assignment and refreshing the list.' : 'Creating the training assignment and refreshing the list.'}</p>
+          </section>
+        </div>
+      )}
+
+      <AdminModal
+        open={Boolean(deleteAssignment)}
+        title="Delete Assignment"
+        subtitle="Confirm before removing this assignment."
+        className="admin-password-modal admin-team-modal"
+        onClose={closeDeleteAssignment}
+      >
+        {deleteAssignment && (
+          <form className="admin-form" onSubmit={removeAssignment}>
+            <div className="admin-password-warning">
+              <AlertTriangle size={17} />
+              <p>This will delete the player&apos;s training assignment and remove it from the assignment list.</p>
+            </div>
+
+            <div className="admin-delete-summary">
+              <span className="admin-player">
+                <b>{getName(players, deleteAssignment.player_id).slice(0, 2).toUpperCase()}</b>
+                <span>
+                  <strong>{getName(players, deleteAssignment.player_id)}</strong>
+                  <small>{drillMap.get(String(deleteAssignment.drill_id))?.drill_name || deleteAssignment.focus_area} - {formatDate(deleteAssignment.due_date)}</small>
+                </span>
+              </span>
+            </div>
+
+            <div className="admin-password-tip">
+              <Info size={18} />
+              <p>Tip: keep this assignment if the player still needs to complete or review the drill.</p>
+            </div>
+
+            <div className="admin-profile-offcanvas-actions">
+              <AdminButton type="button" variant="ghost" onClick={closeDeleteAssignment} disabled={deletingAssignment}>
+                Cancel
+              </AdminButton>
+              <AdminButton type="submit" className="admin-confirm-button" disabled={deletingAssignment}>
+                <Trash2 size={16} />
+                Confirm
+              </AdminButton>
+            </div>
+          </form>
+        )}
+      </AdminModal>
+
+      {deletingAssignment && (
+        <div className="admin-sync-backdrop" role="presentation">
+          <section className="admin-sync-modal" role="status" aria-live="polite">
+            <div className="admin-sync-spinner" />
+            <h2>Deleting Assignment</h2>
+            <p>Removing the training assignment and refreshing the list.</p>
+          </section>
+        </div>
+      )}
 
       {deleteDrill && (
         <div className="admin-offcanvas-backdrop" role="presentation" onMouseDown={closeDeleteDrill}>
