@@ -5424,12 +5424,12 @@
 
 .admin-teams-table .admin-native-table th,
 .admin-teams-table .admin-native-table td {
-  text-align: center;
+  text-align: left;
 }
 
 .admin-teams-table .admin-player,
 .admin-teams-table .admin-actions {
-  justify-content: center;
+  justify-content: flex-start;
 }
 
 .admin-roster-list {

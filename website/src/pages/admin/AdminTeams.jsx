@@ -31,6 +31,7 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
   const [modalOpen, setModalOpen] = useState(false)
   const [assignModal, setAssignModal] = useState(false)
   const [deleteModal, setDeleteModal] = useState(false)
+  const [savingTeam, setSavingTeam] = useState(false)
   const [deletingTeam, setDeletingTeam] = useState(false)
   const [deleteTeam, setDeleteTeam] = useState(null)
   const [error, setError] = useState('')
@@ -166,6 +167,7 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
     setError('')
 
     try {
+      setSavingTeam(true)
       if (editing) {
         await updateResource('teams', editing.id, {
           team_name: form.team_name,
@@ -197,6 +199,8 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
       await load()
     } catch (err) {
       setError(err.message)
+    } finally {
+      setSavingTeam(false)
     }
   }
 
@@ -309,7 +313,9 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
         title={editing ? 'Edit Team' : 'Create Team'}
         subtitle={editing ? 'Update team details and ownership.' : 'Create a volleyball team workspace.'}
         className="admin-password-modal admin-team-modal"
-        onClose={() => setModalOpen(false)}
+        onClose={() => {
+          if (!savingTeam) setModalOpen(false)
+        }}
       >
         <form className="admin-form" onSubmit={submit}>
           <div className="admin-password-tip">
@@ -362,13 +368,23 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
           </div>
 
           <div className="admin-profile-offcanvas-actions">
-            <AdminButton type="button" variant="ghost" onClick={() => setModalOpen(false)}>
+            <AdminButton type="button" variant="ghost" onClick={() => setModalOpen(false)} disabled={savingTeam}>
               Cancel
             </AdminButton>
-            <AdminButton type="submit">{editing ? 'Save Team' : 'Create Team'}</AdminButton>
+            <AdminButton type="submit" disabled={savingTeam}>{editing ? 'Save Team' : 'Create Team'}</AdminButton>
           </div>
         </form>
       </AdminModal>
+
+      {savingTeam && (
+        <div className="admin-sync-backdrop" role="presentation">
+          <section className="admin-sync-modal" role="status" aria-live="polite">
+            <div className="admin-sync-spinner" />
+            <h2>{editing ? 'Saving Team' : 'Creating Team'}</h2>
+            <p>{editing ? 'Updating team details and refreshing the team list.' : 'Creating the team workspace and refreshing the team list.'}</p>
+          </section>
+        </div>
+      )}
 
       <AdminModal
         open={assignModal}
