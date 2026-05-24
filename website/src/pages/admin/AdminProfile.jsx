@@ -225,7 +225,7 @@ const AdminProfile = ({ currentPath = '#coach/profile' }) => {
   }
 
   useEffect(() => {
-    if (!uploading) return undefined
+    if (!uploading && !saving) return undefined
 
     const warnBeforeUnload = (event) => {
       event.preventDefault()
@@ -234,7 +234,7 @@ const AdminProfile = ({ currentPath = '#coach/profile' }) => {
 
     window.addEventListener('beforeunload', warnBeforeUnload)
     return () => window.removeEventListener('beforeunload', warnBeforeUnload)
-  }, [uploading])
+  }, [saving, uploading])
 
   const refreshProfile = (updated, options = {}) => {
     saveUser(updated)
@@ -312,6 +312,16 @@ const AdminProfile = ({ currentPath = '#coach/profile' }) => {
             <div className="admin-sync-spinner" />
             <h2>Syncing Profile Picture</h2>
             <p>Uploading to Google Drive and saving the new profile record.</p>
+          </section>
+        </div>
+      )}
+
+      {saving && (
+        <div className="admin-sync-backdrop" role="presentation">
+          <section className="admin-sync-modal" role="status" aria-live="polite">
+            <div className="admin-sync-spinner" />
+            <h2>Saving Profile</h2>
+            <p>Updating your profile details and refreshing the account record.</p>
           </section>
         </div>
       )}
@@ -440,7 +450,9 @@ const AdminProfile = ({ currentPath = '#coach/profile' }) => {
       </div>
 
       {editOpen && (
-        <div className="admin-modal-backdrop" role="presentation" onMouseDown={() => setEditOpen(false)}>
+        <div className="admin-modal-backdrop" role="presentation" onMouseDown={() => {
+          if (!saving) setEditOpen(false)
+        }}>
           <section
             className="admin-modal admin-profile-offcanvas"
             role="dialog"
@@ -453,7 +465,7 @@ const AdminProfile = ({ currentPath = '#coach/profile' }) => {
                 <h2>Edit Profile</h2>
                 <p className="admin-muted">Update the account details shown in your profile.</p>
               </div>
-              <button type="button" className="admin-modal-close" onClick={() => setEditOpen(false)} aria-label="Close edit profile">
+              <button type="button" className="admin-modal-close" onClick={() => setEditOpen(false)} disabled={saving} aria-label="Close edit profile">
                 x
               </button>
             </div>
@@ -478,8 +490,8 @@ const AdminProfile = ({ currentPath = '#coach/profile' }) => {
                   <AdminInput value={form.location || ''} onChange={(event) => updateForm('location', event.target.value)} />
                 </AdminField>
                 <div className="admin-profile-offcanvas-actions">
-                  <AdminButton type="button" variant="ghost" onClick={() => setEditOpen(false)}>Cancel</AdminButton>
-                  <AdminButton type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save Profile'}</AdminButton>
+                  <AdminButton type="button" variant="ghost" onClick={() => setEditOpen(false)} disabled={saving}>Cancel</AdminButton>
+                  <AdminButton type="submit" disabled={saving}>Save Profile</AdminButton>
                 </div>
               </form>
             ) : (
