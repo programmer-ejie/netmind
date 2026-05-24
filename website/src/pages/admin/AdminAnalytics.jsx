@@ -564,13 +564,56 @@ const AdminAnalytics = ({ currentPath = '#coach/analytics' }) => {
   }, [coachPlayerIds, coachPlayers, metric, visibleComparisons, visibleLogs])
 
   const attendanceStats = useMemo(() => {
+    const teamPlayerIds = state.teamMembers.reduce((acc, member) => {
+      const teamId = String(member.team_id)
+      if (!coachTeamIds.has(teamId)) return acc
+
+      acc[teamId] = acc[teamId] || new Set()
+      acc[teamId].add(String(member.player_id))
+      return acc
+    }, {})
+    const sessionGroups = new Map()
     const counts = visibleAttendance.reduce((acc, log) => {
-      acc[log.status] = (acc[log.status] || 0) + 1
+      const teamId = String(log.team_id || playerTeamIdById[String(log.player_id)] || '')
+      const sessionKey = [
+        teamId || 'team',
+        log.match_id ? `match:${log.match_id}` : `session:${log.session_date || log.created_at || 'unknown'}`,
+        log.session_type || 'attendance',
+      ].join(':')
+
+      if (!sessionGroups.has(sessionKey)) {
+        sessionGroups.set(sessionKey, {
+          teamId,
+          playerIds: new Set(),
+        })
+      }
+
+      if (log.player_id) sessionGroups.get(sessionKey).playerIds.add(String(log.player_id))
+
+      const status = log.status || 'checked in'
+      acc[status] = (acc[status] || 0) + 1
       return acc
     }, {})
 
-    return buildPie(counts)
-  }, [visibleAttendance])
+    let notCheckedIn = 0
+    sessionGroups.forEach((group) => {
+      const expectedPlayers = group.teamId && teamPlayerIds[group.teamId]
+        ? teamPlayerIds[group.teamId].size
+        : coachPlayerIds.size
+
+      notCheckedIn += Math.max(0, expectedPlayers - group.playerIds.size)
+    })
+
+    if (notCheckedIn > 0) {
+      counts['not checked in'] = notCheckedIn
+    }
+
+    return {
+      ...buildPie(counts),
+      loggedTotal: visibleAttendance.length,
+      expectedTotal: visibleAttendance.length + notCheckedIn,
+    }
+  }, [coachPlayerIds.size, coachTeamIds, playerTeamIdById, state.teamMembers, visibleAttendance])
 
   const resultStats = useMemo(() => buildPie(
     visibleSetResults.reduce((acc, setResult) => {
@@ -840,7 +883,9 @@ const AdminAnalytics = ({ currentPath = '#coach/analytics' }) => {
         <AdminCard className="admin-activity-card admin-analytics-card admin-analytics-side-card">
           <div className="admin-card-header">
             <h2>Attendance Report</h2>
-            <StatusBadge tone="secondary">{attendanceStats.total} logs</StatusBadge>
+            <StatusBadge tone="secondary">
+              {attendanceStats.expectedTotal ? `${attendanceStats.expectedTotal} players` : `${attendanceStats.loggedTotal} logs`}
+            </StatusBadge>
           </div>
           {attendanceStats.total ? (
             <div className="admin-pie-wrap">
