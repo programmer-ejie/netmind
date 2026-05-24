@@ -5253,11 +5253,11 @@
 }
 
 .admin-assignments-table {
-  overflow-x: visible;
+  overflow-x: auto;
 }
 
 .admin-assignments-table .admin-native-table {
-  min-width: 0;
+  min-width: 900px;
   table-layout: fixed;
 }
 
@@ -5278,12 +5278,17 @@
 
 .admin-assignments-table .admin-native-table th:nth-child(3),
 .admin-assignments-table .admin-native-table td:nth-child(3) {
-  width: 20%;
+  width: 18%;
 }
 
-.admin-assignments-table .admin-native-table th:last-child,
-.admin-assignments-table .admin-native-table td:last-child {
-  width: 19%;
+.admin-assignments-table .admin-native-table th:nth-child(4),
+.admin-assignments-table .admin-native-table td:nth-child(4) {
+  width: 12%;
+}
+
+.admin-assignments-table .admin-native-table th:nth-child(5),
+.admin-assignments-table .admin-native-table td:nth-child(5) {
+  width: 9%;
 }
 
 .admin-assignments-table .admin-native-table strong,
@@ -5300,13 +5305,21 @@
   background: color-mix(in oklab, var(--admin-soft) 72%, var(--admin-card));
 }
 
-.admin-assignments-table .admin-native-table th:last-child,
-.admin-assignments-table .admin-native-table td:last-child {
+.admin-assignments-table .admin-native-table th:nth-child(4),
+.admin-assignments-table .admin-native-table td:nth-child(4),
+.admin-assignments-table .admin-native-table th:nth-child(5),
+.admin-assignments-table .admin-native-table td:nth-child(5) {
   text-align: center;
 }
 
-.admin-assignments-table .admin-native-table td:last-child .admin-badge {
+.admin-assignments-table .admin-native-table td:nth-child(4) .admin-badge,
+.admin-assignments-table .admin-native-table td:nth-child(5) .admin-actions {
   margin: 0 auto;
+}
+
+.admin-assignments-table .admin-native-table td:nth-child(4),
+.admin-assignments-table .admin-native-table td:nth-child(5) {
+  white-space: nowrap;
 }
 
 .admin-click-row {
