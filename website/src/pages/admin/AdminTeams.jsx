@@ -496,12 +496,22 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
                 Cancel
               </AdminButton>
               <AdminButton type="submit" disabled={deletingTeam}>
-                {deletingTeam ? 'Confirming...' : 'Confirm'}
+                Confirm
               </AdminButton>
             </div>
           </form>
         )}
       </AdminModal>
+
+      {deletingTeam && (
+        <div className="admin-sync-backdrop" role="presentation">
+          <section className="admin-sync-modal" role="status" aria-live="polite">
+            <div className="admin-sync-spinner" />
+            <h2>Deleting Team</h2>
+            <p>Removing the team workspace and refreshing the team list.</p>
+          </section>
+        </div>
+      )}
     </AdminLayout>
   )
 }
