@@ -7649,22 +7649,12 @@
   .admin-search-wrap {
     order: 2;
     display: none;
-    width: 100%;
-    flex: 1 1 100%;
-  }
-
-  .admin-page.mobile-search-open .admin-main {
-    padding-top: 118px;
-  }
-
-  .admin-page.mobile-search-open .admin-header nav {
-    min-height: 112px;
-    align-items: flex-start;
-    padding: 10px 18px;
-  }
-
-  .admin-page.mobile-search-open .admin-header-inner {
-    align-items: flex-start;
+    width: min(260px, calc(100vw - 32px));
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 18px;
+    z-index: 4;
+    flex: 0 0 auto;
   }
 
   .admin-page.mobile-search-open .admin-search-wrap {
