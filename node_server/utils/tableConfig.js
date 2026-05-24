@@ -218,7 +218,7 @@ const tables = {
     writePolicy: {
       create: { roles: STAFF_ROLES },
       update: { roles: STAFF_ROLES },
-      delete: { roles: ["coach"] },
+      delete: { roles: STAFF_ROLES },
     },
     filterFields: ["team_id", "session_type", "session_date", "created_by"],
     searchFields: ["description"],

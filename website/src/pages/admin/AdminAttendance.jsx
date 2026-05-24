@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import QRCode from 'qrcode'
-import { CalendarDays, ChevronLeft, ChevronRight, ClipboardCheck, Info, Plus, QrCode } from 'lucide-react'
+import { CalendarDays, ChevronLeft, ChevronRight, ClipboardCheck, Edit3, Info, Plus, QrCode, Trash2, TriangleAlert } from 'lucide-react'
 import AdminLayout, {
   AdminButton,
   AdminCard,
@@ -15,7 +15,7 @@ import AdminLayout, {
   getName,
   initials,
 } from './AdminLayout'
-import { API_BASE, apiRequest, createResource, listResource, readSavedUser } from '../../lib/api'
+import { API_BASE, apiRequest, createResource, deleteResource, listResource, readSavedUser, updateResource } from '../../lib/api'
 import { toLocalDateKey } from '../../lib/dateKeys'
 
 const blankSchedule = {
@@ -42,6 +42,9 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
   const [schedules, setSchedules] = useState([])
   const [teams, setTeams] = useState([])
   const [modalOpen, setModalOpen] = useState(false)
+  const [editingSchedule, setEditingSchedule] = useState(null)
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [deleteSchedule, setDeleteSchedule] = useState(null)
   const [qrModalOpen, setQrModalOpen] = useState(false)
   const [activeSchedule, setActiveSchedule] = useState(null)
   const [form, setForm] = useState(blankSchedule)
@@ -53,6 +56,7 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
   const [schedulePage, setSchedulePage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [savingSchedule, setSavingSchedule] = useState(false)
+  const [deletingSchedule, setDeletingSchedule] = useState(false)
 
   const teamById = useMemo(() => {
     const map = new Map()
@@ -109,26 +113,71 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
 
   const openCreate = () => {
     setForm(blankSchedule)
+    setEditingSchedule(null)
     setModalOpen(true)
   }
 
-  const createSchedule = async (event) => {
+  const openEdit = (schedule) => {
+    setEditingSchedule(schedule)
+    setForm({
+      team_id: String(schedule.team_id || ''),
+      session_type: schedule.session_type || 'training',
+      session_date: toLocalDateKey(schedule.session_date),
+      description: schedule.description || '',
+    })
+    setModalOpen(true)
+  }
+
+  const submitSchedule = async (event) => {
     event.preventDefault()
 
     try {
       setSavingSchedule(true)
       setError('')
-      await createResource('training-schedules', {
+      const payload = {
         ...form,
         session_type: 'training',
-        created_by: currentUser?.id || null,
-      })
+      }
+
+      if (editingSchedule) {
+        await updateResource('training-schedules', editingSchedule.id, payload)
+      } else {
+        await createResource('training-schedules', {
+          ...payload,
+          created_by: currentUser?.id || null,
+        })
+      }
+
       setModalOpen(false)
       await load()
+      setEditingSchedule(null)
     } catch (err) {
       setError(err.message)
     } finally {
       setSavingSchedule(false)
+    }
+  }
+
+  const openDelete = (schedule) => {
+    setDeleteSchedule(schedule)
+    setDeleteModalOpen(true)
+  }
+
+  const removeSchedule = async (event) => {
+    event.preventDefault()
+    if (!deleteSchedule) return
+
+    try {
+      setDeletingSchedule(true)
+      setError('')
+      await deleteResource('training-schedules', deleteSchedule.id)
+      setDeleteModalOpen(false)
+      setDeleteSchedule(null)
+      await load()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setDeletingSchedule(false)
     }
   }
 
@@ -292,10 +341,24 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
                   </AdminButton>
                   <AdminButton
                     variant="secondary"
+                    onClick={() => openEdit(schedule)}
+                    aria-label={`Edit schedule for ${teamName}`}
+                  >
+                    <Edit3 size={17} />
+                  </AdminButton>
+                  <AdminButton
+                    variant="secondary"
                     onClick={() => { window.location.hash = `${isTrainerView ? 'trainer' : 'coach'}/attendance/${schedule.id}/check` }}
                     aria-label={`Check attendance for ${teamName}`}
                   >
                     <ClipboardCheck size={17} />
+                  </AdminButton>
+                  <AdminButton
+                    variant="danger"
+                    onClick={() => openDelete(schedule)}
+                    aria-label={`Delete schedule for ${teamName}`}
+                  >
+                    <Trash2 size={17} />
                   </AdminButton>
                 </div>
               </article>
@@ -328,15 +391,19 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
 
       <AdminModal
         open={modalOpen}
-        title="Training Schedule"
+        title={editingSchedule ? 'Edit Schedule' : 'Training Schedule'}
+        subtitle={editingSchedule ? 'Update this team session.' : ''}
         onClose={() => {
-          if (!savingSchedule) setModalOpen(false)
+          if (!savingSchedule) {
+            setModalOpen(false)
+            setEditingSchedule(null)
+          }
         }}
       >
-        <form className="admin-form admin-form-grid" onSubmit={createSchedule}>
+        <form className="admin-form admin-form-grid" onSubmit={submitSchedule}>
           <div className="admin-password-tip admin-form-span">
             <Info size={18} />
-            <p>Select the team, add a short description, then set the training date before saving the schedule.</p>
+            <p>{editingSchedule ? 'Adjust the team, date, or session details before saving the schedule.' : 'Select the team, add a short description, then set the training date before saving the schedule.'}</p>
           </div>
 
           <AdminField label="Team">
@@ -356,8 +423,18 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
             />
           </AdminField>
           <div className="admin-form-actions admin-form-span">
-            <AdminButton type="button" variant="secondary" onClick={() => setModalOpen(false)} disabled={savingSchedule}>Cancel</AdminButton>
-            <AdminButton type="submit" disabled={savingSchedule}>{savingSchedule ? 'Saving...' : 'Save'}</AdminButton>
+            <AdminButton
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setModalOpen(false)
+                setEditingSchedule(null)
+              }}
+              disabled={savingSchedule}
+            >
+              Cancel
+            </AdminButton>
+            <AdminButton type="submit" disabled={savingSchedule}>{savingSchedule ? 'Saving...' : editingSchedule ? 'Save Changes' : 'Save'}</AdminButton>
           </div>
         </form>
       </AdminModal>
@@ -366,8 +443,66 @@ const AdminAttendance = ({ currentPath = '#trainer/attendance' }) => {
         <div className="admin-sync-backdrop" role="presentation">
           <section className="admin-sync-modal" role="status" aria-live="polite">
             <div className="admin-sync-spinner" />
-            <h2>Saving Schedule</h2>
-            <p>Creating the training schedule and refreshing the attendance list.</p>
+            <h2>{editingSchedule ? 'Saving Schedule' : 'Adding Schedule'}</h2>
+            <p>{editingSchedule ? 'Updating the training schedule and refreshing the attendance list.' : 'Creating the training schedule and refreshing the attendance list.'}</p>
+          </section>
+        </div>
+      )}
+
+      <AdminModal
+        open={deleteModalOpen}
+        title="Delete Schedule"
+        subtitle="Confirm before removing this session."
+        className="admin-password-modal admin-team-modal"
+        onClose={() => {
+          if (!deletingSchedule) setDeleteModalOpen(false)
+        }}
+      >
+        {deleteSchedule && (
+          <form className="admin-form" onSubmit={removeSchedule}>
+            <div className="admin-password-warning">
+              <TriangleAlert size={17} />
+              <p>This will delete the training schedule and remove it from the attendance calendar.</p>
+            </div>
+
+            <div className="admin-delete-summary">
+              <span className="admin-player">
+                <b><CalendarDays size={17} /></b>
+                <span>
+                  <strong>{getName(teams, deleteSchedule.team_id, 'Team')}</strong>
+                  <small>{formatDate(deleteSchedule.session_date)} - {deleteSchedule.description || 'Training session'}</small>
+                </span>
+              </span>
+            </div>
+
+            <div className="admin-password-tip">
+              <Info size={18} />
+              <p>Tip: keep the schedule if players still need to check in or review attendance for this session.</p>
+            </div>
+
+            <div className="admin-profile-offcanvas-actions">
+              <AdminButton
+                type="button"
+                variant="ghost"
+                onClick={() => setDeleteModalOpen(false)}
+                disabled={deletingSchedule}
+              >
+                Cancel
+              </AdminButton>
+              <AdminButton type="submit" className="admin-confirm-button" disabled={deletingSchedule}>
+                Confirm
+              </AdminButton>
+            </div>
+          </form>
+        )}
+      </AdminModal>
+
+      {deletingSchedule && (
+        <div className="admin-sync-backdrop" role="presentation">
+          <section className="admin-sync-modal" role="status" aria-live="polite">
+            <div className="admin-sync-spinner" />
+            <h2>Deleting Schedule</h2>
+            <p>Removing the training schedule and refreshing the attendance list.</p>
           </section>
         </div>
       )}
