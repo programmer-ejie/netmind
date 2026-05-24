@@ -417,12 +417,15 @@
   grid-column: 2;
   min-width: 0;
   min-height: 100vh;
+  padding-top: 56px;
   position: relative;
 }
 
 .admin-header {
-  position: sticky;
+  position: fixed;
   top: 0;
+  right: 0;
+  left: 270px;
   z-index: 80;
   background: #f4f7fb;
 }
@@ -989,6 +992,10 @@
 
 .admin-page.sidebar-collapsed .admin-main {
   grid-column: 1;
+}
+
+.admin-page.sidebar-collapsed .admin-header {
+  left: 0;
 }
 
 .admin-content {
@@ -7359,6 +7366,11 @@
 
   .admin-main {
     grid-column: 1;
+    padding-top: 64px;
+  }
+
+  .admin-header {
+    left: 0;
   }
 
   .admin-mobile-toggle {
