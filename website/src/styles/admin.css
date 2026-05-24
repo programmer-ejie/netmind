@@ -5257,7 +5257,7 @@
 }
 
 .admin-assignments-table .admin-native-table {
-  min-width: 900px;
+  min-width: 1040px;
   table-layout: fixed;
 }
 
@@ -5268,12 +5268,12 @@
 
 .admin-assignments-table .admin-native-table th:first-child,
 .admin-assignments-table .admin-native-table td:first-child {
-  width: 27%;
+  width: 26%;
 }
 
 .admin-assignments-table .admin-native-table th:nth-child(2),
 .admin-assignments-table .admin-native-table td:nth-child(2) {
-  width: 34%;
+  width: 32%;
 }
 
 .admin-assignments-table .admin-native-table th:nth-child(3),
@@ -5283,12 +5283,20 @@
 
 .admin-assignments-table .admin-native-table th:nth-child(4),
 .admin-assignments-table .admin-native-table td:nth-child(4) {
-  width: 12%;
+  width: 13%;
 }
 
 .admin-assignments-table .admin-native-table th:nth-child(5),
 .admin-assignments-table .admin-native-table td:nth-child(5) {
-  width: 9%;
+  width: 11%;
+}
+
+.admin-assignments-table .admin-native-table th:nth-child(4),
+.admin-assignments-table .admin-native-table td:nth-child(4),
+.admin-assignments-table .admin-native-table th:nth-child(5),
+.admin-assignments-table .admin-native-table td:nth-child(5) {
+  padding-left: 12px;
+  padding-right: 12px;
 }
 
 .admin-assignments-table .admin-native-table strong,
