@@ -76,6 +76,7 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
   const [activeView, setActiveView] = useState(getSavedTrainingTab)
   const [editingDrill, setEditingDrill] = useState(null)
   const [deleteDrill, setDeleteDrill] = useState(null)
+  const [savingDrill, setSavingDrill] = useState(false)
   const [deletingDrill, setDeletingDrill] = useState(false)
   const [drillForm, setDrillForm] = useState(blankDrill)
   const [assignmentForm, setAssignmentForm] = useState(blankAssignment)
@@ -207,12 +208,17 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
     }
 
     try {
+      setSavingDrill(true)
+      setError('')
       if (editingDrill) await updateResource('drills', editingDrill.id, payload)
       else await createResource('drills', payload)
       setDrillModal(false)
       await load()
+      setEditingDrill(null)
     } catch (err) {
       setError(err.message)
+    } finally {
+      setSavingDrill(false)
     }
   }
 
@@ -482,7 +488,9 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
       <AdminModal
         open={drillModal}
         title={editingDrill ? 'Edit Drill' : 'Add Drill'}
-        onClose={() => setDrillModal(false)}
+        onClose={() => {
+          if (!savingDrill) setDrillModal(false)
+        }}
       >
         <form className="admin-form admin-form-grid" onSubmit={saveDrill}>
           <div className="admin-password-tip admin-form-span">
@@ -561,11 +569,23 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
             Public drill
           </label>
           <div className="admin-form-actions admin-form-span">
-            <AdminButton type="button" variant="secondary" onClick={() => setDrillModal(false)}>Cancel</AdminButton>
-            <AdminButton type="submit">{editingDrill ? 'Save Drill' : 'Add Drill'}</AdminButton>
+            <AdminButton type="button" variant="secondary" onClick={() => setDrillModal(false)} disabled={savingDrill}>Cancel</AdminButton>
+            <AdminButton type="submit" disabled={savingDrill}>
+              {savingDrill ? 'Saving...' : editingDrill ? 'Save Drill' : 'Add Drill'}
+            </AdminButton>
           </div>
         </form>
       </AdminModal>
+
+      {savingDrill && (
+        <div className="admin-sync-backdrop" role="presentation">
+          <section className="admin-sync-modal" role="status" aria-live="polite">
+            <div className="admin-sync-spinner" />
+            <h2>{editingDrill ? 'Saving Drill' : 'Adding Drill'}</h2>
+            <p>{editingDrill ? 'Updating the drill and refreshing the training hub.' : 'Adding the drill to the library and refreshing the training hub.'}</p>
+          </section>
+        </div>
+      )}
 
       <AdminModal
         open={assignModal}
@@ -667,6 +687,16 @@ const AdminTraining = ({ currentPath = '#coach/training' }) => {
               </AdminButton>
             </div>
           </aside>
+        </div>
+      )}
+
+      {deletingDrill && (
+        <div className="admin-sync-backdrop" role="presentation">
+          <section className="admin-sync-modal" role="status" aria-live="polite">
+            <div className="admin-sync-spinner" />
+            <h2>Deleting Drill</h2>
+            <p>Removing the drill from the library and refreshing the training hub.</p>
+          </section>
         </div>
       )}
     </AdminLayout>
