@@ -306,9 +306,11 @@ export const AdminLayout = ({ children, title, kicker, currentPath }) => {
   const activeHash = normalizeActiveHash(hash)
   const searchHidden = /^#(coach|trainer)\/(profile|settings)/.test(hash)
   const navRef = useRef(null)
+  const contentRef = useRef(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const sidebarVisible = window.innerWidth > 1100 ? !sidebarCollapsed : sidebarOpen
+  const [searchTerm, setSearchTerm] = useState('')
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [headerProfile, setHeaderProfile] = useState(() => readSavedUser())
@@ -364,6 +366,30 @@ export const AdminLayout = ({ children, title, kicker, currentPath }) => {
       nav.removeEventListener('scroll', saveNavScroll)
     }
   }, [])
+
+  useEffect(() => {
+    setSearchTerm('')
+  }, [currentPath])
+
+  useEffect(() => {
+    const content = contentRef.current
+    if (!content) return
+
+    const query = searchTerm.trim().toLowerCase()
+    const rows = content.querySelectorAll('.admin-native-table tbody tr')
+
+    rows.forEach((row) => {
+      const matches = !query || row.textContent.toLowerCase().includes(query)
+      row.classList.toggle('admin-search-hidden-row', !matches)
+    })
+
+    const tables = content.querySelectorAll('.admin-table')
+    tables.forEach((tableWrap) => {
+      const tableRows = tableWrap.querySelectorAll('.admin-native-table tbody tr')
+      const visibleRows = tableWrap.querySelectorAll('.admin-native-table tbody tr:not(.admin-search-hidden-row)')
+      tableWrap.classList.toggle('admin-table-search-empty', Boolean(query) && tableRows.length > 0 && visibleRows.length === 0)
+    })
+  })
 
   const closeSidebar = () => setSidebarOpen(false)
   const handleNavClick = () => {
@@ -465,7 +491,14 @@ export const AdminLayout = ({ children, title, kicker, currentPath }) => {
               {!searchHidden && (
                 <div className="admin-search-wrap">
                   <Search size={18} />
-                  <input className="admin-search" type="search" placeholder="Search..." aria-label="Search workspace" />
+                  <input
+                    className="admin-search"
+                    type="search"
+                    placeholder="Search..."
+                    aria-label="Search visible tables"
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.target.value)}
+                  />
                 </div>
               )}
             <div className="admin-title">
@@ -577,7 +610,7 @@ export const AdminLayout = ({ children, title, kicker, currentPath }) => {
           </nav>
         </header>
 
-        <div className="admin-content">
+        <div className="admin-content" ref={contentRef}>
           {children}
         </div>
       </section>
