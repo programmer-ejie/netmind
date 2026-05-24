@@ -41,6 +41,7 @@ const AdminTrainers = ({ currentPath = '#coach/trainers' }) => {
   const [createModal, setCreateModal] = useState(false)
   const [creatingTrainer, setCreatingTrainer] = useState(false)
   const [editModal, setEditModal] = useState(false)
+  const [savingTrainer, setSavingTrainer] = useState(false)
   const [deleteModal, setDeleteModal] = useState(false)
   const [deletingTrainer, setDeletingTrainer] = useState(false)
   const [createForm, setCreateForm] = useState(blankTrainer)
@@ -155,6 +156,8 @@ const AdminTrainers = ({ currentPath = '#coach/trainers' }) => {
     event.preventDefault()
 
     try {
+      setError('')
+      setSavingTrainer(true)
       await updateResource('users', editForm.id, {
         name: editForm.name,
         is_active: Boolean(editForm.is_active),
@@ -163,6 +166,8 @@ const AdminTrainers = ({ currentPath = '#coach/trainers' }) => {
       await load()
     } catch (err) {
       setError(err.message)
+    } finally {
+      setSavingTrainer(false)
     }
   }
 
@@ -305,7 +310,9 @@ const AdminTrainers = ({ currentPath = '#coach/trainers' }) => {
         title="Edit Trainer"
         subtitle="Update trainer details and account status."
         className="admin-password-modal admin-create-trainer-modal"
-        onClose={() => setEditModal(false)}
+        onClose={() => {
+          if (!savingTrainer) setEditModal(false)
+        }}
       >
         {editForm && (
           <form className="admin-form" onSubmit={saveTrainer}>
@@ -328,12 +335,22 @@ const AdminTrainers = ({ currentPath = '#coach/trainers' }) => {
               Active account
             </label>
             <div className="admin-profile-offcanvas-actions">
-              <AdminButton type="button" variant="ghost" onClick={() => setEditModal(false)}>Cancel</AdminButton>
-              <AdminButton type="submit">Save Trainer</AdminButton>
+              <AdminButton type="button" variant="ghost" onClick={() => setEditModal(false)} disabled={savingTrainer}>Cancel</AdminButton>
+              <AdminButton type="submit" disabled={savingTrainer}>Save Trainer</AdminButton>
             </div>
           </form>
         )}
       </AdminModal>
+
+      {savingTrainer && (
+        <div className="admin-sync-backdrop" role="presentation">
+          <section className="admin-sync-modal" role="status" aria-live="polite">
+            <div className="admin-sync-spinner" />
+            <h2>Saving Trainer</h2>
+            <p>Updating trainer details and refreshing the trainer list.</p>
+          </section>
+        </div>
+      )}
 
       <AdminModal
         open={deleteModal}
