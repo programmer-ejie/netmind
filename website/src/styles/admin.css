@@ -3169,6 +3169,360 @@
   grid-column: span 12;
 }
 
+.admin-training-insights-card {
+  grid-column: span 12;
+  margin-bottom: 30px;
+}
+
+.admin-training-insights-card .admin-card-header svg {
+  color: var(--admin-primary);
+}
+
+.admin-training-insights-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.admin-training-insight-card {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-height: 190px;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background:
+    linear-gradient(145deg, color-mix(in oklab, var(--insight-color) 12%, transparent), transparent 58%),
+    color-mix(in oklab, var(--admin-soft) 28%, transparent);
+  padding: 16px;
+}
+
+.admin-training-insight-card.primary {
+  --insight-color: var(--admin-primary);
+}
+
+.admin-training-insight-card.success {
+  --insight-color: var(--admin-success);
+}
+
+.admin-training-insight-card.warning {
+  --insight-color: var(--admin-warning);
+}
+
+.admin-training-insight-card.secondary {
+  --insight-color: var(--admin-secondary);
+}
+
+.admin-training-insight-card::after {
+  content: "";
+  position: absolute;
+  right: -32px;
+  bottom: -42px;
+  width: 112px;
+  height: 112px;
+  border: 18px solid color-mix(in oklab, var(--insight-color) 13%, transparent);
+  border-radius: 999px;
+}
+
+.admin-training-insight-card > span {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--insight-color) 16%, transparent);
+  color: var(--insight-color);
+}
+
+.admin-training-insight-card small {
+  color: var(--insight-color);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.admin-training-insight-card strong {
+  position: relative;
+  z-index: 1;
+  color: var(--admin-link);
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.admin-training-insight-card p {
+  position: relative;
+  z-index: 1;
+  color: var(--admin-muted);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.5;
+}
+
+.admin-training-insight-card b {
+  position: relative;
+  z-index: 1;
+  justify-self: start;
+  min-height: 30px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--insight-color) 16%, transparent);
+  color: var(--insight-color);
+  padding: 0 10px;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.admin-training-insight-skeleton {
+  min-height: 190px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--admin-soft), color-mix(in oklab, var(--admin-soft) 55%, #ffffff), var(--admin-soft));
+  background-size: 220% 100%;
+  animation: adminSkeleton 1.2s ease-in-out infinite;
+}
+
+.admin-player-impact-card {
+  grid-column: span 12;
+}
+
+.admin-position-coverage-card,
+.admin-training-load-card {
+  grid-column: span 6;
+}
+
+.admin-player-impact-card .admin-card-header svg,
+.admin-position-coverage-card .admin-card-header svg,
+.admin-training-load-card .admin-card-header svg {
+  color: var(--admin-primary);
+}
+
+.admin-player-impact-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.admin-player-impact-item {
+  display: grid;
+  gap: 14px;
+  min-height: 218px;
+  border: 1px solid color-mix(in oklab, var(--impact-color) 26%, var(--admin-border));
+  border-radius: 8px;
+  background:
+    linear-gradient(150deg, color-mix(in oklab, var(--impact-color) 12%, transparent), transparent 58%),
+    color-mix(in oklab, var(--admin-soft) 28%, transparent);
+  padding: 14px;
+}
+
+.admin-player-impact-head {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.admin-player-impact-head > b {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--impact-color);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.admin-player-impact-head div {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.admin-player-impact-head strong {
+  overflow: hidden;
+  color: var(--admin-link);
+  font-size: 14px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-player-impact-head small,
+.admin-player-impact-metrics small {
+  color: var(--admin-muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.admin-player-impact-head > span {
+  color: var(--impact-color);
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.admin-player-impact-item > i {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--admin-soft) 70%, var(--admin-border));
+}
+
+.admin-player-impact-item > i span {
+  display: block;
+  height: 100%;
+  min-width: 8px;
+  border-radius: inherit;
+  background: var(--impact-color);
+}
+
+.admin-player-impact-metrics {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-player-impact-metrics em {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid color-mix(in oklab, var(--impact-color) 12%, var(--admin-border));
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--admin-card) 72%, transparent);
+  padding: 8px 10px;
+  font-style: normal;
+}
+
+.admin-player-impact-metrics strong {
+  color: var(--admin-link);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.admin-position-coverage-list,
+.admin-training-load-list {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-position-coverage-list article {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  min-height: 58px;
+  border: 1px solid color-mix(in oklab, var(--coverage-color) 14%, var(--admin-border));
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--admin-soft) 26%, transparent);
+  padding: 10px;
+}
+
+.admin-position-coverage-list article > span {
+  width: 46px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--coverage-color) 18%, transparent);
+  color: var(--coverage-color);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.admin-position-coverage-list article div {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-position-coverage-list strong {
+  color: var(--admin-link);
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.admin-position-coverage-list i,
+.admin-training-load-list i {
+  height: 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--admin-soft) 70%, var(--admin-border));
+}
+
+.admin-position-coverage-list i b,
+.admin-training-load-list i b {
+  display: block;
+  height: 100%;
+  min-width: 8px;
+  border-radius: inherit;
+}
+
+.admin-position-coverage-list i b {
+  background: var(--coverage-color);
+}
+
+.admin-training-load-figure {
+  display: grid;
+  grid-template-columns: minmax(150px, .45fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: stretch;
+}
+
+.admin-training-load-total {
+  display: grid;
+  place-content: center;
+  gap: 5px;
+  min-height: 210px;
+  border: 1px solid color-mix(in oklab, var(--admin-primary) 20%, var(--admin-border));
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--admin-primary) 9%, transparent);
+  text-align: center;
+}
+
+.admin-training-load-total strong {
+  color: var(--admin-primary);
+  font-size: 36px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.admin-training-load-total span {
+  color: var(--admin-muted);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.admin-training-load-list article {
+  display: grid;
+  grid-template-columns: minmax(92px, .5fr) 52px minmax(0, 1fr) 44px;
+  gap: 10px;
+  align-items: center;
+  min-height: 45px;
+}
+
+.admin-training-load-list span,
+.admin-training-load-list strong,
+.admin-training-load-list small {
+  color: var(--admin-link);
+  font-size: 13px;
+  font-weight: 900;
+  text-transform: capitalize;
+}
+
+.admin-training-load-list strong,
+.admin-training-load-list small {
+  color: var(--admin-muted);
+  text-align: right;
+}
+
+.admin-training-load-list i b {
+  background: var(--load-color);
+}
+
 .admin-dashboard-table-card .admin-table {
   overflow-x: auto;
 }
@@ -8904,6 +9258,19 @@
   .admin-activity-card {
     grid-column: span 12;
   }
+
+  .admin-training-insights-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-player-impact-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .admin-position-coverage-card,
+  .admin-training-load-card {
+    grid-column: span 12;
+  }
 }
 
 @media (max-width: 720px) {
@@ -8931,6 +9298,32 @@
 
   .admin-wellness-log-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-training-insights-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-player-impact-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-training-load-figure {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-training-load-total {
+    min-height: 124px;
+  }
+
+  .admin-training-load-list article {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .admin-training-load-list strong,
+  .admin-training-load-list small {
+    text-align: left;
   }
 
   .admin-wellness-log-metrics > span {
