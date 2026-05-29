@@ -17,7 +17,7 @@ import {
   View,
 } from 'react-native';
 
-import { Card, Screen, SectionTitle } from '@/components/netmind-ui';
+import { Card, Screen, SectionTitle, useKeyboardScrollPadding } from '@/components/netmind-ui';
 import { useNetmindTheme } from '@/contexts/netmind-theme';
 import { parseDateInput, toLocalDateKey } from '@/lib/dateKeys';
 import {
@@ -102,6 +102,7 @@ const fromDateInput = (value: string) => {
 
 export default function ProfileScreen() {
   const { colors, isDark } = useNetmindTheme();
+  const formPaddingBottom = useKeyboardScrollPadding(16, 24);
   const [profile, setProfile] = useState<NetmindUser | null>(null);
   const [teamName, setTeamName] = useState('No team linked yet');
   const [loading, setLoading] = useState(true);
@@ -362,7 +363,8 @@ export default function ProfileScreen() {
               </View>
 
               <ScrollView
-                contentContainerStyle={styles.form}
+                automaticallyAdjustKeyboardInsets
+                contentContainerStyle={[styles.form, { paddingBottom: formPaddingBottom }]}
                 keyboardDismissMode="interactive"
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}>

@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   BarChart3,
   Bell,
+  ChartNoAxesCombined,
   ClipboardCheck,
   Dumbbell,
   Home,
@@ -104,6 +105,7 @@ const sidebarGroups = [
       { href: '#coach/matches', icon: Swords, label: 'Matches' },
       { href: '#coach/training', icon: Dumbbell, label: 'Training' },
       { href: '#coach/analytics', icon: BarChart3, label: 'Analytics' },
+      { href: '#coach/comparison', icon: ChartNoAxesCombined, label: 'Comparison' },
       { href: '#coach/notifications', icon: Bell, label: 'Notifications' },
     ],
   },

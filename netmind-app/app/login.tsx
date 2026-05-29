@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { PrimaryButton } from '@/components/netmind-ui';
+import { PrimaryButton, useKeyboardScrollPadding } from '@/components/netmind-ui';
 import { palette } from '@/constants/netmind';
 import { useNetmindTheme } from '@/contexts/netmind-theme';
 import { API_BASE, loginUser } from '@/lib/api';
@@ -31,6 +31,7 @@ export default function LoginScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [authModal, setAuthModal] = useState<{ title: string; message: string } | null>(null);
   const { colors, isDark } = useNetmindTheme();
+  const keyboardPaddingBottom = useKeyboardScrollPadding(22, 24);
   const backgroundSource = isDark
     ? require('@/assets/images/login-bg.optimized.jpg')
     : require('@/assets/images/light-login-bg.optimized.jpg');
@@ -101,7 +102,8 @@ export default function LoginScreen() {
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={styles.container}>
             <ScrollView
-              contentContainerStyle={styles.scrollContent}
+              automaticallyAdjustKeyboardInsets
+              contentContainerStyle={[styles.scrollContent, { paddingBottom: keyboardPaddingBottom }]}
               keyboardDismissMode="interactive"
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}>

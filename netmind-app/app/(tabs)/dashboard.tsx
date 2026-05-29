@@ -6,7 +6,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Card, ListRow, MetricCard, PrimaryButton, Screen, SectionTitle } from '@/components/netmind-ui';
-import { currentPlayer } from '@/constants/netmind';
+import { currentPlayer, palette, strengths } from '@/constants/netmind';
 import { useNetmindTheme } from '@/contexts/netmind-theme';
 import {
   getPlayerSummary,
@@ -18,8 +18,9 @@ import {
 
 type RadarItem = { label: string; value: number };
 type WaterfallItem = { label: string; value: number; type: 'base' | 'gain' | 'loss' };
-type DashboardTab = 'performance' | 'analytics';
+type DashboardTab = 'performance' | 'analytics' | 'stats';
 type MeasurementType = 'jump' | 'spike' | 'heart';
+type TrendMetric = 'highest_jump' | 'strongest_spike' | 'avg_heart_rate';
 type MeasurementEntry = {
   id?: number | string;
   date: string;
@@ -36,12 +37,25 @@ type PlayerAnalysis = {
   tip: string;
 };
 
+const trendMetrics: {
+  key: TrendMetric;
+  label: string;
+  shortLabel: string;
+  unit: string;
+  tone: string;
+}[] = [
+  { key: 'highest_jump', label: 'Jump height', shortLabel: 'Jump', unit: 'in', tone: palette.gold },
+  { key: 'strongest_spike', label: 'Spike speed', shortLabel: 'Spike', unit: 'km/h', tone: palette.coral },
+  { key: 'avg_heart_rate', label: 'Heart rate', shortLabel: 'Heart', unit: 'bpm', tone: palette.court },
+];
+
 export default function DashboardScreen() {
   const { colors } = useNetmindTheme();
   const [player, setPlayer] = useState<NetmindUser | null>(null);
   const [summary, setSummary] = useState<PlayerSummary | null>(null);
   const [performanceLogs, setPerformanceLogs] = useState<PerformanceLog[]>([]);
   const [activeTab, setActiveTab] = useState<DashboardTab>('performance');
+  const [activeTrendMetric, setActiveTrendMetric] = useState<TrendMetric>('highest_jump');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState('');
@@ -123,6 +137,12 @@ export default function DashboardScreen() {
           label="Analytics"
           onPress={() => setActiveTab('analytics')}
         />
+        <DashboardTabButton
+          active={activeTab === 'stats'}
+          icon="bar-chart"
+          label="Stats"
+          onPress={() => setActiveTab('stats')}
+        />
       </View>
 
       {activeTab === 'performance' ? (
@@ -149,7 +169,7 @@ export default function DashboardScreen() {
 
           <PerformanceAnalysisCard playerName={profile?.name || currentPlayer.name} analysis={performanceAnalysis} />
         </>
-      ) : (
+      ) : activeTab === 'analytics' ? (
         <>
           <SectionTitle>Analytics</SectionTitle>
           <View style={styles.analyticsGrid}>
@@ -177,6 +197,13 @@ export default function DashboardScreen() {
             ))}
           </Card>
         </>
+      ) : (
+        <StatsDashboardTab
+          activeMetric={activeTrendMetric}
+          age={profile?.age}
+          entries={performanceAnalysis.entries}
+          onMetricChange={setActiveTrendMetric}
+        />
       )}
     </Screen>
   );
@@ -513,6 +540,280 @@ function WaterfallCard({ factors }: { factors: WaterfallItem[] }) {
         })}
       </View>
     </Card>
+  );
+}
+
+function StatsDashboardTab({
+  activeMetric,
+  age,
+  entries,
+  onMetricChange,
+}: {
+  activeMetric: TrendMetric;
+  age?: number | string | null;
+  entries: MeasurementEntry[];
+  onMetricChange: (metric: TrendMetric) => void;
+}) {
+  const { colors } = useNetmindTheme();
+  const activeConfig = trendMetrics.find((item) => item.key === activeMetric) || trendMetrics[0];
+  const activeSeries = entries.filter((entry) => entry.metric === activeMetric).slice(-8);
+  const trendSummary = buildTrendSummary(activeSeries, activeMetric, activeConfig.unit, age);
+  const latestJump = latestEntryFor(entries, 'highest_jump');
+  const latestSpike = latestEntryFor(entries, 'strongest_spike');
+
+  return (
+    <>
+      <View style={styles.metrics}>
+        <MetricCard
+          label="Latest jump"
+          value={latestJump ? `${formatNumber(latestJump.value)}in` : '--'}
+          delta={latestJump ? latestJump.date : 'No jump logs'}
+          tone={palette.gold}
+        />
+        <MetricCard
+          label="Latest spike"
+          value={latestSpike ? `${formatNumber(latestSpike.value)}km/h` : '--'}
+          delta={latestSpike ? latestSpike.date : 'No spike logs'}
+          tone={palette.coral}
+        />
+      </View>
+
+      <SectionTitle>Performance trends</SectionTitle>
+      <Card style={styles.statsTrendCard}>
+        <View style={[styles.statsSegmentedControl, { backgroundColor: colors.wash, borderColor: colors.line }]}>
+          {trendMetrics.map((item) => {
+            const active = item.key === activeMetric;
+
+            return (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+                key={item.key}
+                onPress={() => onMetricChange(item.key)}
+                style={[styles.statsSegmentButton, active ? { backgroundColor: colors.surface, borderColor: item.tone } : null]}>
+                <View style={[styles.statsSegmentDot, { backgroundColor: item.tone }]} />
+                <Text style={[styles.statsSegmentText, { color: active ? colors.ink : colors.muted }]}>{item.shortLabel}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <View style={styles.statsTrendHeader}>
+          <View>
+            <Text style={[styles.statsTrendTitle, { color: colors.ink }]}>{activeConfig.label}</Text>
+            <Text style={[styles.statsCaption, { color: colors.muted }]}>Last {activeSeries.length} logged readings</Text>
+          </View>
+          <View style={[styles.statsTrendBadge, { backgroundColor: colors.courtSoft, borderColor: colors.line }]}>
+            <MaterialIcons name={trendSummary.icon} size={17} color={trendSummary.color} />
+            <Text style={[styles.statsTrendBadgeText, { color: trendSummary.color }]}>{trendSummary.label}</Text>
+          </View>
+        </View>
+
+        <LineTrendChart color={activeConfig.tone} entries={activeSeries} unit={activeConfig.unit} />
+
+        <Text style={[styles.statsCaption, { color: colors.muted }]}>{trendSummary.detail}</Text>
+      </Card>
+
+      <SectionTitle>Strengths</SectionTitle>
+      <Card style={styles.statsStrengthRadarCard}>
+        <StrengthRadarChart items={strengths} />
+      </Card>
+    </>
+  );
+}
+
+function LineTrendChart({ color, entries, unit }: { color: string; entries: MeasurementEntry[]; unit: string }) {
+  const { colors } = useNetmindTheme();
+  const width = 300;
+  const height = 170;
+  const padding = 24;
+  const chartWidth = width - padding * 2;
+  const chartHeight = height - padding * 2;
+  const values = entries.map((entry) => entry.value);
+  const min = values.length ? Math.min(...values) : 0;
+  const max = values.length ? Math.max(...values) : 1;
+  const range = Math.max(max - min, 1);
+  const points = entries.map((entry, index) => {
+    const x = padding + (entries.length === 1 ? chartWidth / 2 : (index / (entries.length - 1)) * chartWidth);
+    const y = padding + ((max - entry.value) / range) * chartHeight;
+    return { ...entry, x, y };
+  });
+
+  if (entries.length < 2) {
+    return (
+      <View style={[styles.statsEmptyChart, { backgroundColor: colors.wash, borderColor: colors.line }]}>
+        <MaterialIcons name="show-chart" size={28} color={colors.court} />
+        <Text style={[styles.statsEmptyChartText, { color: colors.muted }]}>
+          Log at least two readings to draw a visible trend.
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.statsLineChart, { backgroundColor: colors.wash, borderColor: colors.line, width }]}>
+      <View style={[styles.statsGridLine, { backgroundColor: colors.line, top: padding }]} />
+      <View style={[styles.statsGridLine, { backgroundColor: colors.line, top: height / 2 }]} />
+      <View style={[styles.statsGridLine, { backgroundColor: colors.line, top: height - padding }]} />
+
+      {points.slice(1).map((point, index) => {
+        const previous = points[index];
+        const dx = point.x - previous.x;
+        const dy = point.y - previous.y;
+        const length = Math.sqrt(dx * dx + dy * dy);
+        const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+        return (
+          <View
+            key={`${point.id || point.date}-${index}-line`}
+            style={[
+              styles.statsLineSegment,
+              {
+                backgroundColor: color,
+                left: previous.x,
+                top: previous.y,
+                transform: [{ rotate: `${angle}deg` }],
+                width: length,
+              },
+            ]}
+          />
+        );
+      })}
+
+      {points.map((point, index) => (
+        <View key={`${point.id || point.date}-${index}-point`}>
+          <View style={[styles.statsChartPoint, { backgroundColor: color, left: point.x - 5, top: point.y - 5 }]} />
+          <Text style={[styles.statsPointValue, { color: colors.ink, left: point.x - 20, top: Math.max(4, point.y - 26) }]}>
+            {formatNumber(point.value)}
+          </Text>
+        </View>
+      ))}
+
+      <Text style={[styles.statsAxisLabel, { color: colors.muted, left: 10, top: padding - 8 }]}>
+        {formatNumber(max)} {unit}
+      </Text>
+      <Text style={[styles.statsAxisLabel, { color: colors.muted, left: 10, top: height - padding - 8 }]}>
+        {formatNumber(min)} {unit}
+      </Text>
+      <Text style={[styles.statsDateLabel, { color: colors.muted, left: padding - 4 }]}>{shortDate(points[0].date)}</Text>
+      <Text style={[styles.statsDateLabel, { color: colors.muted, right: padding - 4 }]}>{shortDate(points[points.length - 1].date)}</Text>
+    </View>
+  );
+}
+
+function StrengthRadarChart({ items }: { items: { label: string; score: number }[] }) {
+  const { colors } = useNetmindTheme();
+  const size = 260;
+  const center = size / 2;
+  const radius = 86;
+  const labelRadius = 112;
+  const rings = [1, 0.7, 0.4];
+  const points = items.map((item, index) => {
+    const angle = (index / items.length) * Math.PI * 2 - Math.PI / 2;
+    const scale = Math.max(0, Math.min(item.score, 100)) / 100;
+
+    return {
+      ...item,
+      angle,
+      x: center + Math.cos(angle) * radius * scale,
+      y: center + Math.sin(angle) * radius * scale,
+      labelX: center + Math.cos(angle) * labelRadius,
+      labelY: center + Math.sin(angle) * labelRadius,
+    };
+  });
+
+  return (
+    <View style={styles.statsStrengthRadarWrap}>
+      <View style={[styles.statsStrengthRadarCanvas, { height: size, width: size }]}>
+        {rings.map((ring) => (
+          <View
+            key={ring}
+            style={[
+              styles.statsStrengthRadarRing,
+              {
+                borderColor: colors.line,
+                height: radius * 2 * ring,
+                left: center - radius * ring,
+                top: center - radius * ring,
+                width: radius * 2 * ring,
+              },
+            ]}
+          />
+        ))}
+        {items.map((item, index) => {
+          const angle = (index / items.length) * 360 - 90;
+
+          return (
+            <View
+              key={`${item.label}-axis`}
+              style={[
+                styles.statsStrengthRadarAxis,
+                {
+                  backgroundColor: colors.line,
+                  left: center,
+                  top: center,
+                  transform: [{ rotate: `${angle}deg` }],
+                  width: radius,
+                },
+              ]}
+            />
+          );
+        })}
+        {points.map((point, index) => {
+          const next = points[(index + 1) % points.length];
+          const dx = next.x - point.x;
+          const dy = next.y - point.y;
+          const length = Math.sqrt(dx * dx + dy * dy);
+          const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+          return (
+            <View
+              key={`${point.label}-edge`}
+              style={[
+                styles.statsStrengthRadarEdge,
+                {
+                  backgroundColor: colors.court,
+                  left: point.x,
+                  top: point.y,
+                  transform: [{ rotate: `${angle}deg` }],
+                  width: length,
+                },
+              ]}
+            />
+          );
+        })}
+        {points.map((point) => (
+          <View key={`${point.label}-point`}>
+            <View style={[styles.statsStrengthRadarPoint, { backgroundColor: colors.court, left: point.x - 6, top: point.y - 6 }]} />
+            <Text
+              numberOfLines={2}
+              style={[
+                styles.statsStrengthRadarLabel,
+                {
+                  color: colors.muted,
+                  left: point.labelX - 42,
+                  top: point.labelY - 12,
+                },
+              ]}>
+              {shortStrengthLabel(point.label)}
+            </Text>
+          </View>
+        ))}
+        <View style={[styles.statsStrengthRadarCore, { backgroundColor: colors.courtSoft, borderColor: colors.court }]}>
+          <Text style={[styles.statsStrengthRadarCoreText, { color: colors.court }]}>
+            {Math.round(items.reduce((sum, item) => sum + item.score, 0) / Math.max(items.length, 1))}
+          </Text>
+        </View>
+      </View>
+      <View style={styles.statsStrengthRadarLegend}>
+        {items.map((item) => (
+          <View key={item.label} style={[styles.statsStrengthRadarLegendItem, { backgroundColor: colors.wash, borderColor: colors.line }]}>
+            <Text style={[styles.statsStrengthRadarLegendScore, { color: colors.court }]}>{item.score}</Text>
+            <Text style={[styles.statsStrengthRadarLegendLabel, { color: colors.muted }]}>{item.label}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
   );
 }
 
@@ -909,6 +1210,111 @@ function buildDashboardAnalytics(summary: PlayerSummary | null) {
   };
 }
 
+function latestEntryFor(entries: MeasurementEntry[], metric: TrendMetric) {
+  return entries.filter((entry) => entry.metric === metric).at(-1);
+}
+
+function buildTrendSummary(entries: MeasurementEntry[], metric: TrendMetric, unit: string, age?: number | string | null) {
+  const latest = entries.at(-1);
+  const previous = entries.at(-2);
+
+  if (metric === 'avg_heart_rate') {
+    if (!latest) {
+      return {
+        color: palette.court,
+        detail: 'Log heart rate after training to classify workload as low, normal, or high.',
+        icon: 'trending-flat' as const,
+        label: 'Collecting',
+      };
+    }
+    const heartRateRange = getPostTrainingHeartRateRange(age);
+
+    if (latest.value < heartRateRange.low) {
+      return {
+        color: palette.gold,
+        detail: `Latest heart rate is ${formatNumber(latest.value)} ${unit}, below the expected post-training range of ${heartRateRange.label}. This may indicate a light or recovery session.`,
+        icon: 'favorite-border' as const,
+        label: 'Low',
+      };
+    }
+
+    if (latest.value <= heartRateRange.high) {
+      return {
+        color: palette.court,
+        detail: `Latest heart rate is ${formatNumber(latest.value)} ${unit}, within the expected post-training range of ${heartRateRange.label}.`,
+        icon: 'favorite' as const,
+        label: 'Normal',
+      };
+    }
+
+    return {
+      color: palette.coral,
+      detail: `Latest heart rate is ${formatNumber(latest.value)} ${unit}, above the expected post-training range of ${heartRateRange.label}. Review fatigue, recovery, and rest periods before heavy drills.`,
+      icon: 'warning-amber' as const,
+      label: 'High',
+    };
+  }
+
+  if (!latest || !previous) {
+    return {
+      color: palette.court,
+      detail: 'More readings are needed before the app can compare recent performance.',
+      icon: 'trending-flat' as const,
+      label: 'Collecting',
+    };
+  }
+
+  const change = latest.value - previous.value;
+  const formattedChange = `${change > 0 ? '+' : ''}${formatNumber(change)} ${unit}`;
+
+  if (change > 0) {
+    return {
+      color: palette.court,
+      detail: `Latest ${metric === 'highest_jump' ? 'jump height' : 'spike speed'} improved by ${formattedChange} compared with the previous log.`,
+      icon: 'trending-up' as const,
+      label: 'Improving',
+    };
+  }
+
+  if (change < 0) {
+    return {
+      color: palette.coral,
+      detail: `Latest ${metric === 'highest_jump' ? 'jump height' : 'spike speed'} dropped by ${formatNumber(Math.abs(change))} ${unit} compared with the previous log.`,
+      icon: 'trending-down' as const,
+      label: 'Needs review',
+    };
+  }
+
+  return {
+    color: palette.gold,
+    detail: `Latest ${metric === 'highest_jump' ? 'jump height' : 'spike speed'} stayed steady at ${formatNumber(latest.value)} ${unit}.`,
+    icon: 'trending-flat' as const,
+    label: 'Stable',
+  };
+}
+
+function getPostTrainingHeartRateRange(age?: number | string | null) {
+  const playerAge = toNumber(age, Number.NaN);
+
+  if (Number.isFinite(playerAge) && playerAge > 0) {
+    const maxHeartRate = 220 - playerAge;
+    const low = Math.round(maxHeartRate * 0.6);
+    const high = Math.round(maxHeartRate * 0.85);
+
+    return {
+      low,
+      high,
+      label: `${low}-${high} bpm`,
+    };
+  }
+
+  return {
+    low: 120,
+    high: 170,
+    label: '120-170 bpm',
+  };
+}
+
 function toNumber(value: unknown, fallback = 0) {
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
@@ -940,6 +1346,19 @@ function dbDelta(value?: string | null, fallback = 'No data') {
 function formatMetric(value: unknown) {
   const number = toNumber(value, 0);
   return Number.isInteger(number) ? String(number) : number.toFixed(1);
+}
+
+function formatNumber(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
+function shortDate(date: string) {
+  const [, month = '', day = ''] = date.match(/^\d{4}-(\d{2})-(\d{2})/) || [];
+  return month && day ? `${month}/${day}` : date.slice(0, 5);
+}
+
+function shortStrengthLabel(label: string) {
+  return label.split(' ')[0];
 }
 
 const styles = StyleSheet.create({
@@ -1236,5 +1655,205 @@ const styles = StyleSheet.create({
   waterfallLabel: {
     fontSize: 10,
     fontWeight: '800',
+  },
+  statsTrendCard: {
+    gap: 14,
+  },
+  statsSegmentedControl: {
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 6,
+    padding: 5,
+  },
+  statsSegmentButton: {
+    alignItems: 'center',
+    borderColor: 'transparent',
+    borderRadius: 7,
+    borderWidth: 1,
+    flex: 1,
+    flexDirection: 'row',
+    gap: 6,
+    justifyContent: 'center',
+    minHeight: 38,
+    paddingHorizontal: 8,
+  },
+  statsSegmentDot: {
+    borderRadius: 4,
+    height: 8,
+    width: 8,
+  },
+  statsSegmentText: {
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  statsTrendHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'space-between',
+  },
+  statsTrendTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    lineHeight: 22,
+  },
+  statsTrendBadge: {
+    alignItems: 'center',
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 5,
+    minHeight: 34,
+    paddingHorizontal: 9,
+  },
+  statsTrendBadgeText: {
+    fontSize: 11,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  statsLineChart: {
+    alignSelf: 'center',
+    borderRadius: 8,
+    borderWidth: 1,
+    height: 170,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  statsGridLine: {
+    height: 1,
+    left: 24,
+    opacity: 0.7,
+    position: 'absolute',
+    right: 24,
+  },
+  statsLineSegment: {
+    height: 3,
+    position: 'absolute',
+    transformOrigin: 'left center',
+  },
+  statsChartPoint: {
+    borderRadius: 5,
+    height: 10,
+    position: 'absolute',
+    width: 10,
+  },
+  statsPointValue: {
+    fontSize: 10,
+    fontWeight: '900',
+    position: 'absolute',
+    textAlign: 'center',
+    width: 40,
+  },
+  statsAxisLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    position: 'absolute',
+  },
+  statsDateLabel: {
+    bottom: 5,
+    fontSize: 10,
+    fontWeight: '900',
+    position: 'absolute',
+  },
+  statsEmptyChart: {
+    alignItems: 'center',
+    alignSelf: 'center',
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 8,
+    justifyContent: 'center',
+    minHeight: 170,
+    padding: 18,
+    width: 300,
+  },
+  statsEmptyChartText: {
+    fontSize: 13,
+    fontWeight: '800',
+    lineHeight: 19,
+    textAlign: 'center',
+  },
+  statsCaption: {
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
+  statsStrengthRadarCard: {
+    gap: 14,
+  },
+  statsStrengthRadarWrap: {
+    gap: 14,
+  },
+  statsStrengthRadarCanvas: {
+    alignSelf: 'center',
+    position: 'relative',
+  },
+  statsStrengthRadarRing: {
+    borderRadius: 8,
+    borderWidth: 1,
+    position: 'absolute',
+    transform: [{ rotate: '45deg' }],
+  },
+  statsStrengthRadarAxis: {
+    height: 1,
+    position: 'absolute',
+    transformOrigin: 'left center',
+  },
+  statsStrengthRadarEdge: {
+    height: 4,
+    position: 'absolute',
+    transformOrigin: 'left center',
+  },
+  statsStrengthRadarPoint: {
+    borderRadius: 6,
+    height: 12,
+    position: 'absolute',
+    width: 12,
+  },
+  statsStrengthRadarLabel: {
+    fontSize: 10,
+    fontWeight: '900',
+    position: 'absolute',
+    textAlign: 'center',
+    textTransform: 'uppercase',
+    width: 84,
+  },
+  statsStrengthRadarCore: {
+    alignItems: 'center',
+    borderRadius: 28,
+    borderWidth: 1,
+    height: 56,
+    justifyContent: 'center',
+    left: 102,
+    position: 'absolute',
+    top: 102,
+    width: 56,
+  },
+  statsStrengthRadarCoreText: {
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  statsStrengthRadarLegend: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  statsStrengthRadarLegendItem: {
+    borderRadius: 8,
+    borderWidth: 1,
+    flexBasis: '48%',
+    flexGrow: 1,
+    gap: 2,
+    minHeight: 54,
+    padding: 10,
+  },
+  statsStrengthRadarLegendScore: {
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  statsStrengthRadarLegendLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    lineHeight: 15,
   },
 });

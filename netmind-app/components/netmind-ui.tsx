@@ -1,6 +1,8 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { PropsWithChildren } from 'react';
+import { PropsWithChildren, useEffect, useState } from 'react';
 import {
+  Keyboard,
+  KeyboardAvoidingView,
   Platform,
   Pressable,
   RefreshControl,
@@ -31,6 +33,7 @@ export function Screen({
 }>) {
   const { colors } = useNetmindTheme();
   const insets = useSafeAreaInsets();
+  const screenPaddingBottom = useKeyboardScrollPadding(16, 24);
   const bottomNavSpace = Platform.OS === 'android'
     ? Math.max(insets.bottom, 30)
     : Math.max(insets.bottom, 12);
@@ -38,30 +41,57 @@ export function Screen({
 
   return (
     <SafeAreaView edges={['left', 'right']} style={[styles.safeArea, { backgroundColor: colors.wash }]}>
-      <ScrollView
-        automaticallyAdjustKeyboardInsets
-        contentContainerStyle={styles.screen}
-        keyboardDismissMode="interactive"
-        keyboardShouldPersistTaps="handled"
-        refreshControl={onRefresh ? (
-          <RefreshControl
-            colors={[colors.court]}
-            onRefresh={onRefresh}
-            refreshing={refreshing}
-            tintColor={colors.court}
-          />
-        ) : undefined}
-        showsVerticalScrollIndicator={false}
-        style={[styles.scroller, { backgroundColor: colors.wash, marginBottom: scrollBottomLimit }]}>
-        <View style={styles.header}>
-          <Text style={[styles.eyebrow, { color: colors.court }]}>NetMind Volleyball</Text>
-          <Text style={[styles.title, { color: colors.ink }]}>{title}</Text>
-          {subtitle ? <Text style={[styles.subtitle, { color: colors.muted }]}>{subtitle}</Text> : null}
-        </View>
-        {children}
-      </ScrollView>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+        style={styles.keyboardAvoider}>
+        <ScrollView
+          automaticallyAdjustKeyboardInsets
+          contentContainerStyle={[styles.screen, { paddingBottom: screenPaddingBottom }]}
+          keyboardDismissMode="interactive"
+          keyboardShouldPersistTaps="handled"
+          refreshControl={onRefresh ? (
+            <RefreshControl
+              colors={[colors.court]}
+              onRefresh={onRefresh}
+              refreshing={refreshing}
+              tintColor={colors.court}
+            />
+          ) : undefined}
+          showsVerticalScrollIndicator={false}
+          style={[styles.scroller, { backgroundColor: colors.wash, marginBottom: scrollBottomLimit }]}>
+          <View style={styles.header}>
+            <Text style={[styles.eyebrow, { color: colors.court }]}>NetMind Volleyball</Text>
+            <Text style={[styles.title, { color: colors.ink }]}>{title}</Text>
+            {subtitle ? <Text style={[styles.subtitle, { color: colors.muted }]}>{subtitle}</Text> : null}
+          </View>
+          {children}
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
+}
+
+export function useKeyboardScrollPadding(basePadding = 16, extraPadding = 24) {
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSubscription = Keyboard.addListener(showEvent, (event) => {
+      setKeyboardHeight(event.endCoordinates?.height || 0);
+    });
+    const hideSubscription = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
+
+  return keyboardHeight ? basePadding + keyboardHeight + extraPadding : basePadding;
 }
 
 export function Card({ children, style }: PropsWithChildren<{ style?: StyleProp<ViewStyle> }>) {
@@ -213,6 +243,9 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: palette.wash,
+  },
+  keyboardAvoider: {
+    flex: 1,
   },
   screen: {
     paddingHorizontal: 18,

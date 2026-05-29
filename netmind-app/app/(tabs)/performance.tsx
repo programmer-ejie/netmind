@@ -14,7 +14,7 @@ import {
   View,
 } from 'react-native';
 
-import { Card, ListRow, PrimaryButton, Screen, SectionTitle } from '@/components/netmind-ui';
+import { Card, ListRow, PrimaryButton, Screen, SectionTitle, useKeyboardScrollPadding } from '@/components/netmind-ui';
 import { useNetmindTheme } from '@/contexts/netmind-theme';
 import { toLocalDateKey } from '@/lib/dateKeys';
 import {
@@ -42,6 +42,7 @@ const statusFilters = [
 ] as const;
 
 export default function PerformanceScreen() {
+  const modalPaddingBottom = useKeyboardScrollPadding(16, 24);
   const [player, setPlayer] = useState<NetmindUser | null>(null);
   const [matches, setMatches] = useState<Match[]>([]);
   const [matchScores, setMatchScores] = useState<MatchScore[]>([]);
@@ -331,7 +332,8 @@ export default function PerformanceScreen() {
               </View>
 
               <ScrollView
-                contentContainerStyle={styles.modalContent}
+                automaticallyAdjustKeyboardInsets
+                contentContainerStyle={[styles.modalContent, { paddingBottom: modalPaddingBottom }]}
                 keyboardDismissMode="interactive"
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}>

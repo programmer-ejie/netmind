@@ -14,7 +14,7 @@ import {
   View,
 } from 'react-native';
 
-import { Card, PrimaryButton, ProgressBar, Screen, SectionTitle } from '@/components/netmind-ui';
+import { Card, PrimaryButton, ProgressBar, Screen, SectionTitle, useKeyboardScrollPadding } from '@/components/netmind-ui';
 import { injuryChecklist } from '@/constants/netmind';
 import { useNetmindTheme } from '@/contexts/netmind-theme';
 import { toLocalDateKey } from '@/lib/dateKeys';
@@ -28,6 +28,7 @@ import {
 
 export default function WellnessScreen() {
   const today = useMemo(() => new Date(), []);
+  const modalPaddingBottom = useKeyboardScrollPadding(16, 24);
   const todayKey = toLocalDateKey(today);
   const monthKey = todayKey.slice(0, 7);
   const [fatigue, setFatigue] = useState('');
@@ -261,7 +262,8 @@ export default function WellnessScreen() {
             </View>
 
             <ScrollView
-              contentContainerStyle={styles.modalContent}
+              automaticallyAdjustKeyboardInsets
+              contentContainerStyle={[styles.modalContent, { paddingBottom: modalPaddingBottom }]}
               keyboardDismissMode="interactive"
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}>
@@ -328,7 +330,8 @@ export default function WellnessScreen() {
             </View>
 
             <ScrollView
-              contentContainerStyle={styles.modalContent}
+              automaticallyAdjustKeyboardInsets
+              contentContainerStyle={[styles.modalContent, { paddingBottom: modalPaddingBottom }]}
               keyboardDismissMode="interactive"
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}>
