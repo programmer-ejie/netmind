@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { BarChart3, Scale, Table2, TrendingUp, Users } from 'lucide-react'
+import { BarChart3, GitBranch, Scale, Table2, Target, TrendingUp, Users } from 'lucide-react'
 import AdminLayout, {
   AdminCard,
   AdminField,
@@ -9,6 +9,7 @@ import AdminLayout, {
   TableSkeletonRows,
   getName,
   moneylessNumber,
+  positions,
 } from './AdminLayout'
 import { listResource, readSavedUser } from '../../lib/api'
 
@@ -22,6 +23,33 @@ const comparisonMetrics = [
 
 const positiveResults = new Set(['kill', 'ace', 'perfect', 'assist', 'stuff'])
 const chartColors = ['#12aabd', '#ff6692', '#36c76c', '#ffb900', '#635bff', '#2f4050']
+const positionProfiles = {
+  OH: {
+    title: 'Outside hitter',
+    rule: 'Prioritize balanced scoring, positive actions, and recent upward trend.',
+    weights: { score: 0.52, positive: 0.24, average: 0.16, trend: 0.08, errors: -0.18 },
+  },
+  OPP: {
+    title: 'Opposite hitter',
+    rule: 'Prioritize scoring power, positive attack results, and low error cost.',
+    weights: { score: 0.56, positive: 0.28, average: 0.12, trend: 0.04, errors: -0.2 },
+  },
+  MB: {
+    title: 'Middle blocker',
+    rule: 'Prioritize efficient positive actions and fewer errors.',
+    weights: { score: 0.42, positive: 0.3, average: 0.18, trend: 0.04, errors: -0.26 },
+  },
+  S: {
+    title: 'Setter',
+    rule: 'Prioritize average value, consistency, positive actions, and low errors.',
+    weights: { score: 0.34, positive: 0.24, average: 0.3, trend: 0.06, errors: -0.22 },
+  },
+  L: {
+    title: 'Libero',
+    rule: 'Prioritize consistency, low errors, and stable recent trend.',
+    weights: { score: 0.3, positive: 0.2, average: 0.24, trend: 0.08, errors: -0.32 },
+  },
+}
 
 const listAllResource = async (resource, params = {}) => {
   const limit = params.limit || 100
@@ -50,6 +78,39 @@ const getLogTime = (log) => {
   const value = log.session_date || log.created_at
   const time = value ? new Date(value).getTime() : 0
   return Number.isNaN(time) ? 0 : time
+}
+
+const normalizeScore = (value, max) => (max ? (Number(value || 0) / max) * 100 : 0)
+
+const buildPositionFitRows = (rows, position) => {
+  const profile = positionProfiles[position] || positionProfiles.OH
+  const max = {
+    score: Math.max(...rows.map((row) => row.score), 1),
+    positive: Math.max(...rows.map((row) => row.positive), 1),
+    average: Math.max(...rows.map((row) => row.average), 1),
+    trend: Math.max(...rows.map((row) => Math.max(row.trend, 0)), 1),
+    errors: Math.max(...rows.map((row) => row.errors), 1),
+  }
+
+  return rows
+    .map((row) => {
+      const positionBonus = String(row.position).toUpperCase() === position ? 12 : 0
+      const fitScore = (
+        normalizeScore(row.score, max.score) * profile.weights.score
+        + normalizeScore(row.positive, max.positive) * profile.weights.positive
+        + normalizeScore(row.average, max.average) * profile.weights.average
+        + normalizeScore(Math.max(row.trend, 0), max.trend) * profile.weights.trend
+        + normalizeScore(row.errors, max.errors) * profile.weights.errors
+        + positionBonus
+      )
+
+      return {
+        ...row,
+        fitScore: Math.max(0, Math.min(100, Math.round(fitScore))),
+        positionMatch: String(row.position).toUpperCase() === position,
+      }
+    })
+    .sort((a, b) => b.fitScore - a.fitScore)
 }
 
 const buildPlayerRows = ({ players, logs, teamMembers, teamIds, teams }) => {
@@ -176,10 +237,74 @@ function ComparisonRadar({ rows }) {
   )
 }
 
+function PositionFitFigure({ rows, position }) {
+  const profile = positionProfiles[position] || positionProfiles.OH
+  const topRows = rows.slice(0, 4)
+
+  if (!topRows.length) return <EmptyState>Select players or add performance logs to generate a position fit recommendation.</EmptyState>
+
+  return (
+    <div className="admin-position-fit-figure">
+      <div className="admin-position-fit-summary">
+        <span>{position}</span>
+        <strong>{profile.title}</strong>
+        <small>{profile.rule}</small>
+      </div>
+      <div className="admin-position-fit-list">
+        {topRows.map((row, index) => (
+          <article className={index === 0 ? 'best' : ''} key={row.id}>
+            <div>
+              <span>#{index + 1}</span>
+              <strong>{row.name}</strong>
+              <small>{row.team} - {row.position}{row.positionMatch ? ' - natural fit' : ''}</small>
+            </div>
+            <b>{row.fitScore}</b>
+            <i style={{ width: `${row.fitScore}%`, background: chartColors[index % chartColors.length] }} />
+          </article>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function DecisionTreeRecommendation({ rows, position }) {
+  const profile = positionProfiles[position] || positionProfiles.OH
+  const best = rows[0]
+  const second = rows[1]
+
+  if (!best) return <EmptyState>No recommendation available yet.</EmptyState>
+
+  const confidence = best.fitScore >= 78 ? 'High' : best.fitScore >= 58 ? 'Moderate' : 'Low'
+  const decision = [
+    `Position: ${profile.title}`,
+    `Top fit score: ${best.fitScore}`,
+    best.positionMatch ? 'Position match: yes' : 'Position match: no',
+    best.trend > 0 ? `Trend: improving by +${formatNumber(best.trend)}` : best.trend < 0 ? `Trend: down by ${formatNumber(Math.abs(best.trend))}` : 'Trend: stable',
+    best.errors > 0 ? `Risk check: ${formatNumber(best.errors)} errors` : 'Risk check: no recorded errors',
+  ]
+
+  return (
+    <div className="admin-decision-tree">
+      <div className="admin-decision-tree-result">
+        <Target size={22} />
+        <span>Recommended player</span>
+        <strong>{best.name}</strong>
+        <small>{confidence} confidence{second ? ` - next option: ${second.name}` : ''}</small>
+      </div>
+      <ol>
+        {decision.map((item) => <li key={item}>{item}</li>)}
+      </ol>
+      <p>{profile.rule}</p>
+    </div>
+  )
+}
+
 const AdminComparison = ({ currentPath = '#coach/comparison' }) => {
   const currentUser = readSavedUser()
   const [selectedTeamId, setSelectedTeamId] = useState('')
   const [selectedMetric, setSelectedMetric] = useState('score')
+  const [selectedPosition, setSelectedPosition] = useState('OH')
+  const [selectedPlayerIds, setSelectedPlayerIds] = useState([])
   const [state, setState] = useState({
     teams: [],
     players: [],
@@ -230,15 +355,40 @@ const AdminComparison = ({ currentPath = '#coach/comparison' }) => {
       teams: state.teams,
     }).sort((a, b) => metricValue(b, selectedMetric) - metricValue(a, selectedMetric))
   ), [activeTeamIds, selectedMetric, state.logs, state.players, state.teamMembers, state.teams])
-  const leader = rows[0]
-  const averageScore = rows.length ? rows.reduce((sum, row) => sum + row.score, 0) / rows.length : 0
-  const totalLogs = rows.reduce((sum, row) => sum + row.logs, 0)
+  const visibleRows = useMemo(() => (
+    selectedPlayerIds.length
+      ? rows.filter((row) => selectedPlayerIds.includes(String(row.id)))
+      : rows
+  ), [rows, selectedPlayerIds])
+  const leader = visibleRows[0]
+  const positionFitRows = useMemo(() => (
+    buildPositionFitRows(visibleRows, selectedPosition)
+  ), [selectedPosition, visibleRows])
+  const averageScore = visibleRows.length ? visibleRows.reduce((sum, row) => sum + row.score, 0) / visibleRows.length : 0
+  const totalLogs = visibleRows.reduce((sum, row) => sum + row.logs, 0)
+  const selectedPlayersLabel = selectedPlayerIds.length
+    ? `${selectedPlayerIds.length} selected`
+    : 'All players'
 
   useEffect(() => {
     if (selectedTeamId && !coachTeams.some((team) => String(team.id) === String(selectedTeamId))) {
       setSelectedTeamId('')
     }
   }, [coachTeams, selectedTeamId])
+
+  useEffect(() => {
+    const availablePlayerIds = new Set(rows.map((row) => String(row.id)))
+    setSelectedPlayerIds((current) => current.filter((id) => availablePlayerIds.has(String(id))))
+  }, [rows])
+
+  const togglePlayer = (playerId) => {
+    const id = String(playerId)
+    setSelectedPlayerIds((current) => (
+      current.includes(id)
+        ? current.filter((item) => item !== id)
+        : [...current, id]
+    ))
+  }
 
   return (
     <AdminLayout title="Comparison" currentPath={currentPath}>
@@ -266,14 +416,86 @@ const AdminComparison = ({ currentPath = '#coach/comparison' }) => {
               ))}
             </AdminSelect>
           </AdminField>
+          <AdminField label="Position">
+            <AdminSelect value={selectedPosition} onChange={(event) => setSelectedPosition(event.target.value)}>
+              {positions.map((position) => (
+                <option key={position} value={position}>{positionProfiles[position]?.title || position}</option>
+              ))}
+            </AdminSelect>
+          </AdminField>
         </div>
       </div>
 
+      <AdminCard className="admin-comparison-player-filter-card">
+        <div className="admin-card-header">
+          <div>
+            <h3>Players to compare</h3>
+            <p className="admin-muted">{selectedPlayersLabel}. Select specific players or clear to compare everyone in the current team scope.</p>
+          </div>
+          <button
+            className="admin-comparison-clear"
+            disabled={!selectedPlayerIds.length}
+            onClick={() => setSelectedPlayerIds([])}
+            type="button"
+          >
+            Clear
+          </button>
+        </div>
+        <div className="admin-comparison-player-checklist">
+          {state.loading ? (
+            Array.from({ length: 6 }).map((_, index) => <span className="admin-skeleton-line" key={`comparison-player-skeleton-${index}`} />)
+          ) : rows.length ? rows.map((row) => {
+            const checked = selectedPlayerIds.includes(String(row.id))
+
+            return (
+              <label className={`admin-comparison-player-option ${checked ? 'selected' : ''}`} key={row.id}>
+                <input
+                  checked={checked}
+                  onChange={() => togglePlayer(row.id)}
+                  type="checkbox"
+                />
+                <span>
+                  <strong>{row.name}</strong>
+                  <small>{row.team} - {row.position}</small>
+                </span>
+                <b>{formatNumber(row.score)}</b>
+              </label>
+            )
+          }) : (
+            <EmptyState>No players available for this team.</EmptyState>
+          )}
+        </div>
+      </AdminCard>
+
       <div className="admin-stat-grid admin-comparison-stat-grid">
-        <StatCard icon={Users} label="Compared Players" value={state.loading ? '...' : moneylessNumber(rows.length)} />
+        <StatCard icon={Users} label="Compared Players" value={state.loading ? '...' : moneylessNumber(visibleRows.length)} />
         <StatCard icon={Table2} label="Performance Logs" value={state.loading ? '...' : moneylessNumber(totalLogs)} tone="secondary" />
         <StatCard icon={TrendingUp} label="Average Score" value={state.loading ? '...' : formatNumber(averageScore)} tone="success" />
         <StatCard icon={Scale} label="Current Leader" value={state.loading ? '...' : (leader?.name || '-')} tone="primary" />
+      </div>
+
+      <div className="admin-position-decision-grid">
+        <AdminCard className="admin-position-fit-card">
+          <div className="admin-card-header">
+            <div>
+              <h3>Most fitted for position</h3>
+              <p className="admin-muted">Visual recommendation for the selected position using weighted performance indicators.</p>
+            </div>
+            <Target size={22} />
+          </div>
+          <PositionFitFigure rows={positionFitRows} position={selectedPosition} />
+        </AdminCard>
+
+        <AdminCard className="admin-decision-tree-card">
+          <div className="admin-card-header">
+            <div>
+              <h3>Decision tree recommendation</h3>
+              <p className="admin-muted">Simple rule-based explanation for the recommended player.</p>
+            </div>
+            <GitBranch size={22} />
+          </div>
+          <DecisionTreeRecommendation rows={positionFitRows} position={selectedPosition} />
+        </AdminCard>
       </div>
 
       <div className="admin-comparison-grid">
@@ -290,7 +512,7 @@ const AdminComparison = ({ currentPath = '#coach/comparison' }) => {
               {Array.from({ length: 6 }).map((_, index) => <span key={`comparison-bar-skeleton-${index}`} />)}
             </div>
           ) : (
-            <ComparisonBarChart rows={rows} metric={selectedMetric} />
+            <ComparisonBarChart rows={visibleRows} metric={selectedMetric} />
           )}
         </AdminCard>
 
@@ -305,7 +527,7 @@ const AdminComparison = ({ currentPath = '#coach/comparison' }) => {
           {state.loading ? (
             <div className="admin-performance-radar-skeleton" />
           ) : (
-            <ComparisonRadar rows={rows} />
+            <ComparisonRadar rows={visibleRows} />
           )}
         </AdminCard>
       </div>
@@ -336,7 +558,7 @@ const AdminComparison = ({ currentPath = '#coach/comparison' }) => {
             <tbody>
               {state.loading ? (
                 <TableSkeletonRows rows={5} columns={9} />
-              ) : rows.length ? rows.map((row) => (
+              ) : visibleRows.length ? visibleRows.map((row) => (
                 <tr key={row.id}>
                   <td>{row.name}</td>
                   <td>{row.team}</td>

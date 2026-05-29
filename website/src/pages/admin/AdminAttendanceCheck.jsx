@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Activity, ArrowLeft, CalendarDays, CheckCircle2, Clock3, Gauge, UserX, Users, X } from 'lucide-react'
+import { Activity, ArrowLeft, CalendarDays, CheckCircle2, Clock3, UserX, Users, X } from 'lucide-react'
 import AdminLayout, {
   AdminButton,
   AdminCard,
@@ -56,9 +56,14 @@ const AdminAttendanceCheck = ({ scheduleId, currentPath = `#trainer/attendance/$
   const notCheckedCount = Math.max(totalPlayers - checkedCount, 0)
   const checkedPercent = totalPlayers ? Math.round((checkedCount / totalPlayers) * 100) : 0
   const teamName = team?.team_name || 'Team'
+  const hasInputValue = (value) => value !== null && value !== undefined && value !== ''
+  const hasTrainerInputValue = (input) => Boolean(input) && (
+    hasInputValue(input.highest_jump) || hasInputValue(input.strongest_spike)
+  )
+  const formatTrainerValue = (value, unit) => (hasInputValue(value) ? `${value} ${unit}` : '--')
 
   const openTrainerInput = (player) => {
-    const hasTrainerInput = Boolean(player.trainer_input)
+    const hasTrainerInput = hasTrainerInputValue(player.trainer_input)
 
     setInputPlayer(player)
     setInputMode(hasTrainerInput ? 'view' : 'add')
@@ -176,42 +181,43 @@ const AdminAttendanceCheck = ({ scheduleId, currentPath = `#trainer/attendance/$
             <span>Player</span>
             <span>Position</span>
             <span>Jersey</span>
+            <span>Highest Jump</span>
+            <span>Strongest Spike</span>
             <span>Status</span>
-            <span>Action</span>
           </div>
           {loading ? (
             <ListSkeleton rows={4} />
           ) : players.map((player) => {
+            const hasTrainerInput = hasTrainerInputValue(player.trainer_input)
+
             return (
-              <article className="admin-attendance-player-row" key={player.player_id}>
+              <article
+                className="admin-attendance-player-row is-clickable"
+                key={player.player_id}
+                role="button"
+                tabIndex={0}
+                onClick={() => openTrainerInput(player)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    openTrainerInput(player)
+                  }
+                }}
+                aria-label={`${hasTrainerInput ? 'View' : 'Add'} trainer input for ${player.name}`}
+              >
                 <div className="admin-attendance-player-main">
                   <strong>{player.name}</strong>
                   <small>{player.email || 'Player'}</small>
                 </div>
                 <span>{player.position || '-'}</span>
                 <span>{player.jersey_number ? `#${player.jersey_number}` : '-'}</span>
-                {player.checked_in ? (
-                  <StatusBadge tone="success">Checked In</StatusBadge>
+                <span>{formatTrainerValue(player.trainer_input?.highest_jump, 'in')}</span>
+                <span>{formatTrainerValue(player.trainer_input?.strongest_spike, 'km/h')}</span>
+                {hasTrainerInput ? (
+                  <StatusBadge tone="success">Done</StatusBadge>
                 ) : (
-                  <StatusBadge tone="warning">Not Checked In</StatusBadge>
+                  <StatusBadge tone="warning">Pending</StatusBadge>
                 )}
-                <div className="admin-attendance-action">
-                  <AdminButton
-                    type="button"
-                    variant={player.trainer_input ? 'secondary' : 'primary'}
-                    className="admin-attendance-input-button"
-                    onClick={() => openTrainerInput(player)}
-                  >
-                    <Gauge size={16} />
-                    {player.trainer_input ? 'View Input' : 'Add Input'}
-                  </AdminButton>
-                  {player.trainer_input ? (
-                    <div className="admin-attendance-input-summary" aria-label="Trainer input summary">
-                      <span>{player.trainer_input.highest_jump ?? '-'} in</span>
-                      <span>{player.trainer_input.strongest_spike ?? '-'} km/h</span>
-                    </div>
-                  ) : null}
-                </div>
               </article>
             )
           })}
@@ -284,7 +290,12 @@ const AdminAttendanceCheck = ({ scheduleId, currentPath = `#trainer/attendance/$
                 </div>
               </AdminField>
               <div className="admin-profile-offcanvas-actions">
-                <AdminButton type="button" variant="secondary" onClick={() => setInputPlayer(null)} disabled={savingInput}>
+                <AdminButton
+                  type="button"
+                  variant={inputMode === 'view' ? 'danger' : 'secondary'}
+                  onClick={() => setInputPlayer(null)}
+                  disabled={savingInput}
+                >
                   {inputMode === 'view' ? 'Close' : 'Cancel'}
                 </AdminButton>
                 {inputMode !== 'view' && (

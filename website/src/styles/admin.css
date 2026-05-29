@@ -498,6 +498,298 @@
   margin-bottom: 18px;
 }
 
+.admin-comparison-player-filter-card {
+  margin-bottom: 18px;
+  border-color: color-mix(in oklab, var(--admin-primary) 8%, var(--admin-border));
+  box-shadow: 0 10px 26px rgba(22, 36, 52, 0.06);
+}
+
+.admin-comparison-player-filter-card .admin-card-header {
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.admin-comparison-clear {
+  min-height: 36px;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  color: var(--admin-primary);
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.admin-comparison-clear:disabled {
+  cursor: default;
+  opacity: .42;
+}
+
+.admin-comparison-player-checklist {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  max-height: 228px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.admin-comparison-player-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 70px;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--admin-soft) 32%, transparent);
+  padding: 10px;
+  transition: border-color .2s ease, background .2s ease, transform .2s ease;
+}
+
+.admin-comparison-player-option:hover,
+.admin-comparison-player-option.selected {
+  border-color: color-mix(in oklab, var(--admin-primary) 48%, var(--admin-border));
+  background: color-mix(in oklab, var(--admin-primary) 9%, var(--admin-card));
+}
+
+.admin-comparison-player-option input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--admin-primary);
+}
+
+.admin-comparison-player-option span {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.admin-comparison-player-option strong {
+  overflow: hidden;
+  color: var(--admin-link);
+  font-size: 13px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-comparison-player-option small {
+  overflow: hidden;
+  color: var(--admin-muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-comparison-player-option b {
+  color: var(--admin-primary);
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.admin-position-decision-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, .8fr);
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.admin-position-fit-card,
+.admin-decision-tree-card {
+  min-width: 0;
+  border-color: color-mix(in oklab, var(--admin-primary) 8%, var(--admin-border));
+  box-shadow: 0 10px 26px rgba(22, 36, 52, 0.07);
+}
+
+.admin-position-fit-card .admin-card-header,
+.admin-decision-tree-card .admin-card-header {
+  margin-bottom: 18px;
+}
+
+.admin-position-fit-card .admin-card-header svg,
+.admin-decision-tree-card .admin-card-header svg {
+  color: var(--admin-primary);
+}
+
+.admin-position-fit-figure {
+  display: grid;
+  grid-template-columns: minmax(160px, 220px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: stretch;
+}
+
+.admin-position-fit-summary {
+  display: grid;
+  align-content: center;
+  gap: 8px;
+  min-height: 210px;
+  border: 1px solid color-mix(in oklab, var(--admin-primary) 20%, var(--admin-border));
+  border-radius: 8px;
+  background:
+    linear-gradient(150deg, color-mix(in oklab, var(--admin-primary) 16%, transparent), transparent 58%),
+    color-mix(in oklab, var(--admin-soft) 38%, transparent);
+  padding: 18px;
+}
+
+.admin-position-fit-summary span {
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--admin-primary);
+  color: #ffffff;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.admin-position-fit-summary strong {
+  color: var(--admin-link);
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1.15;
+}
+
+.admin-position-fit-summary small {
+  color: var(--admin-muted);
+  font-weight: 800;
+  line-height: 1.5;
+}
+
+.admin-position-fit-list {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-position-fit-list article {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  min-height: 72px;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--admin-soft) 30%, transparent);
+  padding: 12px;
+}
+
+.admin-position-fit-list article.best {
+  border-color: color-mix(in oklab, var(--admin-success) 42%, var(--admin-border));
+  background: color-mix(in oklab, var(--admin-success) 10%, var(--admin-card));
+}
+
+.admin-position-fit-list article div {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.admin-position-fit-list article span {
+  color: var(--admin-primary);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.admin-position-fit-list article strong {
+  overflow: hidden;
+  color: var(--admin-link);
+  font-size: 15px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-position-fit-list article small {
+  overflow: hidden;
+  color: var(--admin-muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-position-fit-list article b {
+  color: var(--admin-link);
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.admin-position-fit-list article i {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 4px;
+  border-radius: 999px;
+}
+
+.admin-decision-tree {
+  display: grid;
+  gap: 14px;
+}
+
+.admin-decision-tree-result {
+  display: grid;
+  gap: 5px;
+  border: 1px solid color-mix(in oklab, var(--admin-primary) 24%, var(--admin-border));
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--admin-primary) 8%, var(--admin-card));
+  padding: 16px;
+}
+
+.admin-decision-tree-result svg {
+  color: var(--admin-primary);
+}
+
+.admin-decision-tree-result span,
+.admin-decision-tree-result small,
+.admin-decision-tree p {
+  color: var(--admin-muted);
+  font-weight: 800;
+  line-height: 1.5;
+}
+
+.admin-decision-tree-result strong {
+  color: var(--admin-link);
+  font-size: 26px;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.admin-decision-tree ol {
+  display: grid;
+  gap: 8px;
+  counter-reset: decision;
+}
+
+.admin-decision-tree li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  color: var(--admin-link);
+  font-weight: 800;
+}
+
+.admin-decision-tree li::before {
+  counter-increment: decision;
+  content: counter(decision);
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--admin-light-primary);
+  color: var(--admin-primary);
+  font-size: 12px;
+  font-weight: 900;
+}
+
 .admin-comparison-stat-grid .admin-stat-card {
   min-height: 126px;
   padding: 18px;
@@ -649,11 +941,20 @@
   .admin-comparison-stat-grid.admin-stat-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .admin-comparison-player-checklist {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .admin-position-decision-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 980px) {
   .admin-comparison-hero,
-  .admin-comparison-grid {
+  .admin-comparison-grid,
+  .admin-position-fit-figure {
     grid-template-columns: 1fr;
   }
 
@@ -665,9 +966,74 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .admin-comparison-player-checklist {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-height: 300px;
+  }
+
+  .admin-position-fit-summary {
+    min-height: 0;
+  }
+
   .admin-comparison-bar-row {
     grid-template-columns: minmax(92px, 120px) minmax(0, 1fr) minmax(44px, auto);
   }
+
+  .admin-comparison-table-card .admin-table {
+    overflow: visible;
+  }
+
+  .admin-comparison-table-card .admin-native-table,
+  .admin-comparison-table-card .admin-native-table thead,
+  .admin-comparison-table-card .admin-native-table tbody,
+  .admin-comparison-table-card .admin-native-table tr,
+  .admin-comparison-table-card .admin-native-table th,
+  .admin-comparison-table-card .admin-native-table td {
+    display: block;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .admin-comparison-table-card .admin-native-table thead {
+    display: none;
+  }
+
+  .admin-comparison-table-card .admin-native-table tbody {
+    display: grid;
+    gap: 12px;
+  }
+
+  .admin-comparison-table-card .admin-native-table tr {
+    border: 1px solid var(--admin-border);
+    border-radius: 8px;
+    background: color-mix(in oklab, var(--admin-soft) 26%, transparent);
+    padding: 10px;
+  }
+
+  .admin-comparison-table-card .admin-native-table td {
+    display: grid;
+    grid-template-columns: minmax(92px, 36%) minmax(0, 1fr);
+    gap: 10px;
+    border: 0;
+    padding: 8px 4px;
+  }
+
+  .admin-comparison-table-card .admin-native-table td::before {
+    color: var(--admin-muted);
+    font-size: 11px;
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+
+  .admin-comparison-table-card .admin-native-table td:nth-child(1)::before { content: "Player"; }
+  .admin-comparison-table-card .admin-native-table td:nth-child(2)::before { content: "Team"; }
+  .admin-comparison-table-card .admin-native-table td:nth-child(3)::before { content: "Position"; }
+  .admin-comparison-table-card .admin-native-table td:nth-child(4)::before { content: "Score"; }
+  .admin-comparison-table-card .admin-native-table td:nth-child(5)::before { content: "Positive"; }
+  .admin-comparison-table-card .admin-native-table td:nth-child(6)::before { content: "Errors"; }
+  .admin-comparison-table-card .admin-native-table td:nth-child(7)::before { content: "Average"; }
+  .admin-comparison-table-card .admin-native-table td:nth-child(8)::before { content: "Logs"; }
+  .admin-comparison-table-card .admin-native-table td:nth-child(9)::before { content: "Trend"; }
 }
 
 @media (max-width: 640px) {
@@ -682,6 +1048,31 @@
 
   .admin-comparison-bar-row strong {
     justify-self: start;
+  }
+
+  .admin-comparison-player-checklist {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-comparison-player-filter-card .admin-card-header {
+    display: grid;
+  }
+
+  .admin-comparison-clear {
+    justify-self: start;
+  }
+
+  .admin-comparison-table-card .admin-native-table td {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .admin-position-fit-list article {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-position-fit-list article b {
+    font-size: 20px;
   }
 }
 
@@ -3515,11 +3906,11 @@
 .admin-attendance-table-head,
 .admin-attendance-player-row {
   display: grid;
-  grid-template-columns: minmax(280px, 1.35fr) minmax(96px, 0.42fr) minmax(96px, 0.42fr) minmax(168px, 0.58fr) minmax(248px, 0.8fr);
+  grid-template-columns: minmax(260px, 1.2fr) minmax(90px, 0.4fr) minmax(90px, 0.4fr) minmax(130px, 0.5fr) minmax(150px, 0.56fr) minmax(130px, 0.46fr);
   align-items: center;
   justify-items: center;
   column-gap: 18px;
-  min-width: 980px;
+  min-width: 1040px;
   padding: 16px 22px;
   text-align: center;
 }
@@ -3537,11 +3928,6 @@
   text-align: center;
 }
 
-.admin-attendance-table-head span:last-child,
-.admin-attendance-player-row .admin-attendance-action {
-  padding-right: 8px;
-}
-
 .admin-attendance-table-head {
   background: color-mix(in oklab, var(--admin-soft) 70%, #ffffff);
   color: var(--admin-muted);
@@ -3554,6 +3940,20 @@
   background: var(--admin-card);
   border-top: 1px solid var(--admin-border);
   min-height: 104px;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+
+.admin-attendance-player-row.is-clickable {
+  cursor: pointer;
+}
+
+.admin-attendance-player-row.is-clickable:hover {
+  background: color-mix(in oklab, var(--admin-primary) 5%, var(--admin-card));
+}
+
+.admin-attendance-player-row.is-clickable:focus-visible {
+  outline: 3px solid color-mix(in oklab, var(--admin-primary) 45%, transparent);
+  outline-offset: -3px;
 }
 
 .admin-attendance-player-row > span {
@@ -3582,47 +3982,6 @@
 
 .admin-attendance-player-row .admin-badge {
   font-weight: 600;
-}
-
-.admin-attendance-action {
-  display: grid;
-  justify-items: center;
-  gap: 8px;
-  min-width: 0;
-  width: 100%;
-}
-
-.admin-attendance-input-button {
-  min-height: 38px;
-  min-width: 150px;
-  padding: 0 14px;
-  white-space: nowrap;
-}
-
-.admin-attendance-input-button svg {
-  flex: 0 0 auto;
-}
-
-.admin-attendance-input-summary {
-  display: flex;
-  justify-content: center;
-  gap: 6px;
-  max-width: 230px;
-}
-
-.admin-attendance-input-summary span {
-  display: inline-flex;
-  align-items: center;
-  min-height: 24px;
-  padding: 0 8px;
-  border: 1px solid color-mix(in oklab, var(--admin-primary) 18%, var(--admin-border));
-  border-radius: 999px;
-  background: color-mix(in oklab, var(--admin-primary) 9%, var(--admin-card));
-  color: var(--admin-muted);
-  font-size: 11px;
-  font-weight: 800;
-  line-height: 1;
-  white-space: nowrap;
 }
 
 .admin-unit-input {
@@ -8461,8 +8820,7 @@
   }
 
   .admin-attendance-player-row > span,
-  .admin-attendance-player-row .admin-badge,
-  .admin-attendance-player-row .admin-attendance-action {
+  .admin-attendance-player-row .admin-badge {
     justify-self: stretch;
     text-align: left;
   }
@@ -8485,6 +8843,14 @@
     content: "Jersey";
   }
 
+  .admin-attendance-player-row > span:nth-of-type(3)::before {
+    content: "Highest Jump";
+  }
+
+  .admin-attendance-player-row > span:nth-of-type(4)::before {
+    content: "Strongest Spike";
+  }
+
   .admin-attendance-player-row > span::before {
     color: var(--admin-muted);
     font-size: 10px;
@@ -8504,25 +8870,10 @@
   }
 
   .admin-attendance-player-row .admin-badge::before {
-    content: "Status";
+    content: "Input Status";
     color: var(--admin-muted);
     font-size: 10px;
     font-weight: 900;
     text-transform: uppercase;
-  }
-
-  .admin-attendance-player-row .admin-attendance-action {
-    grid-column: 1 / -1;
-    justify-items: stretch;
-    padding-right: 0;
-  }
-
-  .admin-attendance-input-button {
-    width: 100%;
-  }
-
-  .admin-attendance-input-summary {
-    justify-content: flex-start;
-    max-width: none;
   }
 }
