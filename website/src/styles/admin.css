@@ -231,6 +231,77 @@
   color: var(--admin-link);
 }
 
+.admin-page,
+.admin-page * {
+  scrollbar-color: color-mix(in oklab, var(--admin-primary) 66%, var(--admin-muted)) transparent;
+  scrollbar-width: thin;
+}
+
+.admin-page::-webkit-scrollbar,
+.admin-page *::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.admin-page::-webkit-scrollbar-track,
+.admin-page *::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--admin-soft) 58%, transparent);
+}
+
+.admin-page::-webkit-scrollbar-thumb,
+.admin-page *::-webkit-scrollbar-thumb {
+  min-width: 76px;
+  min-height: 76px;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--admin-primary) 82%, #ffffff),
+    color-mix(in oklab, var(--admin-secondary) 82%, #ffffff)
+  );
+  background-clip: padding-box;
+  box-shadow: 0 0 18px color-mix(in oklab, var(--admin-primary) 24%, transparent);
+}
+
+.admin-page::-webkit-scrollbar-thumb:hover,
+.admin-page *::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(90deg, var(--admin-primary), var(--admin-secondary));
+  background-clip: padding-box;
+}
+
+.admin-page::-webkit-scrollbar-button,
+.admin-page *::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.admin-page::-webkit-scrollbar-corner,
+.admin-page *::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.admin-page.admin-dark,
+.admin-page.admin-dark * {
+  scrollbar-color: color-mix(in oklab, var(--admin-primary) 74%, #2a3851) transparent;
+}
+
+.admin-page.admin-dark::-webkit-scrollbar-track,
+.admin-page.admin-dark *::-webkit-scrollbar-track {
+  background: color-mix(in oklab, #0f1724 74%, var(--admin-card));
+}
+
+.admin-page.admin-dark::-webkit-scrollbar-thumb,
+.admin-page.admin-dark *::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--admin-primary) 66%, #2a3851),
+    color-mix(in oklab, var(--admin-secondary) 72%, #2a3851)
+  );
+  background-clip: padding-box;
+}
+
 .admin-sidebar {
   position: fixed;
   inset: 0 auto 0 0;
@@ -3906,12 +3977,12 @@
 .admin-attendance-table-head,
 .admin-attendance-player-row {
   display: grid;
-  grid-template-columns: minmax(260px, 1.2fr) minmax(90px, 0.4fr) minmax(90px, 0.4fr) minmax(130px, 0.5fr) minmax(150px, 0.56fr) minmax(130px, 0.46fr);
+  grid-template-columns: minmax(220px, 1.25fr) minmax(72px, 0.36fr) minmax(74px, 0.36fr) minmax(108px, 0.48fr) minmax(120px, 0.52fr) minmax(104px, 0.42fr);
   align-items: center;
   justify-items: center;
-  column-gap: 18px;
-  min-width: 1040px;
-  padding: 16px 22px;
+  column-gap: 10px;
+  min-width: 760px;
+  padding: 15px 16px;
   text-align: center;
 }
 
@@ -3982,6 +4053,8 @@
 
 .admin-attendance-player-row .admin-badge {
   font-weight: 600;
+  max-width: 100%;
+  white-space: nowrap;
 }
 
 .admin-unit-input {
