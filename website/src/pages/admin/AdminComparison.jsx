@@ -247,8 +247,8 @@ const AdminComparison = ({ currentPath = '#coach/comparison' }) => {
       <div className="admin-comparison-hero">
         <div>
           <p className="admin-kicker">Coach Comparison</p>
-          <h2>Compare team and individual performance</h2>
-          <span>Review player scores, positive results, errors, averages, and logged activity with visual charts and a detailed table.</span>
+          <h2>Performance comparison</h2>
+          <span>Compare players by score, positive actions, errors, averages, logged activity, and trend movement.</span>
         </div>
         <div className="admin-comparison-filters">
           <AdminField label="Team">
@@ -269,7 +269,7 @@ const AdminComparison = ({ currentPath = '#coach/comparison' }) => {
         </div>
       </div>
 
-      <div className="admin-stat-grid">
+      <div className="admin-stat-grid admin-comparison-stat-grid">
         <StatCard icon={Users} label="Compared Players" value={state.loading ? '...' : moneylessNumber(rows.length)} />
         <StatCard icon={Table2} label="Performance Logs" value={state.loading ? '...' : moneylessNumber(totalLogs)} tone="secondary" />
         <StatCard icon={TrendingUp} label="Average Score" value={state.loading ? '...' : formatNumber(averageScore)} tone="success" />
