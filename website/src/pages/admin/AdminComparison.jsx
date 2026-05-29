@@ -6,7 +6,6 @@ import AdminLayout, {
   AdminSelect,
   EmptyState,
   StatCard,
-  TableSkeletonRows,
   getName,
   moneylessNumber,
   positions,
@@ -156,23 +155,50 @@ const buildPlayerRows = ({ players, logs, teamMembers, teamIds, teams }) => {
 function ComparisonBarChart({ rows, metric }) {
   const visibleRows = rows.slice(0, 8)
   const max = Math.max(...visibleRows.map((row) => metricValue(row, metric)), 1)
+  const podiumRows = visibleRows.slice(0, 3)
 
   if (!visibleRows.length) return <EmptyState>No comparison data yet.</EmptyState>
 
   return (
-    <div className="admin-comparison-bars" role="img" aria-label="Player comparison bar chart">
+    <div className="admin-comparison-rank-figure" role="img" aria-label="Player comparison ranking figure">
+      <div className="admin-comparison-podium">
+        {podiumRows.map((row, index) => {
+          const value = metricValue(row, metric)
+          const percent = Math.max(4, (value / max) * 100)
+
+          return (
+            <article className={`rank-${index + 1}`} key={row.id}>
+              <span>{index + 1}</span>
+              <strong>{row.name}</strong>
+              <small>{row.team} - {row.position}</small>
+              <b>{formatNumber(value)}</b>
+              <i style={{ height: `${Math.max(34, percent)}%`, background: chartColors[index % chartColors.length] }} />
+            </article>
+          )
+        })}
+      </div>
       {visibleRows.map((row, index) => {
         const value = metricValue(row, metric)
         const width = Math.max(4, (value / max) * 100)
+        const ringStyle = {
+          background: `conic-gradient(${chartColors[index % chartColors.length]} ${width}%, color-mix(in oklab, var(--admin-soft) 70%, var(--admin-border)) 0)`,
+        }
 
         return (
-          <div className="admin-comparison-bar-row" key={row.id}>
-            <span>{row.name}</span>
-            <div>
+          <article className="admin-comparison-rank-card" key={row.id}>
+            <div className="admin-comparison-rank-number">{index + 1}</div>
+            <div className="admin-comparison-rank-player">
+              <strong>{row.name}</strong>
+              <span>{row.team} - {row.position}</span>
+            </div>
+            <div className="admin-comparison-rank-ring" style={ringStyle}>
+              <span>{Math.round(width)}%</span>
+            </div>
+            <div className="admin-comparison-rank-bar">
               <i style={{ width: `${width}%`, background: chartColors[index % chartColors.length] }} />
             </div>
-            <strong>{formatNumber(value)}</strong>
-          </div>
+            <b>{formatNumber(value)}</b>
+          </article>
         )
       })}
     </div>
@@ -237,32 +263,42 @@ function ComparisonRadar({ rows }) {
   )
 }
 
-function PositionFitFigure({ rows, position }) {
-  const profile = positionProfiles[position] || positionProfiles.OH
-  const topRows = rows.slice(0, 4)
-
-  if (!topRows.length) return <EmptyState>Select players or add performance logs to generate a position fit recommendation.</EmptyState>
+function PositionFitFigure({ rows }) {
+  if (!rows.length) return <EmptyState>Select players or add performance logs to generate position fit recommendations.</EmptyState>
 
   return (
-    <div className="admin-position-fit-figure">
-      <div className="admin-position-fit-summary">
-        <span>{position}</span>
-        <strong>{profile.title}</strong>
-        <small>{profile.rule}</small>
-      </div>
-      <div className="admin-position-fit-list">
-        {topRows.map((row, index) => (
-          <article className={index === 0 ? 'best' : ''} key={row.id}>
-            <div>
-              <span>#{index + 1}</span>
-              <strong>{row.name}</strong>
-              <small>{row.team} - {row.position}{row.positionMatch ? ' - natural fit' : ''}</small>
+    <div className="admin-position-fit-board">
+      {positions.map((position, index) => {
+        const profile = positionProfiles[position] || { title: position, rule: 'Ranked using weighted performance indicators.' }
+        const candidates = rows.filter((row) => String(row.position).toUpperCase() === position)
+        const best = buildPositionFitRows(candidates, position)[0]
+
+        return (
+          <article className={`admin-position-fit-slot ${best ? 'has-player' : 'is-empty'}`} key={position}>
+            <div className="admin-position-fit-slot-head">
+              <span style={{ background: chartColors[index % chartColors.length] }}>{position}</span>
+              <div>
+                <strong>{profile.title}</strong>
+                <small>{best ? `${candidates.length} player${candidates.length === 1 ? '' : 's'} in this position` : 'No player in this position'}</small>
+              </div>
             </div>
-            <b>{row.fitScore}</b>
-            <i style={{ width: `${row.fitScore}%`, background: chartColors[index % chartColors.length] }} />
+            {best ? (
+              <>
+                <div className="admin-position-fit-slot-player">
+                  <strong>{best.name}</strong>
+                  <small>{best.team} - top {position} fit</small>
+                  <b>{best.fitScore}</b>
+                </div>
+                <i>
+                  <span style={{ width: `${best.fitScore}%`, background: chartColors[index % chartColors.length] }} />
+                </i>
+              </>
+            ) : (
+              <p>No player in this position</p>
+            )}
           </article>
-        ))}
-      </div>
+        )
+      })}
     </div>
   )
 }
@@ -299,11 +335,56 @@ function DecisionTreeRecommendation({ rows, position }) {
   )
 }
 
+function DetailedComparisonFigure({ rows }) {
+  const maxScore = Math.max(...rows.map((row) => row.score), 1)
+
+  if (!rows.length) return <EmptyState>No player comparison data yet.</EmptyState>
+
+  return (
+    <figure className="admin-comparison-detail-figure" aria-label="Detailed player comparison figure">
+      {rows.map((row, index) => {
+        const scoreWidth = Math.max(4, (row.score / maxScore) * 100)
+        const trendTone = row.trend > 0 ? 'positive' : row.trend < 0 ? 'negative' : 'neutral'
+
+        return (
+          <article className="admin-comparison-detail-item" key={row.id}>
+            <div className="admin-comparison-detail-rank" style={{ background: chartColors[index % chartColors.length] }}>
+              {index + 1}
+            </div>
+            <div className="admin-comparison-detail-player">
+              <strong>{row.name}</strong>
+              <span>{row.team} - {row.position}</span>
+            </div>
+            <div className="admin-comparison-detail-score">
+              <div>
+                <small>Score</small>
+                <b>{formatNumber(row.score)}</b>
+              </div>
+              <i>
+                <span style={{ width: `${scoreWidth}%`, background: chartColors[index % chartColors.length] }} />
+              </i>
+            </div>
+            <div className="admin-comparison-detail-stats">
+              <span><small>Positive</small><b>{formatNumber(row.positive)}</b></span>
+              <span><small>Errors</small><b>{formatNumber(row.errors)}</b></span>
+              <span><small>Average</small><b>{formatNumber(row.average)}</b></span>
+              <span><small>Logs</small><b>{moneylessNumber(row.logs)}</b></span>
+            </div>
+            <div className={`admin-comparison-detail-trend ${trendTone}`}>
+              {row.trend > 0 ? '+' : ''}{formatNumber(row.trend)}
+            </div>
+          </article>
+        )
+      })}
+    </figure>
+  )
+}
+
 const AdminComparison = ({ currentPath = '#coach/comparison' }) => {
   const currentUser = readSavedUser()
   const [selectedTeamId, setSelectedTeamId] = useState('')
   const [selectedMetric, setSelectedMetric] = useState('score')
-  const [selectedPosition, setSelectedPosition] = useState('OH')
+  const selectedPosition = 'OH'
   const [selectedPlayerIds, setSelectedPlayerIds] = useState([])
   const [state, setState] = useState({
     teams: [],
@@ -416,13 +497,6 @@ const AdminComparison = ({ currentPath = '#coach/comparison' }) => {
               ))}
             </AdminSelect>
           </AdminField>
-          <AdminField label="Position">
-            <AdminSelect value={selectedPosition} onChange={(event) => setSelectedPosition(event.target.value)}>
-              {positions.map((position) => (
-                <option key={position} value={position}>{positionProfiles[position]?.title || position}</option>
-              ))}
-            </AdminSelect>
-          </AdminField>
         </div>
       </div>
 
@@ -479,11 +553,11 @@ const AdminComparison = ({ currentPath = '#coach/comparison' }) => {
           <div className="admin-card-header">
             <div>
               <h3>Most fitted for position</h3>
-              <p className="admin-muted">Visual recommendation for the selected position using weighted performance indicators.</p>
+              <p className="admin-muted">Top player per position, using only players already assigned to that position.</p>
             </div>
             <Target size={22} />
           </div>
-          <PositionFitFigure rows={positionFitRows} position={selectedPosition} />
+          <PositionFitFigure rows={visibleRows} />
         </AdminCard>
 
         <AdminCard className="admin-decision-tree-card">
@@ -532,54 +606,21 @@ const AdminComparison = ({ currentPath = '#coach/comparison' }) => {
         </AdminCard>
       </div>
 
-      <AdminCard className="admin-table-card admin-comparison-table-card">
+      <AdminCard className="admin-comparison-detail-card">
         <div className="admin-card-header">
           <div>
-            <h3>Detailed comparison table</h3>
-            <p className="admin-muted">Use this table to compare individual performance statistics by player and team.</p>
+            <h3>Detailed comparison figure</h3>
+            <p className="admin-muted">Use this visual figure to compare individual performance statistics by player and team.</p>
           </div>
         </div>
 
-        <div className="admin-table">
-          <table className="admin-native-table">
-            <thead>
-              <tr>
-                <th>Player</th>
-                <th>Team</th>
-                <th>Position</th>
-                <th>Score</th>
-                <th>Positive</th>
-                <th>Errors</th>
-                <th>Average</th>
-                <th>Logs</th>
-                <th>Trend</th>
-              </tr>
-            </thead>
-            <tbody>
-              {state.loading ? (
-                <TableSkeletonRows rows={5} columns={9} />
-              ) : visibleRows.length ? visibleRows.map((row) => (
-                <tr key={row.id}>
-                  <td>{row.name}</td>
-                  <td>{row.team}</td>
-                  <td>{row.position}</td>
-                  <td>{formatNumber(row.score)}</td>
-                  <td>{formatNumber(row.positive)}</td>
-                  <td>{formatNumber(row.errors)}</td>
-                  <td>{formatNumber(row.average)}</td>
-                  <td>{moneylessNumber(row.logs)}</td>
-                  <td className={row.trend >= 0 ? 'admin-positive-cell' : 'admin-negative-cell'}>
-                    {row.trend > 0 ? '+' : ''}{formatNumber(row.trend)}
-                  </td>
-                </tr>
-              )) : (
-                <tr>
-                  <td colSpan="9"><EmptyState>No player comparison data yet.</EmptyState></td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        {state.loading ? (
+          <div className="admin-comparison-detail-skeleton">
+            {Array.from({ length: 5 }).map((_, index) => <span key={`comparison-detail-skeleton-${index}`} />)}
+          </div>
+        ) : (
+          <DetailedComparisonFigure rows={visibleRows} />
+        )}
       </AdminCard>
     </AdminLayout>
   )
