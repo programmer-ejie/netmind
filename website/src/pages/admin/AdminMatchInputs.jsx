@@ -39,6 +39,37 @@ const getRosterPath = (team, user) => (
   canInputForTeam(team, user) ? `/teams/${team.id}/members` : `/teams/${team.id}/opponent-roster`
 )
 
+const MatchRosterSkeleton = () => (
+  <div className="admin-match-roster-grid has-versus admin-match-roster-skeleton-grid" aria-label="Loading match rosters">
+    {['can-input', 'view-only'].map((tone, teamIndex) => (
+      <AdminCard className={`admin-match-roster-card ${tone} admin-match-roster-skeleton`} key={tone}>
+        <div className="admin-card-header admin-match-roster-header">
+          <div className="admin-match-roster-skeleton-copy">
+            <span className="admin-skeleton-line short" />
+            <span className="admin-skeleton-line wide" />
+            <span className="admin-skeleton-line" />
+          </div>
+          <span className="admin-skeleton-square admin-match-roster-logo-skeleton" />
+        </div>
+
+        <div className="admin-match-player-list">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div className="admin-match-player admin-match-player-skeleton" key={`${tone}-player-skeleton-${index}`}>
+              <span className="admin-skeleton-square" />
+              <span>
+                <i className="admin-skeleton-line wide" />
+                <i className="admin-skeleton-line" />
+              </span>
+              {teamIndex === 0 && <i className="admin-skeleton-line short" />}
+            </div>
+          ))}
+        </div>
+      </AdminCard>
+    ))}
+    <div className="admin-roster-versus admin-roster-versus-skeleton" aria-hidden="true">VS</div>
+  </div>
+)
+
 const buildStatsFromLogs = (logs, currentMatchId) => {
   const nextStats = {}
   const nextLogIds = {}
@@ -525,7 +556,9 @@ const AdminMatchInputs = ({ matchId, matchNumber, currentPath = `#coach/matches/
         </div>
       )}
 
-      {!match && !error && <EmptyState>Loading match inputs...</EmptyState>}
+      {!match && !error && (
+        <MatchRosterSkeleton />
+      )}
 
       {selectedPlayer && (
         <div className="admin-offcanvas-backdrop" role="presentation" onMouseDown={() => setSelectedPlayer(null)}>

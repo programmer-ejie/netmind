@@ -1,4 +1,4 @@
-export const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5001/api'
+export const API_BASE = import.meta.env.VITE_API_BASE || 'https://netmind-backend-fjma.onrender.com/api'
 
 const PUBLIC_AUTH_PATHS = [
   '/auth/login',

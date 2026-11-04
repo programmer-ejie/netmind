@@ -1,6 +1,6 @@
 const { google } = require("googleapis");
 require("dotenv").config({ quiet: true });
-const { getGoogleRedirectUri } = require("../utils/googleOAuthConfig");
+const { getGoogleOAuthScopes, getGoogleRedirectUri } = require("../utils/googleOAuthConfig");
 
 const redirectUri = getGoogleRedirectUri();
 
@@ -22,12 +22,13 @@ const oauth2Client = new google.auth.OAuth2(
 const authUrl = oauth2Client.generateAuthUrl({
   access_type: "offline",
   prompt: "consent",
-  scope: ["https://www.googleapis.com/auth/drive"],
+  scope: getGoogleOAuthScopes(),
 });
 
 console.log("Open this URL in your browser:");
 console.log(authUrl);
 console.log("");
 console.log(`Redirect URI used: ${redirectUri}`);
+console.log(`Scopes: ${getGoogleOAuthScopes().join(", ")}`);
 console.log("Make sure this exact URI is authorized in Google Cloud Console.");
 console.log("After approving access, copy the 'code' value from the redirected URL.");

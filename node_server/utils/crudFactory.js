@@ -1,4 +1,6 @@
-const { query } = require("../config/db");
+const { query, pool } = require("../config/db");
+const { deleteMatchById } = require("./matchDeletion");
+const { deleteTeamById } = require("./teamDeletion");
 const ApiError = require("./apiError");
 const {
   canAccessMatch,
@@ -334,6 +336,59 @@ async function ensureCreateAllowed(config, user, payload) {
   }
 }
 
+async function ensureUpdateAllowed(config, user, payload) {
+  if (config.table === "teams" && payload.coach_id && !isSelf(user, payload.coach_id)) {
+    throw new ApiError(403, "You cannot transfer this team to another coach");
+  }
+
+  if (config.table === "team_members" || config.table === "team_trainers") {
+    if (payload.team_id && (!(await canAccessTeam(user, payload.team_id)) || user.role !== "coach")) {
+      throw new ApiError(403, "You do not have permission for this team");
+    }
+  }
+
+  if (config.table === "coach_trainers" && payload.coach_id && (user.role !== "coach" || !isSelf(user, payload.coach_id))) {
+    throw new ApiError(403, "You do not have permission for this coach");
+  }
+
+  const staffTeamTables = new Set([
+    "seasons",
+    "matches",
+    "team_rankings",
+    "training_schedules",
+    "attendance_logs",
+  ]);
+  if (staffTeamTables.has(config.table) && payload.team_id && user.role === "player") {
+    throw new ApiError(403, "You do not have permission for this team");
+  }
+
+  if ((config.table === "lineups" || config.table === "player_comparisons") && user.role !== "coach") {
+    throw new ApiError(403, "You do not have permission for this resource");
+  }
+
+  if (payload.team_id && !(await canAccessTeam(user, payload.team_id))) {
+    throw new ApiError(403, "You do not have permission for this team");
+  }
+
+  if (payload.match_id && !(await canAccessMatch(user, payload.match_id))) {
+    throw new ApiError(403, "You do not have permission for this match");
+  }
+
+  if (payload.player_id && !(await canAccessPlayer(user, payload.player_id))) {
+    throw new ApiError(403, "You do not have permission for this player");
+  }
+
+  if (payload.user_id && !(await canAccessPlayer(user, payload.user_id))) {
+    throw new ApiError(403, "You do not have permission for this player");
+  }
+
+  for (const ownerField of ["created_by", "assigned_by", "marked_by", "reported_by", "coach_id"]) {
+    if (payload[ownerField] && !isSelf(user, payload[ownerField])) {
+      throw new ApiError(403, "You cannot update records on behalf of another user");
+    }
+  }
+}
+
 async function ensureUserUpdatePayloadAllowed(config, user, id, payload) {
   if (config.table !== "users" || isSelf(user, id) || user.role !== "coach") return;
 
@@ -547,7 +602,7 @@ function createCrudController(config) {
       }
 
       await ensureUserUpdatePayloadAllowed(config, req.user, req.params.id, payload);
-      await ensureCreateAllowed(config, req.user, payload);
+      await ensureUpdateAllowed(config, req.user, payload);
 
       const result = await query(
         `UPDATE \`${config.table}\` SET ${fields.map((field) => `\`${field}\` = ?`).join(", ")} WHERE id = ?`,
@@ -572,7 +627,11 @@ function createCrudController(config) {
       }
 
       const rows = await query(`SELECT ${toSelect(config)} FROM \`${config.table}\` WHERE id = ?`, [req.params.id]);
-      const result = await query(`DELETE FROM \`${config.table}\` WHERE id = ?`, [req.params.id]);
+      const result = config.table === "matches"
+        ? await deleteMatchById(pool, req.params.id)
+        : config.table === "teams"
+        ? await deleteTeamById(pool, req.params.id)
+        : await query(`DELETE FROM \`${config.table}\` WHERE id = ?`, [req.params.id]);
 
       if (!result.affectedRows) {
         throw new ApiError(404, "Record not found");

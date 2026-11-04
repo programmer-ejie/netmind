@@ -200,8 +200,8 @@ const tables = {
     ],
     writePolicy: {
       create: false,
-      update: false,
-      delete: false,
+      update: { roles: STAFF_ROLES },
+      delete: { roles: STAFF_ROLES },
     },
     filterFields: ["player_id", "assigned_by", "drill_id", "status"],
     searchFields: ["focus_area", "drill_description"],
@@ -218,7 +218,7 @@ const tables = {
     writePolicy: {
       create: { roles: STAFF_ROLES },
       update: { roles: STAFF_ROLES },
-      delete: { roles: ["coach"] },
+      delete: { roles: STAFF_ROLES },
     },
     filterFields: ["team_id", "session_type", "session_date", "created_by"],
     searchFields: ["description"],

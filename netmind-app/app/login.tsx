@@ -4,10 +4,12 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import {
   ImageBackground,
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -15,10 +17,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { PrimaryButton } from '@/components/netmind-ui';
+import { PrimaryButton, useKeyboardScrollPadding } from '@/components/netmind-ui';
 import { palette } from '@/constants/netmind';
 import { useNetmindTheme } from '@/contexts/netmind-theme';
 import { API_BASE, loginUser } from '@/lib/api';
+
+const logoSource = require('@/assets/images/website_logo.png');
 
 export default function LoginScreen() {
   const [gmail, setGmail] = useState('');
@@ -27,6 +31,7 @@ export default function LoginScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [authModal, setAuthModal] = useState<{ title: string; message: string } | null>(null);
   const { colors, isDark } = useNetmindTheme();
+  const keyboardPaddingBottom = useKeyboardScrollPadding(22, 24);
   const backgroundSource = isDark
     ? require('@/assets/images/login-bg.optimized.jpg')
     : require('@/assets/images/light-login-bg.optimized.jpg');
@@ -94,70 +99,77 @@ export default function LoginScreen() {
       <View style={[styles.overlay, isDark ? styles.darkOverlay : styles.lightOverlay]}>
         <SafeAreaView style={styles.safeArea}>
           <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={styles.container}>
-            <View style={styles.brandBlock}>
-              <View style={styles.logo}>
-                <MaterialIcons name="sports-volleyball" size={34} color="#ffffff" />
+            <ScrollView
+              automaticallyAdjustKeyboardInsets
+              contentContainerStyle={[styles.scrollContent, { paddingBottom: keyboardPaddingBottom }]}
+              keyboardDismissMode="interactive"
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}>
+              <View style={styles.brandBlock}>
+                <View style={[styles.logo, { backgroundColor: colors.surface }]}>
+                  <Image resizeMode="contain" source={logoSource} style={styles.logoImage} />
+                </View>
+                <Text style={[styles.brand, { color: brandTextColor }]}>NetMind</Text>
+                <Text style={[styles.tagline, { color: isDark ? colors.courtMist : colors.muted }]}>
+                  Sign in to your volleyball performance dashboard.
+                </Text>
               </View>
-              <Text style={[styles.brand, { color: brandTextColor }]}>NetMind</Text>
-              <Text style={[styles.tagline, { color: isDark ? colors.courtMist : colors.muted }]}>
-                Sign in to your volleyball performance dashboard.
-              </Text>
-            </View>
 
-            <View style={[styles.formCard, { backgroundColor: colors.surface }]}>
-              <Text style={[styles.formTitle, { color: colors.ink }]}>Login</Text>
+              <View style={[styles.formCard, { backgroundColor: colors.surface }]}>
+                <Text style={[styles.formTitle, { color: colors.ink }]}>Login</Text>
 
-              <Text style={[styles.label, { color: colors.ink }]}>Gmail</Text>
-              <TextInput
-                autoCapitalize="none"
-                editable={!isSubmitting}
-                keyboardType="email-address"
-                onChangeText={setGmail}
-                placeholder="yourname@gmail.com"
-                placeholderTextColor={colors.muted}
-                style={[
-                  styles.input,
-                  { backgroundColor: colors.wash, borderColor: colors.line, color: colors.ink },
-                ]}
-                value={gmail}
-              />
-
-              <Text style={[styles.label, { color: colors.ink }]}>Password</Text>
-              <View
-                style={[
-                  styles.passwordBox,
-                  { backgroundColor: colors.wash, borderColor: colors.line },
-                ]}>
+                <Text style={[styles.label, { color: colors.ink }]}>Gmail</Text>
                 <TextInput
+                  autoCapitalize="none"
                   editable={!isSubmitting}
-                  onChangeText={setPassword}
-                  placeholder="Password"
+                  keyboardType="email-address"
+                  onChangeText={setGmail}
+                  placeholder="yourname@gmail.com"
                   placeholderTextColor={colors.muted}
-                  secureTextEntry={!passwordVisible}
-                  style={[styles.passwordInput, { color: colors.ink }]}
-                  value={password}
+                  style={[
+                    styles.input,
+                    { backgroundColor: colors.wash, borderColor: colors.line, color: colors.ink },
+                  ]}
+                  value={gmail}
                 />
-                <Pressable
-                  accessibilityLabel={passwordVisible ? 'Hide password' : 'Show password'}
-                  onPress={() => setPasswordVisible((current) => !current)}
-                  style={styles.eyeButton}>
-                  <MaterialIcons
-                    name={passwordVisible ? 'visibility-off' : 'visibility'}
-                    size={22}
-                    color={colors.muted}
-                  />
-                </Pressable>
-              </View>
 
-              <PrimaryButton
-                icon="login"
-                disabled={isSubmitting}
-                onPress={handleLogin}
-                title={isSubmitting ? 'Checking...' : 'Login'}
-              />
-            </View>
+                <Text style={[styles.label, { color: colors.ink }]}>Password</Text>
+                <View
+                  style={[
+                    styles.passwordBox,
+                    { backgroundColor: colors.wash, borderColor: colors.line },
+                  ]}>
+                  <TextInput
+                    editable={!isSubmitting}
+                    onChangeText={setPassword}
+                    placeholder="Password"
+                    placeholderTextColor={colors.muted}
+                    secureTextEntry={!passwordVisible}
+                    style={[styles.passwordInput, { color: colors.ink }]}
+                    value={password}
+                  />
+                  <Pressable
+                    accessibilityLabel={passwordVisible ? 'Hide password' : 'Show password'}
+                    onPress={() => setPasswordVisible((current) => !current)}
+                    style={styles.eyeButton}>
+                    <MaterialIcons
+                      name={passwordVisible ? 'visibility-off' : 'visibility'}
+                      size={22}
+                      color={colors.muted}
+                    />
+                  </Pressable>
+                </View>
+
+                <PrimaryButton
+                  icon="login"
+                  disabled={isSubmitting}
+                  onPress={handleLogin}
+                  title={isSubmitting ? 'Checking...' : 'Login'}
+                />
+              </View>
+            </ScrollView>
           </KeyboardAvoidingView>
         </SafeAreaView>
         <Modal
@@ -217,6 +229,9 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
     gap: 28,
     justifyContent: 'center',
     padding: 22,
@@ -226,11 +241,15 @@ const styles = StyleSheet.create({
   },
   logo: {
     alignItems: 'center',
-    backgroundColor: palette.coral,
     borderRadius: 8,
     height: 62,
     justifyContent: 'center',
+    overflow: 'hidden',
     width: 62,
+  },
+  logoImage: {
+    height: 58,
+    width: 58,
   },
   brand: {
     fontSize: 42,

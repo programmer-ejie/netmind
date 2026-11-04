@@ -2,12 +2,14 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Asset } from 'expo-asset';
 import { router } from 'expo-router';
 import { useEffect } from 'react';
-import { ImageBackground, StyleSheet, Text, View } from 'react-native';
+import { Image, ImageBackground, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PrimaryButton } from '@/components/netmind-ui';
 import { palette } from '@/constants/netmind';
 import { useNetmindTheme } from '@/contexts/netmind-theme';
+
+const logoSource = require('@/assets/images/website_logo.png');
 
 export default function HomeScreen() {
   const { colors, isDark } = useNetmindTheme();
@@ -21,6 +23,7 @@ export default function HomeScreen() {
     Asset.loadAsync([
       require('@/assets/images/login-bg.optimized.jpg'),
       require('@/assets/images/light-login-bg.optimized.jpg'),
+      logoSource,
     ]).catch(() => undefined);
   }, []);
 
@@ -34,7 +37,7 @@ export default function HomeScreen() {
           <View style={styles.container}>
             <View style={styles.hero}>
               <View style={styles.logo}>
-                <MaterialIcons name="sports-volleyball" size={34} color="#ffffff" />
+                <Image resizeMode="contain" source={logoSource} style={styles.logoImage} />
               </View>
               <Text style={[styles.brand, { color: logoTextColor }]}>NetMind</Text>
               <Text style={[styles.headline, { color: heroTextColor }]}>Explore Us</Text>
@@ -101,11 +104,16 @@ const styles = StyleSheet.create({
   },
   logo: {
     alignItems: 'center',
-    backgroundColor: palette.coral,
+    backgroundColor: '#ffffff',
     borderRadius: 8,
     height: 62,
     justifyContent: 'center',
+    overflow: 'hidden',
     width: 62,
+  },
+  logoImage: {
+    height: 58,
+    width: 58,
   },
   brand: {
     fontSize: 24,

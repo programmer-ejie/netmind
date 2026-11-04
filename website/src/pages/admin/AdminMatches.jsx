@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { CalendarCheck2, ChevronLeft, ChevronRight, ClipboardList, Edit3, Info, Plus, Swords, Trash2, Trophy } from 'lucide-react'
+import { CalendarCheck2, ChevronLeft, ChevronRight, ClipboardList, Edit3, Info, Plus, Swords, Trash2, TriangleAlert, Trophy } from 'lucide-react'
 import AdminLayout, {
   AdminButton,
   AdminCard,
@@ -8,7 +8,9 @@ import AdminLayout, {
   AdminModal,
   AdminSelect,
   EmptyState,
+  StatCardSkeleton,
   StatusBadge,
+  TableSkeletonRows,
   formatDate,
   getName,
 } from './AdminLayout'
@@ -79,9 +81,14 @@ const AdminMatches = ({ currentPath = '#coach/matches' }) => {
   const [actualPage, setActualPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState(getSavedMatchesStatusFilter)
   const [modalOpen, setModalOpen] = useState(false)
+  const [deleteModal, setDeleteModal] = useState(false)
   const [editing, setEditing] = useState(null)
+  const [deleteMatch, setDeleteMatch] = useState(null)
   const [form, setForm] = useState(blankMatch)
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [savingMatch, setSavingMatch] = useState(false)
+  const [deletingMatch, setDeletingMatch] = useState(false)
   const ownedTeams = useMemo(() => (
     teams.filter((team) => String(team.coach_id) === String(currentUser?.id))
   ), [currentUser?.id, teams])
@@ -200,6 +207,7 @@ const AdminMatches = ({ currentPath = '#coach/matches' }) => {
   }
 
   const load = useCallback(async () => {
+    setLoading(true)
     const [matchRows, scoreRows, teamRows, opponentRows] = await Promise.all([
       listResource('matches', { limit: 100, sortBy: 'match_date', sortDir: 'asc' }),
       listResource('match-scores', { limit: 100, sortBy: 'match_number', sortDir: 'asc' }),
@@ -218,10 +226,14 @@ const AdminMatches = ({ currentPath = '#coach/matches' }) => {
     setMatchScores(scoreRows)
     setTeams(allTeamRows)
     setOpponentTeamOptions(opponentRows)
+    setLoading(false)
   }, [currentUser?.id])
 
   useEffect(() => {
-    load().catch((err) => setError(err.message))
+    load().catch((err) => {
+      setError(err.message)
+      setLoading(false)
+    })
   }, [load])
 
   useEffect(() => {
@@ -301,23 +313,39 @@ const AdminMatches = ({ currentPath = '#coach/matches' }) => {
       }
 
     try {
+      setError('')
+      setSavingMatch(true)
       if (editing) await updateResource('matches', editing.id, payload)
       else await createResource('matches', payload)
       setModalOpen(false)
       await load()
     } catch (err) {
       setError(err.message)
+    } finally {
+      setSavingMatch(false)
     }
   }
 
-  const removeMatch = async (match) => {
-    if (!window.confirm(`Delete match against ${match.opponent_name}?`)) return
+  const openDelete = (match) => {
+    setDeleteMatch(match)
+    setDeleteModal(true)
+  }
+
+  const removeMatch = async (event) => {
+    event.preventDefault()
+    if (!deleteMatch) return
 
     try {
-      await deleteResource('matches', match.id)
+      setError('')
+      setDeletingMatch(true)
+      await deleteResource('matches', deleteMatch.id)
+      setDeleteModal(false)
+      setDeleteMatch(null)
       await load()
     } catch (err) {
       setError(err.message)
+    } finally {
+      setDeletingMatch(false)
     }
   }
 
@@ -326,6 +354,14 @@ const AdminMatches = ({ currentPath = '#coach/matches' }) => {
       {error && <div className="admin-alert">{error}</div>}
 
       <div className="admin-match-stats">
+        {loading ? (
+          <>
+            <StatCardSkeleton label="Loading practice match count" />
+            <StatCardSkeleton label="Loading actual match count" />
+            <StatCardSkeleton label="Loading scheduled match count" />
+          </>
+        ) : (
+          <>
         <AdminCard className="admin-match-stat practice">
           <span><ClipboardList size={19} /></span>
           <div>
@@ -350,6 +386,8 @@ const AdminMatches = ({ currentPath = '#coach/matches' }) => {
             <small>{countLabel(totalSets(matches), 'set')} total</small>
           </div>
         </AdminCard>
+          </>
+        )}
       </div>
 
       <AdminCard className="admin-matches-card">
@@ -412,7 +450,25 @@ const AdminMatches = ({ currentPath = '#coach/matches' }) => {
           </div>
         </div>
 
-        {visibleMatches.length ? (
+        {loading ? (
+          <div className="admin-table admin-matches-table admin-matches-table-centered">
+            <table className="admin-native-table">
+              <thead>
+                <tr>
+                  <th>Match</th>
+                  <th>Date</th>
+                  <th>Best Of</th>
+                  <th>Type</th>
+                  <th>Result</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <TableSkeletonRows rows={5} columns={6} />
+              </tbody>
+            </table>
+          </div>
+        ) : visibleMatches.length ? (
           <div className="admin-table admin-matches-table admin-matches-table-centered">
             <table className="admin-native-table">
               <thead>
@@ -457,7 +513,7 @@ const AdminMatches = ({ currentPath = '#coach/matches' }) => {
                               <AdminButton variant="secondary" onClick={() => openEdit(match)} aria-label="Edit match">
                                 <Edit3 size={15} />
                               </AdminButton>
-                              <AdminButton variant="danger" onClick={() => removeMatch(match)} aria-label="Delete match">
+                              <AdminButton variant="danger" onClick={() => openDelete(match)} aria-label="Delete match">
                                 <Trash2 size={15} />
                               </AdminButton>
                             </>
@@ -512,7 +568,13 @@ const AdminMatches = ({ currentPath = '#coach/matches' }) => {
         )}
       </AdminCard>
 
-      <AdminModal open={modalOpen} title={editing ? 'Edit Match' : 'Add Match'} onClose={() => setModalOpen(false)}>
+      <AdminModal
+        open={modalOpen}
+        title={editing ? 'Edit Match' : 'Add Match'}
+        onClose={() => {
+          if (!savingMatch) setModalOpen(false)
+        }}
+      >
         <form className="admin-form" onSubmit={submit}>
           <AdminField label="Match Category">
             <AdminSelect
@@ -596,11 +658,79 @@ const AdminMatches = ({ currentPath = '#coach/matches' }) => {
           )}
 
           <div className="admin-form-actions">
-            <AdminButton type="button" variant="secondary" onClick={() => setModalOpen(false)}>Cancel</AdminButton>
-            <AdminButton type="submit">{editing ? 'Save Match' : 'Add Match'}</AdminButton>
+            <AdminButton type="button" variant="secondary" onClick={() => setModalOpen(false)} disabled={savingMatch}>Cancel</AdminButton>
+            <AdminButton type="submit" disabled={savingMatch}>{editing ? 'Save Match' : 'Add Match'}</AdminButton>
           </div>
         </form>
       </AdminModal>
+
+      {savingMatch && (
+        <div className="admin-sync-backdrop" role="presentation">
+          <section className="admin-sync-modal" role="status" aria-live="polite">
+            <div className="admin-sync-spinner" />
+            <h2>{editing ? 'Saving Match' : 'Adding Match'}</h2>
+            <p>{editing ? 'Updating the match details and refreshing the match list.' : 'Creating the match schedule and refreshing the match list.'}</p>
+          </section>
+        </div>
+      )}
+
+      <AdminModal
+        open={deleteModal}
+        title="Delete Match"
+        subtitle="Confirm before removing this match."
+        className="admin-password-modal admin-team-modal"
+        onClose={() => {
+          if (!deletingMatch) setDeleteModal(false)
+        }}
+      >
+        {deleteMatch && (
+          <form className="admin-form" onSubmit={removeMatch}>
+            <div className="admin-password-warning">
+              <TriangleAlert size={17} />
+              <p>This will permanently delete the match against {deleteMatch.opponent_name} and its connected scores, performance logs, attendance records, and lineups from NetMind.</p>
+            </div>
+
+            <div className="admin-delete-summary">
+              <span className="admin-player">
+                <b>VS</b>
+                <span>
+                  <strong>{getName(teams, deleteMatch.team_id)} vs {deleteMatch.opponent_name}</strong>
+                  <small>{formatDate(deleteMatch.match_date)} - {formatBestOf(deleteMatch.best_of)}</small>
+                </span>
+              </span>
+            </div>
+
+            <div className="admin-password-tip">
+              <Info size={18} />
+              <p>Tip: make sure scores and reports are no longer needed before deleting this match.</p>
+            </div>
+
+            <div className="admin-profile-offcanvas-actions">
+              <AdminButton
+                type="button"
+                variant="ghost"
+                onClick={() => setDeleteModal(false)}
+                disabled={deletingMatch}
+              >
+                Cancel
+              </AdminButton>
+              <AdminButton type="submit" className="admin-confirm-button" disabled={deletingMatch}>
+                Confirm
+              </AdminButton>
+            </div>
+          </form>
+        )}
+      </AdminModal>
+
+      {deletingMatch && (
+        <div className="admin-sync-backdrop" role="presentation">
+          <section className="admin-sync-modal" role="status" aria-live="polite">
+            <div className="admin-sync-spinner" />
+            <h2>Deleting Match</h2>
+            <p>Removing the match record and refreshing the match list.</p>
+          </section>
+        </div>
+      )}
 
     </AdminLayout>
   )

@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   BarChart3,
   Bell,
+  ChartNoAxesCombined,
   ClipboardCheck,
   Dumbbell,
   Home,
@@ -104,6 +105,7 @@ const sidebarGroups = [
       { href: '#coach/matches', icon: Swords, label: 'Matches' },
       { href: '#coach/training', icon: Dumbbell, label: 'Training' },
       { href: '#coach/analytics', icon: BarChart3, label: 'Analytics' },
+      { href: '#coach/comparison', icon: ChartNoAxesCombined, label: 'Comparison' },
       { href: '#coach/notifications', icon: Bell, label: 'Notifications' },
     ],
   },
@@ -247,6 +249,34 @@ export const StatCard = ({ icon: Icon, label, value, tone = 'primary' }) => (
   </AdminCard>
 )
 
+export const StatCardSkeleton = ({ label = 'Loading stat' }) => (
+  <AdminCard className="admin-stat-card admin-stat-card-skeleton" aria-label={label}>
+    <span className="admin-skeleton-square" />
+    <span className="admin-skeleton-line" />
+    <strong className="admin-skeleton-line short" />
+  </AdminCard>
+)
+
+export const TableSkeletonRows = ({ rows = 4, columns = 4 }) => (
+  <>
+    {Array.from({ length: rows }).map((_, rowIndex) => (
+      <tr key={`table-skeleton-${rowIndex}`}>
+        {Array.from({ length: columns }).map((__, columnIndex) => (
+          <td key={`table-skeleton-${rowIndex}-${columnIndex}`}>
+            <span className={`admin-skeleton-line ${columnIndex === 0 ? 'wide' : columnIndex === columns - 1 ? 'short' : ''}`} />
+          </td>
+        ))}
+      </tr>
+    ))}
+  </>
+)
+
+export const ListSkeleton = ({ rows = 4 }) => (
+  <div className="admin-skeleton-list" aria-label="Loading content">
+    {Array.from({ length: rows }).map((_, index) => <span key={`list-skeleton-${index}`} />)}
+  </div>
+)
+
 export const BarSet = ({ data, valueKey = 'value', labelKey = 'label' }) => {
   const values = data.map((item) => Number(item[valueKey]) || 0)
   const max = Math.max(...values, 1)
@@ -278,9 +308,13 @@ export const AdminLayout = ({ children, title, kicker, currentPath }) => {
   const activeHash = normalizeActiveHash(hash)
   const searchHidden = /^#(coach|trainer)\/(profile|settings)/.test(hash)
   const navRef = useRef(null)
+  const contentRef = useRef(null)
+  const searchInputRef = useRef(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const sidebarVisible = window.innerWidth > 1100 ? !sidebarCollapsed : sidebarOpen
+  const [searchTerm, setSearchTerm] = useState('')
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [headerProfile, setHeaderProfile] = useState(() => readSavedUser())
@@ -337,6 +371,35 @@ export const AdminLayout = ({ children, title, kicker, currentPath }) => {
     }
   }, [])
 
+  useEffect(() => {
+    setSearchTerm('')
+    setMobileSearchOpen(false)
+  }, [currentPath])
+
+  useEffect(() => {
+    if (mobileSearchOpen) searchInputRef.current?.focus()
+  }, [mobileSearchOpen])
+
+  useEffect(() => {
+    const content = contentRef.current
+    if (!content) return
+
+    const query = searchTerm.trim().toLowerCase()
+    const rows = content.querySelectorAll('.admin-native-table tbody tr')
+
+    rows.forEach((row) => {
+      const matches = !query || row.textContent.toLowerCase().includes(query)
+      row.classList.toggle('admin-search-hidden-row', !matches)
+    })
+
+    const tables = content.querySelectorAll('.admin-table')
+    tables.forEach((tableWrap) => {
+      const tableRows = tableWrap.querySelectorAll('.admin-native-table tbody tr')
+      const visibleRows = tableWrap.querySelectorAll('.admin-native-table tbody tr:not(.admin-search-hidden-row)')
+      tableWrap.classList.toggle('admin-table-search-empty', Boolean(query) && tableRows.length > 0 && visibleRows.length === 0)
+    })
+  })
+
   const closeSidebar = () => setSidebarOpen(false)
   const handleNavClick = () => {
     if (navRef.current) {
@@ -365,7 +428,7 @@ export const AdminLayout = ({ children, title, kicker, currentPath }) => {
   }
 
   return (
-    <main className={`admin-page ${sidebarOpen ? 'sidebar-open' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${isDark ? 'admin-dark' : ''}`}>
+    <main className={`admin-page ${sidebarOpen ? 'sidebar-open' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${mobileSearchOpen ? 'mobile-search-open' : ''} ${isDark ? 'admin-dark' : ''}`}>
       <button
         type="button"
         className="admin-sidebar-backdrop"
@@ -437,7 +500,15 @@ export const AdminLayout = ({ children, title, kicker, currentPath }) => {
               {!searchHidden && (
                 <div className="admin-search-wrap">
                   <Search size={18} />
-                  <input className="admin-search" type="search" placeholder="Search..." aria-label="Search workspace" />
+                  <input
+                    ref={searchInputRef}
+                    className="admin-search"
+                    type="search"
+                    placeholder="Search..."
+                    aria-label="Search visible tables"
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.target.value)}
+                  />
                 </div>
               )}
             <div className="admin-title">
@@ -445,6 +516,17 @@ export const AdminLayout = ({ children, title, kicker, currentPath }) => {
               <h1>{title}</h1>
             </div>
             <div className="admin-header-actions">
+              {!searchHidden && (
+                <button
+                  className="admin-icon-button admin-mobile-search-toggle"
+                  aria-label={mobileSearchOpen ? 'Close search' : 'Open search'}
+                  aria-expanded={mobileSearchOpen}
+                  onClick={() => setMobileSearchOpen((current) => !current)}
+                  type="button"
+                >
+                  <Search size={20} />
+                </button>
+              )}
               <button
                 className="admin-icon-button"
                 aria-label="Toggle dark mode"
@@ -549,7 +631,7 @@ export const AdminLayout = ({ children, title, kicker, currentPath }) => {
           </nav>
         </header>
 
-        <div className="admin-content">
+        <div className="admin-content" ref={contentRef}>
           {children}
         </div>
       </section>

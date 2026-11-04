@@ -8,6 +8,7 @@ import AdminLayout, {
   AdminModal,
   AdminSelect,
   EmptyState,
+  TableSkeletonRows,
   formatDate,
 } from './AdminLayout'
 import { API_BASE, apiRequest, createResource, deleteResource, listResource, readSavedUser, updateResource } from '../../lib/api'
@@ -30,9 +31,11 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
   const [modalOpen, setModalOpen] = useState(false)
   const [assignModal, setAssignModal] = useState(false)
   const [deleteModal, setDeleteModal] = useState(false)
+  const [savingTeam, setSavingTeam] = useState(false)
   const [deletingTeam, setDeletingTeam] = useState(false)
   const [deleteTeam, setDeleteTeam] = useState(null)
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
   const currentUser = readSavedUser()
 
   const availableOwners = useMemo(() => {
@@ -63,6 +66,7 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
   }, [trainerLinks, trainers])
 
   const load = useCallback(async () => {
+    setLoading(true)
     const teamParams = {
       limit: 100,
       sortDir: 'asc',
@@ -85,10 +89,14 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
     setCoaches(coachRows)
     setTrainers(trainerRows.filter((trainer) => scopedTrainerIds.has(String(trainer.id))))
     setTrainerLinks(scopedTrainerLinks)
+    setLoading(false)
   }, [currentUser?.id, currentUser?.role])
 
   useEffect(() => {
-    load().catch((err) => setError(err.message))
+    load().catch((err) => {
+      setError(err.message)
+      setLoading(false)
+    })
   }, [load])
 
   const openCreate = () => {
@@ -159,6 +167,7 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
     setError('')
 
     try {
+      setSavingTeam(true)
       if (editing) {
         await updateResource('teams', editing.id, {
           team_name: form.team_name,
@@ -190,6 +199,8 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
       await load()
     } catch (err) {
       setError(err.message)
+    } finally {
+      setSavingTeam(false)
     }
   }
 
@@ -243,7 +254,9 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
               </tr>
             </thead>
             <tbody>
-              {teams.map((team) => (
+              {loading ? (
+                <TableSkeletonRows rows={4} columns={4} />
+              ) : teams.map((team) => (
                 <tr
                   key={team.id}
                   className="admin-click-row admin-team-color-row"
@@ -291,7 +304,7 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
               ))}
             </tbody>
           </table>
-          {!teams.length && <EmptyState>No teams created yet.</EmptyState>}
+          {!loading && !teams.length && <EmptyState>No teams created yet.</EmptyState>}
         </div>
       </AdminCard>
 
@@ -300,7 +313,9 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
         title={editing ? 'Edit Team' : 'Create Team'}
         subtitle={editing ? 'Update team details and ownership.' : 'Create a volleyball team workspace.'}
         className="admin-password-modal admin-team-modal"
-        onClose={() => setModalOpen(false)}
+        onClose={() => {
+          if (!savingTeam) setModalOpen(false)
+        }}
       >
         <form className="admin-form" onSubmit={submit}>
           <div className="admin-password-tip">
@@ -353,13 +368,23 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
           </div>
 
           <div className="admin-profile-offcanvas-actions">
-            <AdminButton type="button" variant="ghost" onClick={() => setModalOpen(false)}>
+            <AdminButton type="button" variant="ghost" onClick={() => setModalOpen(false)} disabled={savingTeam}>
               Cancel
             </AdminButton>
-            <AdminButton type="submit">{editing ? 'Save Team' : 'Create Team'}</AdminButton>
+            <AdminButton type="submit" disabled={savingTeam}>{editing ? 'Save Team' : 'Create Team'}</AdminButton>
           </div>
         </form>
       </AdminModal>
+
+      {savingTeam && (
+        <div className="admin-sync-backdrop" role="presentation">
+          <section className="admin-sync-modal" role="status" aria-live="polite">
+            <div className="admin-sync-spinner" />
+            <h2>{editing ? 'Saving Team' : 'Creating Team'}</h2>
+            <p>{editing ? 'Updating team details and refreshing the team list.' : 'Creating the team workspace and refreshing the team list.'}</p>
+          </section>
+        </div>
+      )}
 
       <AdminModal
         open={assignModal}
@@ -438,7 +463,7 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
           <form className="admin-form" onSubmit={removeTeam}>
             <div className="admin-password-warning">
               <TriangleAlert size={17} />
-              <p>This will delete {deleteTeam.team_name} and remove its team workspace from NetMind.</p>
+              <p>This will permanently delete {deleteTeam.team_name} and its seasons, matches, scores, performance logs, schedules, QR tokens, attendance, lineups, rankings, comparisons, and player and trainer assignments. Player and trainer accounts will be kept.</p>
             </div>
 
             <div className="admin-delete-summary">
@@ -470,13 +495,23 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
               >
                 Cancel
               </AdminButton>
-              <AdminButton type="submit" variant="danger" disabled={deletingTeam}>
-                {deletingTeam ? 'Deleting...' : 'Delete Team'}
+              <AdminButton type="submit" disabled={deletingTeam}>
+                Confirm
               </AdminButton>
             </div>
           </form>
         )}
       </AdminModal>
+
+      {deletingTeam && (
+        <div className="admin-sync-backdrop" role="presentation">
+          <section className="admin-sync-modal" role="status" aria-live="polite">
+            <div className="admin-sync-spinner" />
+            <h2>Deleting Team</h2>
+            <p>Removing the team workspace and refreshing the team list.</p>
+          </section>
+        </div>
+      )}
     </AdminLayout>
   )
 }

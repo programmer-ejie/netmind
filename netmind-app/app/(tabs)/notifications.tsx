@@ -64,16 +64,22 @@ export default function NotificationsScreen() {
   const handleMarkRead = async (item: NetmindNotification) => {
     if (item.is_read) return;
     const updated = await markRead(item.id);
-    setItems((current) => (
-      current.map((candidate) => (
+    setItems((current) => {
+      const nextItems = current.map((candidate) => (
         candidate.id === updated.id ? updated : candidate
-      ))
-    ));
+      ));
+      DeviceEventEmitter.emit(
+        NOTIFICATION_UNREAD_COUNT_EVENT,
+        nextItems.filter((candidate) => !candidate.is_read).length,
+      );
+      return nextItems;
+    });
   };
 
   const handleMarkAll = async () => {
     await markAllRead();
     setItems((current) => current.map((item) => ({ ...item, is_read: true })));
+    DeviceEventEmitter.emit(NOTIFICATION_UNREAD_COUNT_EVENT, 0);
   };
 
   return (

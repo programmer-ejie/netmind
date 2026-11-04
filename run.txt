@@ -3,3 +3,7 @@ for web and node server
 
 for application 
     npx expo start
+
+to export or build an apk file for the application
+    npx eas build -p android --profile preview
+    

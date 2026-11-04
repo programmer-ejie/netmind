@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, BarChart3, ChevronLeft, ChevronRight, Edit3, Plus, Trash2 } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, BarChart3, CheckCircle2, ChevronLeft, ChevronRight, Edit3, Lightbulb, Plus, Trash2 } from 'lucide-react'
 import AdminLayout, {
   AdminButton,
   AdminCard,
@@ -9,6 +9,7 @@ import AdminLayout, {
   AdminSelect,
   EmptyState,
   StatusBadge,
+  TableSkeletonRows,
   formatDate,
   getName,
   initials,
@@ -26,6 +27,488 @@ const blankCreate = {
   team_id: '',
 }
 const PLAYERS_PER_PAGE = 4
+
+const getLogMetric = (log) => String(log.notes || '').match(/metric:\s*([a-z_]+)/i)?.[1] || ''
+const getLogDate = (log) => (
+  String(log.notes || '').match(/session_date:\s*([0-9-]+)/i)?.[1]
+  || String(log.created_at || '').slice(0, 10)
+)
+const toNumber = (value) => {
+  const number = Number(value)
+  return Number.isFinite(number) ? number : null
+}
+
+const extractMeasurementEntries = (logs = []) => (
+  logs
+    .map((log) => {
+      const metric = getLogMetric(log)
+      const value = toNumber(log.value)
+      if (value === null || !metric) return null
+
+      const type = metric === 'highest_jump' || metric === 'total_jumps'
+        ? 'jump'
+        : metric === 'strongest_spike' || metric === 'total_spikes'
+          ? 'spike'
+          : metric === 'avg_heart_rate'
+            ? 'heart'
+            : ''
+
+      if (!type) return null
+
+      return {
+        id: log.id,
+        date: getLogDate(log),
+        metric,
+        type,
+        value,
+      }
+    })
+    .filter(Boolean)
+    .sort((first, second) => first.date.localeCompare(second.date) || Number(first.id || 0) - Number(second.id || 0))
+)
+
+const average = (values = []) => {
+  const validValues = values.filter((value) => Number.isFinite(value))
+  if (!validValues.length) return null
+  return validValues.reduce((sum, value) => sum + value, 0) / validValues.length
+}
+
+const seriesFor = (entries, metric) => entries.filter((entry) => entry.metric === metric)
+const valuesFor = (entries, metric) => seriesFor(entries, metric).map((entry) => entry.value)
+const latestValue = (values = []) => values.length ? values[values.length - 1] : null
+const previousValue = (values = []) => values.length >= 2 ? values[values.length - 2] : null
+const percentChange = (previous, latest) => previous ? ((latest - previous) / previous) * 100 : 0
+const recentRange = (values = [], count = 3) => {
+  const recent = values.slice(-count)
+  if (recent.length < count) return null
+  return Math.max(...recent) - Math.min(...recent)
+}
+
+const addTrendRecommendation = ({
+  values,
+  label,
+  unit = '',
+  goodThreshold = 4,
+  badThreshold = -5,
+  improveText,
+  declineText,
+  steadyText,
+  suggestion,
+  needsImprovement,
+  keepItUp,
+}) => {
+  const previous = previousValue(values)
+  const latest = latestValue(values)
+  if (previous === null || latest === null) return
+
+  const change = percentChange(previous, latest)
+  const suffix = unit ? ` ${unit}` : ''
+
+  if (change <= badThreshold) {
+    needsImprovement.push({
+      title: `${label} dropped ${Math.abs(change).toFixed(0)}% (${previous.toFixed(1)}${suffix} to ${latest.toFixed(1)}${suffix})`,
+      suggestion: declineText || suggestion,
+    })
+  } else if (change >= goodThreshold) {
+    keepItUp.push(improveText || `${label} improved ${change.toFixed(0)}% over the last entry.`)
+  } else if (steadyText) {
+    keepItUp.push(steadyText)
+  }
+}
+
+const buildPlayerAnalysis = (logs = []) => {
+  const entries = extractMeasurementEntries(logs)
+  if (entries.length < 5) return { ready: false, entries }
+
+  const jumpValues = valuesFor(entries, 'highest_jump')
+  const totalJumpValues = valuesFor(entries, 'total_jumps')
+  const spikeValues = valuesFor(entries, 'strongest_spike')
+  const totalSpikeValues = valuesFor(entries, 'total_spikes')
+  const heartValues = valuesFor(entries, 'avg_heart_rate')
+  const needsImprovement = []
+  const keepItUp = []
+
+  addTrendRecommendation({
+    values: jumpValues,
+    label: 'Jump height',
+    unit: 'in',
+    declineText: 'Add plyometrics 2x/week, reduce heavy jump volume for one session, and review approach mechanics.',
+    steadyText: 'Jump height is holding steady across recent sessions.',
+    needsImprovement,
+    keepItUp,
+  })
+
+  const jumpRange = recentRange(jumpValues, 3)
+  if (jumpRange !== null && jumpRange >= 5) {
+    needsImprovement.push({
+      title: `Jump consistency varies by ${jumpRange.toFixed(1)} inches recently`,
+      suggestion: 'Use a fixed approach rhythm and film takeoff timing before adding more volume.',
+    })
+  } else if (jumpRange !== null) {
+    keepItUp.push('Jump consistency is controlled across the last three jump readings.')
+  }
+
+  if (spikeValues.length >= 3) {
+    const recent = spikeValues.slice(-3)
+    const range = Math.max(...recent) - Math.min(...recent)
+
+    if (range <= 3) {
+      needsImprovement.push({
+        title: `Spike speed plateaued (${Math.min(...recent).toFixed(0)}-${Math.max(...recent).toFixed(0)} km/h recently)`,
+        suggestion: 'Add wrist strength and approach-speed work next block.',
+      })
+    } else if (recent[recent.length - 1] >= Math.max(...recent.slice(0, -1))) {
+      keepItUp.push('Spike speed is trending upward in recent sessions.')
+    }
+  }
+
+  addTrendRecommendation({
+    values: spikeValues,
+    label: 'Strongest spike',
+    unit: 'km/h',
+    goodThreshold: 3,
+    badThreshold: -4,
+    declineText: 'Check shoulder fatigue and add medicine-ball throws before max-speed attacks.',
+    needsImprovement,
+    keepItUp,
+  })
+
+  const latestTotalJumps = latestValue(totalJumpValues)
+  const latestTotalSpikes = latestValue(totalSpikeValues)
+  if (latestTotalJumps !== null) {
+    if (latestTotalJumps >= 70) {
+      needsImprovement.push({
+        title: `Jump load is high at ${latestTotalJumps.toFixed(0)} jumps`,
+        suggestion: 'Reduce extra jump drills next session and prioritize landing quality.',
+      })
+    } else if (latestTotalJumps >= 35) {
+      keepItUp.push('Jump volume is in a productive training range.')
+    } else {
+      needsImprovement.push({
+        title: `Jump volume is low at ${latestTotalJumps.toFixed(0)} jumps`,
+        suggestion: 'Add controlled approach-jump sets if the player is not on a recovery day.',
+      })
+    }
+  }
+
+  if (latestTotalSpikes !== null) {
+    if (latestTotalSpikes >= 45) {
+      needsImprovement.push({
+        title: `Spike volume is high at ${latestTotalSpikes.toFixed(0)} spikes`,
+        suggestion: 'Limit max-effort swings and add shoulder recovery work after practice.',
+      })
+    } else if (latestTotalSpikes >= 15) {
+      keepItUp.push('Spike volume is enough to evaluate attack rhythm without overloading the shoulder.')
+    } else {
+      needsImprovement.push({
+        title: `Spike volume is low at ${latestTotalSpikes.toFixed(0)} spikes`,
+        suggestion: 'Add target-based attack reps when shoulder status is clear.',
+      })
+    }
+  }
+
+  if (latestTotalJumps !== null && latestTotalSpikes !== null && latestTotalJumps > 0) {
+    const spikeRate = (latestTotalSpikes / latestTotalJumps) * 100
+    if (spikeRate < 25) {
+      needsImprovement.push({
+        title: `Attack conversion is low at ${spikeRate.toFixed(0)} spikes per 100 jumps`,
+        suggestion: 'Pair approach jumps with controlled arm-swing timing instead of isolated jumping.',
+      })
+    } else if (spikeRate <= 75) {
+      keepItUp.push('Jump-to-spike balance looks useful for volleyball-specific power.')
+    } else {
+      needsImprovement.push({
+        title: `Spike-to-jump ratio is heavy at ${spikeRate.toFixed(0)} spikes per 100 jumps`,
+        suggestion: 'Add non-swing jump mechanics to protect shoulder load while keeping leg power work.',
+      })
+    }
+  }
+
+  if (heartValues.length >= 2) {
+    const early = average(heartValues.slice(0, Math.ceil(heartValues.length / 2)))
+    const recent = average(heartValues.slice(-Math.ceil(heartValues.length / 2)))
+    if (early !== null && recent !== null) {
+      const change = early ? ((recent - early) / early) * 100 : 0
+      if (change <= -5) {
+        keepItUp.push(`Average heart-rate load improved ${Math.abs(change).toFixed(0)}%.`)
+      } else if (change >= 8) {
+        needsImprovement.push({
+          title: `Average heart-rate load rose ${change.toFixed(0)}%`,
+          suggestion: 'Add recovery intervals and monitor fatigue before high-volume drills.',
+        })
+      }
+    }
+  }
+
+  const latestHeart = latestValue(heartValues)
+  if (latestHeart !== null) {
+    if (latestHeart >= 175) {
+      needsImprovement.push({
+        title: `Heart-rate load is very high at ${latestHeart.toFixed(0)} bpm`,
+        suggestion: 'Use longer rest blocks and avoid stacking max jump and max spike sets.',
+      })
+    } else if (latestHeart >= 150 && latestHeart <= 165) {
+      keepItUp.push('Heart rate is in a strong volleyball conditioning zone for power work.')
+    } else if (latestHeart < 120) {
+      needsImprovement.push({
+        title: `Heart-rate load is low at ${latestHeart.toFixed(0)} bpm`,
+        suggestion: 'Increase drill tempo if the goal is conditioning, or mark the day as recovery.',
+      })
+    }
+  }
+
+  if (!needsImprovement.length) {
+    needsImprovement.push({
+      title: 'No major regression detected in the latest measurements',
+      suggestion: 'Keep collecting jump, spike, and heart-rate data each session.',
+    })
+  }
+
+  if (!keepItUp.length) {
+    keepItUp.push('Consistent data logging is improving the quality of player decisions.')
+  }
+
+  const tip = latestHeart
+    ? `Target controlled spikes while heart rate is near ${Math.max(120, latestHeart - 5).toFixed(0)}-${(latestHeart + 5).toFixed(0)} bpm, then compare jump height after the set.`
+    : 'Capture heart rate with jump and spike values next session to unlock better workload guidance.'
+
+  return { ready: true, entries, needsImprovement, keepItUp, tip }
+}
+
+const MeasurementTrendChart = ({ entries = [] }) => {
+  const width = 560
+  const height = 180
+  const padding = 28
+  const chartEntries = entries.slice(-30)
+  const series = ['jump', 'spike', 'heart'].map((type) => {
+    const values = chartEntries.filter((entry) => entry.type === type).slice(-8)
+    const rawValues = values.map((entry) => entry.value)
+    const minValue = Math.min(...rawValues)
+    const maxValue = Math.max(...rawValues)
+
+    return {
+      type,
+      values,
+      minValue: Number.isFinite(minValue) ? minValue : 0,
+      maxValue: Number.isFinite(maxValue) ? maxValue : 1,
+    }
+  }).filter((item) => item.values.length)
+  const maxPointCount = Math.max(...series.map((item) => item.values.length), 0)
+  const xFor = (index, count) => count <= 1
+    ? width / 2
+    : padding + (index / (count - 1)) * (width - padding * 2)
+  const yFor = (value, minValue, maxValue) => {
+    if (maxValue === minValue) return height / 2
+    return height - padding - ((value - minValue) / Math.max(maxValue - minValue, 1)) * (height - padding * 2)
+  }
+  const pointsFor = (item) => item.values.map((entry, index) => (
+    `${xFor(index, item.values.length)},${yFor(entry.value, item.minValue, item.maxValue)}`
+  )).join(' ')
+
+  if (!series.length) {
+    return (
+      <div className="admin-analysis-chart admin-analysis-chart-empty">
+        <span>No measurement trend yet.</span>
+      </div>
+    )
+  }
+
+  return (
+    <svg className="admin-analysis-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Player line measurement trend chart">
+      <line className="admin-analysis-chart-grid" x1={padding} x2={width - padding} y1={height - padding} y2={height - padding} />
+      <line className="admin-analysis-chart-grid" x1={padding} x2={width - padding} y1={padding} y2={padding} />
+      <line className="admin-analysis-chart-grid muted" x1={padding} x2={width - padding} y1={height / 2} y2={height / 2} />
+      {series.map((item) => (
+        <g className={`admin-analysis-series ${item.type}`} key={item.type}>
+          {item.values.length > 1 ? <polyline points={pointsFor(item)} /> : null}
+          {item.values.map((entry, index) => (
+            <circle
+              key={`${item.type}-${entry.id || entry.date}-${index}`}
+              cx={xFor(index, item.values.length)}
+              cy={yFor(entry.value, item.minValue, item.maxValue)}
+              r="4">
+              <title>{`${item.type}: ${entry.value} (${entry.date})`}</title>
+            </circle>
+          ))}
+        </g>
+      ))}
+      {Array.from({ length: maxPointCount }).map((_, index) => {
+        const label = series.find((item) => item.values[index])?.values[index]?.date
+        if (!label) return null
+
+        return (
+          <text className="admin-analysis-axis-label" key={`${label}-${index}`} x={xFor(index, maxPointCount)} y={height - 8}>
+            {String(label).slice(5)}
+          </text>
+        )
+      })}
+    </svg>
+  )
+}
+
+const PlayerPerformanceAnalysis = ({ player, logs = [] }) => {
+  const analysis = buildPlayerAnalysis(logs)
+
+  if (!analysis.ready) {
+    return (
+      <div className="admin-player-analysis admin-player-analysis-pending">
+        <div>
+          <span className="admin-kicker">Performance Analysis</span>
+          <h4>Collecting baseline</h4>
+          <p>{Math.max(0, 5 - analysis.entries.length)} more measurement entries needed before suggestions appear.</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <section className="admin-player-analysis">
+      <div className="admin-player-analysis-head">
+        <div>
+          <span className="admin-kicker">Performance Analysis</span>
+          <h4><BarChart3 size={20} /> {player?.name || 'Player'}</h4>
+        </div>
+        <div className="admin-analysis-legend">
+          <span className="jump">Jump</span>
+          <span className="spike">Spike</span>
+          <span className="heart">Heart Rate</span>
+        </div>
+      </div>
+
+      <MeasurementTrendChart entries={analysis.entries} />
+
+      <div className="admin-player-analysis-grid">
+        <div className="admin-analysis-list needs">
+          <h5><AlertTriangle size={16} /> Needs Improvement</h5>
+          {analysis.needsImprovement.map((item) => (
+            <article key={item.title}>
+              <strong>{item.title}</strong>
+              <p>{item.suggestion}</p>
+            </article>
+          ))}
+        </div>
+        <div className="admin-analysis-list keep">
+          <h5><CheckCircle2 size={16} /> Keep It Up</h5>
+          {analysis.keepItUp.map((item) => <p key={item}>{item}</p>)}
+        </div>
+      </div>
+
+      <div className="admin-analysis-tip">
+        <Lightbulb size={18} />
+        <p>{analysis.tip}</p>
+      </div>
+    </section>
+  )
+}
+
+const PlayerStatsSkeleton = () => (
+  <div className="admin-stats-modal admin-player-stats-skeleton" aria-label="Loading player stats">
+    <div className="admin-player-summary admin-player-summary-skeleton">
+      <div className="admin-player-summary-main">
+        <span className="admin-skeleton-square admin-player-summary-avatar-skeleton" />
+        <div className="admin-player-summary-copy-skeleton">
+          <span className="admin-skeleton-line short" />
+          <span className="admin-skeleton-line admin-player-name-skeleton" />
+          <span className="admin-skeleton-line wide" />
+          <div className="admin-player-summary-tags admin-player-summary-tags-skeleton">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <span className="admin-skeleton-pill" key={`summary-tag-skeleton-${index}`} />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="admin-player-summary-metrics">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <span className="admin-player-summary-metric-skeleton" key={`summary-metric-skeleton-${index}`}>
+            <i />
+            <b />
+          </span>
+        ))}
+      </div>
+
+      <div className="admin-player-analysis admin-player-analysis-skeleton">
+        <div className="admin-player-analysis-head">
+          <div className="admin-player-analysis-title-skeleton">
+            <span className="admin-skeleton-line short" />
+            <span className="admin-skeleton-line wide" />
+          </div>
+          <div className="admin-analysis-legend admin-analysis-legend-skeleton">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <span key={`analysis-legend-skeleton-${index}`} />
+            ))}
+          </div>
+        </div>
+        <div className="admin-analysis-chart admin-analysis-chart-skeleton">
+          <span className="admin-chart-line one" />
+          <span className="admin-chart-line two" />
+          <span className="admin-chart-line three" />
+          <i className="admin-chart-point first" />
+          <i className="admin-chart-point second" />
+          <i className="admin-chart-point third" />
+        </div>
+      </div>
+    </div>
+
+    <div className="admin-stat-grid compact admin-player-stat-grid">
+      {Array.from({ length: 6 }).map((_, index) => (
+        <AdminCard className="admin-player-stat-card admin-player-stat-card-skeleton" key={`player-stat-card-skeleton-${index}`}>
+          <span className="admin-skeleton-line" />
+          <strong className="admin-skeleton-line short" />
+        </AdminCard>
+      ))}
+    </div>
+
+    <div className="admin-player-stats-layout">
+      <section className="admin-stats-section admin-stats-panel admin-stats-panel-large admin-stats-panel-skeleton">
+        <div className="admin-section-title">
+          <span className="admin-skeleton-line wide" />
+          <span className="admin-skeleton-pill" />
+        </div>
+        <div className="admin-performance-radar admin-performance-radar-skeleton">
+          <div className="admin-performance-radar-copy-skeleton">
+            <span className="admin-skeleton-line short" />
+            <strong className="admin-skeleton-line wide" />
+            <small className="admin-skeleton-line" />
+          </div>
+          <div className="admin-radar-target-skeleton">
+            <span />
+            <span />
+            <span />
+            <i />
+          </div>
+          <div className="admin-performance-radar-legend admin-performance-radar-legend-skeleton">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <span key={`radar-legend-skeleton-${index}`} />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <div className="admin-player-stats-side">
+        {['training', 'health'].map((section) => (
+          <section className="admin-stats-section admin-stats-panel admin-stats-side-skeleton" key={`stats-side-skeleton-${section}`}>
+            <div className="admin-section-title">
+              <span className="admin-skeleton-line wide" />
+              <span className="admin-skeleton-pill" />
+            </div>
+            <div className="admin-info-list">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <article className="admin-info-row admin-info-row-skeleton" key={`${section}-row-skeleton-${index}`}>
+                  <div>
+                    <span className="admin-skeleton-line wide" />
+                    <small className="admin-skeleton-line" />
+                  </div>
+                  <span className="admin-skeleton-pill" />
+                </article>
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+    </div>
+  </div>
+)
 
 const buildActionRadar = (actions = [], logs = []) => {
   const totals = new Map()
@@ -139,6 +622,7 @@ const AdminPlayers = ({ currentPath = '#coach/players' }) => {
   const [stats, setStats] = useState(null)
   const [error, setError] = useState('')
   const [playersPage, setPlayersPage] = useState(1)
+  const [loading, setLoading] = useState(true)
 
   const teamByPlayer = useMemo(() => {
     const map = new Map()
@@ -152,6 +636,7 @@ const AdminPlayers = ({ currentPath = '#coach/players' }) => {
   }, [players, playersPage])
 
   const load = useCallback(async () => {
+    setLoading(true)
     const teamParams = {
       limit: 100,
       ...(currentUser?.role === 'coach' && currentUser?.id ? { coach_id: currentUser.id } : {}),
@@ -175,6 +660,7 @@ const AdminPlayers = ({ currentPath = '#coach/players' }) => {
       setPlayers(playerRows.filter((player) => scopedPlayerIds.has(String(player.id))))
       setTeams(teamRows.filter((team) => trainerTeamIds.has(String(team.id))))
       setMemberships(scopedMemberships)
+      setLoading(false)
       return
     }
 
@@ -185,6 +671,7 @@ const AdminPlayers = ({ currentPath = '#coach/players' }) => {
     setPlayers(playerRows.filter((player) => scopedPlayerIds.has(String(player.id))))
     setTeams(teamRows)
     setMemberships(scopedMemberships)
+    setLoading(false)
   }, [currentUser?.id, currentUser?.role, isTrainerView])
 
   const createPlayer = async (event) => {
@@ -276,7 +763,10 @@ const AdminPlayers = ({ currentPath = '#coach/players' }) => {
   }
 
   useEffect(() => {
-    load().catch((err) => setError(err.message))
+    load().catch((err) => {
+      setError(err.message)
+      setLoading(false)
+    })
 
     if (isStatsPage && statsPlayerId) {
       loadPlayerStats(statsPlayerId).catch((err) => setError(err.message))
@@ -289,7 +779,7 @@ const AdminPlayers = ({ currentPath = '#coach/players' }) => {
 
   const renderStatsContent = () => (
     <>
-      {stats?.loading && <EmptyState>Loading stats...</EmptyState>}
+      {stats?.loading && <PlayerStatsSkeleton />}
       {stats?.error && <div className="admin-alert">{stats.error}</div>}
       {stats && !stats.loading && !stats.error && (
         <div className="admin-stats-modal">
@@ -324,6 +814,7 @@ const AdminPlayers = ({ currentPath = '#coach/players' }) => {
                 <small>Avg RPE</small>
               </span>
             </div>
+            <PlayerPerformanceAnalysis player={stats.player} logs={stats.logs || []} />
           </div>
 
           <div className="admin-stat-grid compact admin-player-stat-grid">
@@ -484,7 +975,9 @@ const AdminPlayers = ({ currentPath = '#coach/players' }) => {
               </tr>
             </thead>
             <tbody>
-              {visiblePlayers.map((player) => (
+              {loading ? (
+                <TableSkeletonRows rows={4} columns={6} />
+              ) : visiblePlayers.map((player) => (
                 <tr key={player.id}>
                   <td>
                     <span className="admin-player">
@@ -524,8 +1017,8 @@ const AdminPlayers = ({ currentPath = '#coach/players' }) => {
               ))}
             </tbody>
           </table>
-          {!players.length && <EmptyState>No player accounts yet.</EmptyState>}
-          <div className="admin-pagination" aria-label="Players pagination">
+          {!loading && !players.length && <EmptyState>No player accounts yet.</EmptyState>}
+          {!loading && <div className="admin-pagination" aria-label="Players pagination">
             <button
               type="button"
               className="admin-pagination-button"
@@ -545,7 +1038,7 @@ const AdminPlayers = ({ currentPath = '#coach/players' }) => {
             >
               <ChevronRight size={17} />
             </button>
-          </div>
+          </div>}
         </div>
       </AdminCard>
 

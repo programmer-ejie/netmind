@@ -13,6 +13,7 @@ import CTASection from './components/CTASection'
 import FooterSection from './components/FooterSection'
 import AuthSection from './components/AuthSection'
 import AdminAnalytics from './pages/admin/AdminAnalytics'
+import AdminComparison from './pages/admin/AdminComparison'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminMatchInputs from './pages/admin/AdminMatchInputs'
 import AdminMatches from './pages/admin/AdminMatches'
@@ -241,6 +242,7 @@ function App() {
       attendance: AdminAttendance,
       wellness: AdminWellness,
       analytics: AdminAnalytics,
+      comparison: AdminComparison,
       notifications: AdminNotifications,
       settings: AdminSettings,
     }

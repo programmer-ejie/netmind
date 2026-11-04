@@ -8,6 +8,7 @@ import AdminLayout, {
   AdminModal,
   EmptyState,
   StatusBadge,
+  TableSkeletonRows,
   formatDate,
   initials,
 } from './AdminLayout'
@@ -40,12 +41,14 @@ const AdminTrainers = ({ currentPath = '#coach/trainers' }) => {
   const [createModal, setCreateModal] = useState(false)
   const [creatingTrainer, setCreatingTrainer] = useState(false)
   const [editModal, setEditModal] = useState(false)
+  const [savingTrainer, setSavingTrainer] = useState(false)
   const [deleteModal, setDeleteModal] = useState(false)
   const [deletingTrainer, setDeletingTrainer] = useState(false)
   const [createForm, setCreateForm] = useState(blankTrainer)
   const [editForm, setEditForm] = useState(null)
   const [deleteTrainer, setDeleteTrainer] = useState(null)
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
 
   const teamsByTrainer = useMemo(() => {
     const map = new Map()
@@ -57,6 +60,7 @@ const AdminTrainers = ({ currentPath = '#coach/trainers' }) => {
   }, [links])
 
   const load = useCallback(async () => {
+    setLoading(true)
     const teamParams = {
       limit: 100,
       ...(currentUser?.role === 'coach' && currentUser?.id ? { coach_id: currentUser.id } : {}),
@@ -75,10 +79,14 @@ const AdminTrainers = ({ currentPath = '#coach/trainers' }) => {
     setTrainers(trainerRows.filter((trainer) => scopedTrainerIds.has(String(trainer.id))))
     setTeams(teamRows)
     setLinks(scopedLinks)
+    setLoading(false)
   }, [currentUser?.id, currentUser?.role])
 
   useEffect(() => {
-    load().catch((err) => setError(err.message))
+    load().catch((err) => {
+      setError(err.message)
+      setLoading(false)
+    })
   }, [load])
 
   const createTrainer = async (event) => {
@@ -148,6 +156,8 @@ const AdminTrainers = ({ currentPath = '#coach/trainers' }) => {
     event.preventDefault()
 
     try {
+      setError('')
+      setSavingTrainer(true)
       await updateResource('users', editForm.id, {
         name: editForm.name,
         is_active: Boolean(editForm.is_active),
@@ -156,6 +166,8 @@ const AdminTrainers = ({ currentPath = '#coach/trainers' }) => {
       await load()
     } catch (err) {
       setError(err.message)
+    } finally {
+      setSavingTrainer(false)
     }
   }
 
@@ -171,7 +183,7 @@ const AdminTrainers = ({ currentPath = '#coach/trainers' }) => {
     try {
       setError('')
       setDeletingTrainer(true)
-      await deleteResource('users', deleteTrainer.id)
+      await deleteResource('trainers', deleteTrainer.id)
       setDeleteModal(false)
       setDeleteTrainer(null)
       await load()
@@ -210,7 +222,9 @@ const AdminTrainers = ({ currentPath = '#coach/trainers' }) => {
               </tr>
             </thead>
             <tbody>
-              {trainers.map((trainer) => {
+              {loading ? (
+                <TableSkeletonRows rows={4} columns={5} />
+              ) : trainers.map((trainer) => {
                 const trainerTeams = teamsByTrainer.get(String(trainer.id)) || []
 
                 return (
@@ -246,7 +260,7 @@ const AdminTrainers = ({ currentPath = '#coach/trainers' }) => {
               })}
             </tbody>
           </table>
-          {!trainers.length && <EmptyState>No trainer accounts yet.</EmptyState>}
+          {!loading && !trainers.length && <EmptyState>No trainer accounts yet.</EmptyState>}
         </div>
       </AdminCard>
 
@@ -296,7 +310,9 @@ const AdminTrainers = ({ currentPath = '#coach/trainers' }) => {
         title="Edit Trainer"
         subtitle="Update trainer details and account status."
         className="admin-password-modal admin-create-trainer-modal"
-        onClose={() => setEditModal(false)}
+        onClose={() => {
+          if (!savingTrainer) setEditModal(false)
+        }}
       >
         {editForm && (
           <form className="admin-form" onSubmit={saveTrainer}>
@@ -319,12 +335,22 @@ const AdminTrainers = ({ currentPath = '#coach/trainers' }) => {
               Active account
             </label>
             <div className="admin-profile-offcanvas-actions">
-              <AdminButton type="button" variant="ghost" onClick={() => setEditModal(false)}>Cancel</AdminButton>
-              <AdminButton type="submit">Save Trainer</AdminButton>
+              <AdminButton type="button" variant="ghost" onClick={() => setEditModal(false)} disabled={savingTrainer}>Cancel</AdminButton>
+              <AdminButton type="submit" disabled={savingTrainer}>Save Trainer</AdminButton>
             </div>
           </form>
         )}
       </AdminModal>
+
+      {savingTrainer && (
+        <div className="admin-sync-backdrop" role="presentation">
+          <section className="admin-sync-modal" role="status" aria-live="polite">
+            <div className="admin-sync-spinner" />
+            <h2>Saving Trainer</h2>
+            <p>Updating trainer details and refreshing the trainer list.</p>
+          </section>
+        </div>
+      )}
 
       <AdminModal
         open={deleteModal}
@@ -364,12 +390,22 @@ const AdminTrainers = ({ currentPath = '#coach/trainers' }) => {
                 Cancel
               </AdminButton>
               <AdminButton type="submit" className="admin-confirm-button" disabled={deletingTrainer}>
-                {deletingTrainer ? 'Confirming...' : 'Confirm'}
+                Confirm
               </AdminButton>
             </div>
           </form>
         )}
       </AdminModal>
+
+      {deletingTrainer && (
+        <div className="admin-sync-backdrop" role="presentation">
+          <section className="admin-sync-modal" role="status" aria-live="polite">
+            <div className="admin-sync-spinner" />
+            <h2>Deleting Trainer</h2>
+            <p>Removing the trainer account and refreshing the trainer list.</p>
+          </section>
+        </div>
+      )}
 
     </AdminLayout>
   )

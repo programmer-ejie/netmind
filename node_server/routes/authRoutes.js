@@ -70,6 +70,36 @@ function generateTemporaryPassword(length = 16) {
   return Array.from(bytes, (byte) => chars[byte % chars.length]).join("");
 }
 
+function logEmailFailure(context, error) {
+  const port = Number(process.env.EMAIL_PORT || 465);
+  const secure = process.env.EMAIL_SECURE
+    ? String(process.env.EMAIL_SECURE).toLowerCase() === "true"
+    : true;
+
+  console.error(`[email:${context}:failed]`, {
+    reason: error?.response || error?.message || "Unknown SMTP error",
+    smtp: {
+      host: process.env.EMAIL_HOST || "smtp.gmail.com",
+      port,
+      secure,
+      user: process.env.EMAIL_USER ? process.env.EMAIL_USER.trim() : undefined,
+      forceIpv4: process.env.EMAIL_FORCE_IPV4 !== "false",
+    },
+    code: error?.code,
+    command: error?.command,
+    responseCode: error?.responseCode,
+    response: error?.response,
+    attempts: error?.smtpAttempts,
+    brevoApi: error?.brevoApi,
+    gmailApi: error?.gmailApi,
+    message: error?.message,
+    syscall: error?.syscall,
+    address: error?.address,
+    port: error?.port,
+    cause: error?.cause?.message,
+  });
+}
+
 router.post(
   "/register-coach",
   registrationLimiter,
@@ -135,7 +165,9 @@ router.post(
         password: temporaryPassword,
       });
       emailMs = Math.round(performance.now() - emailStartedAt);
-    } catch {
+    } catch (error) {
+      logEmailFailure("temporary-password-coach", error);
+
       if (user?.id) {
         await query("DELETE FROM users WHERE id = ? AND role = 'coach'", [user.id]);
       }
@@ -189,7 +221,8 @@ router.post(
         await query(
           `INSERT INTO coach_trainers (coach_id, trainer_id)
           VALUES (?, ?)
-          ON DUPLICATE KEY UPDATE created_at = CURRENT_TIMESTAMP`,
+          ON CONFLICT (coach_id, trainer_id)
+          DO UPDATE SET created_at = CURRENT_TIMESTAMP`,
           [coachId, existing[0].id]
         );
 
@@ -229,7 +262,8 @@ router.post(
         await connection.execute(
           `INSERT INTO coach_trainers (coach_id, trainer_id)
           VALUES (?, ?)
-          ON DUPLICATE KEY UPDATE created_at = CURRENT_TIMESTAMP`,
+          ON CONFLICT (coach_id, trainer_id)
+          DO UPDATE SET created_at = CURRENT_TIMESTAMP`,
           [coachId, user.id]
         );
       }
@@ -251,7 +285,9 @@ router.post(
         password: temporaryPassword,
       });
       emailMs = Math.round(performance.now() - emailStartedAt);
-    } catch {
+    } catch (error) {
+      logEmailFailure("temporary-password-trainer", error);
+
       if (user?.id) {
         await query("DELETE FROM users WHERE id = ? AND role = 'trainer'", [user.id]);
       }
@@ -341,7 +377,9 @@ router.post(
         password: temporaryPassword,
       });
       emailMs = Math.round(performance.now() - emailStartedAt);
-    } catch {
+    } catch (error) {
+      logEmailFailure("temporary-password-player", error);
+
       if (user?.id) {
         await query("DELETE FROM users WHERE id = ? AND role = 'player'", [user.id]);
       }

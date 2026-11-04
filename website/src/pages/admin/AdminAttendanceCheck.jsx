@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react'
-import { ArrowLeft, CalendarDays, CheckCircle2, Clock3, UserX, Users } from 'lucide-react'
+import { Activity, ArrowLeft, CalendarDays, CheckCircle2, Clock3, UserX, Users, X } from 'lucide-react'
 import AdminLayout, {
+  AdminButton,
   AdminCard,
+  AdminField,
+  AdminInput,
   EmptyState,
+  ListSkeleton,
   StatusBadge,
   formatDate,
 } from './AdminLayout'
@@ -15,6 +19,10 @@ const AdminAttendanceCheck = ({ scheduleId, currentPath = `#trainer/attendance/$
   const [players, setPlayers] = useState([])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
+  const [inputPlayer, setInputPlayer] = useState(null)
+  const [inputMode, setInputMode] = useState('add')
+  const [trainerInput, setTrainerInput] = useState({ highest_jump: '', strongest_spike: '' })
+  const [savingInput, setSavingInput] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -48,6 +56,62 @@ const AdminAttendanceCheck = ({ scheduleId, currentPath = `#trainer/attendance/$
   const notCheckedCount = Math.max(totalPlayers - checkedCount, 0)
   const checkedPercent = totalPlayers ? Math.round((checkedCount / totalPlayers) * 100) : 0
   const teamName = team?.team_name || 'Team'
+  const hasInputValue = (value) => value !== null && value !== undefined && value !== ''
+  const hasTrainerInputValue = (input) => Boolean(input) && (
+    hasInputValue(input.highest_jump) || hasInputValue(input.strongest_spike)
+  )
+  const formatTrainerValue = (value, unit) => (hasInputValue(value) ? `${value} ${unit}` : '--')
+
+  const openTrainerInput = (player) => {
+    const hasTrainerInput = hasTrainerInputValue(player.trainer_input)
+
+    setInputPlayer(player)
+    setInputMode(hasTrainerInput ? 'view' : 'add')
+    setTrainerInput({
+      highest_jump: player.trainer_input?.highest_jump ?? '',
+      strongest_spike: player.trainer_input?.strongest_spike ?? '',
+    })
+    setError('')
+  }
+
+  const saveTrainerInput = async (event) => {
+    event.preventDefault()
+    if (!inputPlayer || savingInput) return
+
+    try {
+      setSavingInput(true)
+      const payload = await apiRequest(
+        `/training-schedules/${scheduleId}/players/${inputPlayer.player_id}/trainer-input`,
+        {
+          method: 'POST',
+          body: {
+            highest_jump: trainerInput.highest_jump,
+            strongest_spike: trainerInput.strongest_spike,
+          },
+        }
+      )
+
+      setPlayers((current) => current.map((player) => (
+        String(player.player_id) === String(inputPlayer.player_id)
+          ? {
+              ...player,
+              trainer_input: {
+                highest_jump: payload.highest_jump,
+                strongest_spike: payload.strongest_spike,
+              },
+            }
+          : player
+      )))
+      setInputPlayer(null)
+      setInputMode('add')
+      setTrainerInput({ highest_jump: '', strongest_spike: '' })
+      setError('')
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSavingInput(false)
+    }
+  }
 
   return (
     <AdminLayout title="Attendance Check" currentPath={currentPath}>
@@ -117,21 +181,42 @@ const AdminAttendanceCheck = ({ scheduleId, currentPath = `#trainer/attendance/$
             <span>Player</span>
             <span>Position</span>
             <span>Jersey</span>
+            <span>Highest Jump</span>
+            <span>Strongest Spike</span>
             <span>Status</span>
           </div>
-          {players.map((player) => {
+          {loading ? (
+            <ListSkeleton rows={4} />
+          ) : players.map((player) => {
+            const hasTrainerInput = hasTrainerInputValue(player.trainer_input)
+
             return (
-              <article className="admin-attendance-player-row" key={player.player_id}>
+              <article
+                className="admin-attendance-player-row is-clickable"
+                key={player.player_id}
+                role="button"
+                tabIndex={0}
+                onClick={() => openTrainerInput(player)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    openTrainerInput(player)
+                  }
+                }}
+                aria-label={`${hasTrainerInput ? 'View' : 'Add'} trainer input for ${player.name}`}
+              >
                 <div className="admin-attendance-player-main">
                   <strong>{player.name}</strong>
                   <small>{player.email || 'Player'}</small>
                 </div>
                 <span>{player.position || '-'}</span>
                 <span>{player.jersey_number ? `#${player.jersey_number}` : '-'}</span>
-                {player.checked_in ? (
-                  <StatusBadge tone="success">Checked In</StatusBadge>
+                <span>{formatTrainerValue(player.trainer_input?.highest_jump, 'in')}</span>
+                <span>{formatTrainerValue(player.trainer_input?.strongest_spike, 'km/h')}</span>
+                {hasTrainerInput ? (
+                  <StatusBadge tone="success">Done</StatusBadge>
                 ) : (
-                  <StatusBadge tone="warning">Not Checked In</StatusBadge>
+                  <StatusBadge tone="warning">Pending</StatusBadge>
                 )}
               </article>
             )
@@ -139,6 +224,98 @@ const AdminAttendanceCheck = ({ scheduleId, currentPath = `#trainer/attendance/$
         </div>
         {!players.length && !loading && <EmptyState>No players found for this team.</EmptyState>}
       </AdminCard>
+
+      {inputPlayer && (
+        <div
+          className="admin-offcanvas-backdrop"
+          role="presentation"
+          onMouseDown={() => {
+            if (!savingInput) setInputPlayer(null)
+          }}
+        >
+          <aside
+            className="admin-offcanvas admin-trainer-input-offcanvas"
+            aria-label="Trainer attendance input"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="admin-offcanvas-header">
+              <div>
+                <p className="admin-kicker">{inputMode === 'view' ? 'Trainer Input Review' : 'Trainer Input'}</p>
+                <h2>{inputPlayer.name}</h2>
+                <small>{formatDate(schedule?.session_date)} - {schedule?.session_type || 'training'}</small>
+              </div>
+              <button
+                type="button"
+                className="admin-modal-close"
+                onClick={() => setInputPlayer(null)}
+                aria-label="Close trainer input"
+                disabled={savingInput}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="admin-password-tip">
+              <Activity size={18} />
+              <p>Tip: enter the best verified measurement from this session. Highest jump is vertical reach output, and strongest spike is the fastest recorded attack speed.</p>
+            </div>
+
+            <form className="admin-form admin-trainer-input-form" onSubmit={saveTrainerInput}>
+              <AdminField label="Highest Jump" className="admin-trainer-input-field">
+                <div className="admin-unit-input">
+                  <AdminInput
+                    disabled={savingInput || inputMode === 'view'}
+                    min="0"
+                    step="0.1"
+                    type="number"
+                    value={trainerInput.highest_jump}
+                    onChange={(event) => setTrainerInput((current) => ({ ...current, highest_jump: event.target.value }))}
+                    placeholder="32"
+                  />
+                  <span>inches</span>
+                </div>
+              </AdminField>
+              <AdminField label="Strongest Spike" className="admin-trainer-input-field">
+                <div className="admin-unit-input">
+                  <AdminInput
+                    disabled={savingInput || inputMode === 'view'}
+                    min="0"
+                    step="0.1"
+                    type="number"
+                    value={trainerInput.strongest_spike}
+                    onChange={(event) => setTrainerInput((current) => ({ ...current, strongest_spike: event.target.value }))}
+                    placeholder="78"
+                  />
+                  <span>km/h</span>
+                </div>
+              </AdminField>
+              <div className="admin-profile-offcanvas-actions">
+                <AdminButton
+                  type="button"
+                  variant={inputMode === 'view' ? 'danger' : 'secondary'}
+                  onClick={() => setInputPlayer(null)}
+                  disabled={savingInput}
+                >
+                  {inputMode === 'view' ? 'Close' : 'Cancel'}
+                </AdminButton>
+                {inputMode !== 'view' && (
+                  <AdminButton type="submit" disabled={savingInput}>{savingInput ? 'Saving...' : 'Save Input'}</AdminButton>
+                )}
+              </div>
+            </form>
+          </aside>
+        </div>
+      )}
+
+      {savingInput && (
+        <div className="admin-sync-backdrop" role="presentation">
+          <section className="admin-sync-modal" role="status" aria-live="polite">
+            <div className="admin-sync-spinner" />
+            <h2>Saving Trainer Input</h2>
+            <p>Saving the player&apos;s highest jump and strongest spike for this attendance session.</p>
+          </section>
+        </div>
+      )}
     </AdminLayout>
   )
 }

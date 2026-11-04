@@ -4,7 +4,10 @@ import AdminLayout, {
   AdminCard,
   AdminSelect,
   EmptyState,
+  ListSkeleton,
+  StatCardSkeleton,
   StatusBadge,
+  TableSkeletonRows,
   formatDate,
   getName,
 } from './AdminLayout'
@@ -168,8 +171,10 @@ const AdminWellness = ({ currentPath = '#trainer/wellness' }) => {
   const [error, setError] = useState('')
   const [checkinsPage, setCheckinsPage] = useState(1)
   const [injuriesPage, setInjuriesPage] = useState(1)
+  const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
+    setLoading(true)
     const [checkInRows, injuryRows, playerRows, memberRows, trainerLinkRows] = await Promise.all([
       listResource('wellness-checkins', { limit: 500 }),
       listResource('injury-logs', { limit: 500 }),
@@ -214,10 +219,14 @@ const AdminWellness = ({ currentPath = '#trainer/wellness' }) => {
     setPlayers(scopedPlayers)
     setInjuries(scopedInjuries)
     setLogs(wellnessRows)
+    setLoading(false)
   }, [currentUser?.id, isTrainerView])
 
   useEffect(() => {
-    load().catch((err) => setError(err.message))
+    load().catch((err) => {
+      setError(err.message)
+      setLoading(false)
+    })
   }, [load])
 
   const summary = useMemo(() => {
@@ -271,14 +280,26 @@ const AdminWellness = ({ currentPath = '#trainer/wellness' }) => {
       {error && <div className="admin-alert">{error}</div>}
 
       <div className="admin-stat-grid admin-wellness-metric-grid">
-        <WellnessMetric icon={Activity} label="Wellness Logs" value={logs.length} detail={`${summary.latestByPlayer.length}/${players.length} players logged`} />
-        <WellnessMetric icon={Zap} label="Average RPE" value={formatAverage(summary.avgRpe)} detail="Player-reported effort" tone="load" />
-        <WellnessMetric icon={Moon} label="Average Sleep" value={formatAverage(summary.avgSleep)} detail="Hours from player check-ins" tone="sleep" />
-        <WellnessMetric icon={AlertTriangle} label="Risk Flags" value={summary.highRisk + summary.watchRisk} detail={`${summary.flaggedInjuries} injury report${summary.flaggedInjuries === 1 ? '' : 's'}`} tone={summary.highRisk ? 'danger' : 'warning'} />
+        {loading ? (
+          Array.from({ length: 4 }).map((_, index) => <StatCardSkeleton key={`wellness-stat-skeleton-${index}`} />)
+        ) : (
+          <>
+            <WellnessMetric icon={Activity} label="Wellness Logs" value={logs.length} detail={`${summary.latestByPlayer.length}/${players.length} players logged`} />
+            <WellnessMetric icon={Zap} label="Average RPE" value={formatAverage(summary.avgRpe)} detail="Player-reported effort" tone="load" />
+            <WellnessMetric icon={Moon} label="Average Sleep" value={formatAverage(summary.avgSleep)} detail="Hours from player check-ins" tone="sleep" />
+            <WellnessMetric icon={AlertTriangle} label="Risk Flags" value={summary.highRisk + summary.watchRisk} detail={`${summary.flaggedInjuries} injury report${summary.flaggedInjuries === 1 ? '' : 's'}`} tone={summary.highRisk ? 'danger' : 'warning'} />
+          </>
+        )}
       </div>
 
       <div className="admin-wellness-visual-grid">
-        <WellnessTrend logs={logs} />
+        {loading ? (
+          <AdminCard className="admin-wellness-chart-card">
+            <ListSkeleton rows={6} />
+          </AdminCard>
+        ) : (
+          <WellnessTrend logs={logs} />
+        )}
       </div>
 
       <AdminCard className="admin-wellness-section-card">
@@ -312,7 +333,9 @@ const AdminWellness = ({ currentPath = '#trainer/wellness' }) => {
               </tr>
             </thead>
             <tbody>
-              {visibleTableLogs.map((log) => {
+              {loading ? (
+                <TableSkeletonRows rows={4} columns={7} />
+              ) : visibleTableLogs.map((log) => {
                 const risk = getRiskLevel(log)
 
                 return (
@@ -336,8 +359,8 @@ const AdminWellness = ({ currentPath = '#trainer/wellness' }) => {
               })}
             </tbody>
           </table>
-          {!tableLogs.length && <EmptyState>No wellness logs for this player yet.</EmptyState>}
-          <div className="admin-pagination" aria-label="Recovery check-ins pagination">
+          {!loading && !tableLogs.length && <EmptyState>No wellness logs for this player yet.</EmptyState>}
+          {!loading && <div className="admin-pagination" aria-label="Recovery check-ins pagination">
             <button
               type="button"
               className="admin-pagination-button"
@@ -357,7 +380,7 @@ const AdminWellness = ({ currentPath = '#trainer/wellness' }) => {
             >
               <ChevronRight size={17} />
             </button>
-          </div>
+          </div>}
         </div>
       </AdminCard>
 
@@ -381,7 +404,9 @@ const AdminWellness = ({ currentPath = '#trainer/wellness' }) => {
               </tr>
             </thead>
             <tbody>
-              {visibleInjuries.map((injury) => (
+              {loading ? (
+                <TableSkeletonRows rows={4} columns={5} />
+              ) : visibleInjuries.map((injury) => (
                 <tr key={injury.id}>
                   <td>{formatDate(injury.occurred_at || injury.created_at)}</td>
                   <td>
@@ -399,8 +424,8 @@ const AdminWellness = ({ currentPath = '#trainer/wellness' }) => {
               ))}
             </tbody>
           </table>
-          {!injuries.length && <EmptyState>No injury reports yet.</EmptyState>}
-          <div className="admin-pagination" aria-label="Injury reports pagination">
+          {!loading && !injuries.length && <EmptyState>No injury reports yet.</EmptyState>}
+          {!loading && <div className="admin-pagination" aria-label="Injury reports pagination">
             <button
               type="button"
               className="admin-pagination-button"
@@ -420,7 +445,7 @@ const AdminWellness = ({ currentPath = '#trainer/wellness' }) => {
             >
               <ChevronRight size={17} />
             </button>
-          </div>
+          </div>}
         </div>
       </AdminCard>
 

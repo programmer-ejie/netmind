@@ -17,7 +17,7 @@ import {
   View,
 } from 'react-native';
 
-import { Card, Screen, SectionTitle } from '@/components/netmind-ui';
+import { Card, Screen, SectionTitle, useKeyboardScrollPadding } from '@/components/netmind-ui';
 import { useNetmindTheme } from '@/contexts/netmind-theme';
 import { parseDateInput, toLocalDateKey } from '@/lib/dateKeys';
 import {
@@ -102,6 +102,7 @@ const fromDateInput = (value: string) => {
 
 export default function ProfileScreen() {
   const { colors, isDark } = useNetmindTheme();
+  const formPaddingBottom = useKeyboardScrollPadding(16, 24);
   const [profile, setProfile] = useState<NetmindUser | null>(null);
   const [teamName, setTeamName] = useState('No team linked yet');
   const [loading, setLoading] = useState(true);
@@ -346,7 +347,8 @@ export default function ProfileScreen() {
         visible={editOpen}>
         <View style={[styles.modalBackdrop, isDark ? styles.modalBackdropDark : styles.modalBackdropLight]}>
           <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
             style={styles.keyboardAvoider}>
             <View style={[styles.editModal, { backgroundColor: colors.surface, borderColor: colors.line }]}>
               <View style={[styles.modalHandle, { backgroundColor: colors.line }]} />
@@ -361,7 +363,9 @@ export default function ProfileScreen() {
               </View>
 
               <ScrollView
-                contentContainerStyle={styles.form}
+                automaticallyAdjustKeyboardInsets
+                contentContainerStyle={[styles.form, { paddingBottom: formPaddingBottom }]}
+                keyboardDismissMode="interactive"
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}>
                 <EditField label="Name" value={form.name} onChangeText={(value) => updateForm('name', value)} />
@@ -706,7 +710,9 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   keyboardAvoider: {
+    flex: 1,
     justifyContent: 'flex-end',
+    width: '100%',
   },
   modalBackdropDark: {
     backgroundColor: 'rgba(3, 18, 25, 0.72)',

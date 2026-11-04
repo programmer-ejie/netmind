@@ -16,6 +16,8 @@ const defaultCorsOrigins = [
   "http://127.0.0.1:5173",
   "http://127.0.0.1:5174",
   "http://127.0.0.1:8081",
+  "https://netmind-plum.vercel.app",
+  "https://netmind-ngonn7a8m-programmer-ejies-projects.vercel.app",
 ];
 
 function createCorsMiddleware() {

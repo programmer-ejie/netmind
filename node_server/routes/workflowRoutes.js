@@ -1,6 +1,8 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
+const fs = require("fs");
+const path = require("path");
 const { pool, query } = require("../config/db");
 const asyncHandler = require("../utils/asyncHandler");
 const ApiError = require("../utils/apiError");
@@ -11,6 +13,7 @@ const {
 } = require("../src/services/notificationService");
 const { toLocalDateKey } = require("../utils/dateKeys");
 const { deletePlayerById } = require("../utils/playerDeletion");
+const { deleteTrainerById } = require("../utils/trainerDeletion");
 const { sendPasswordResetCodeEmail } = require("../utils/emailService");
 const { requireRoles, requireSelf } = require("../middleware/authorization");
 const {
@@ -87,6 +90,7 @@ const exportTables = [
   "coach_trainers",
   "seasons",
   "matches",
+  "match_scores",
   "team_rankings",
   "drills",
   "training_assignments",
@@ -99,7 +103,13 @@ const exportTables = [
   "injury_logs",
   "lineups",
   "player_comparisons",
+  "notifications",
+  "push_subscriptions",
 ];
+
+const exportSkipColumns = {
+  drill_performance_logs: new Set(["success_rate"]),
+};
 
 function formatPasswordCode(code) {
   return `${code.slice(0, 3)}-${code.slice(3)}`;
@@ -125,7 +135,7 @@ function sqlValue(value) {
   if (value === null || value === undefined) return "NULL";
   if (value instanceof Date) return `'${value.toISOString().slice(0, 19).replace("T", " ")}'`;
   if (typeof value === "number") return String(value);
-  if (typeof value === "boolean") return value ? "1" : "0";
+  if (typeof value === "boolean") return value ? "true" : "false";
 
   return `'${String(value).replace(/\\/g, "\\\\").replace(/'/g, "''")}'`;
 }
@@ -133,14 +143,13 @@ function sqlValue(value) {
 function buildInsertSql(table, rows) {
   if (!rows.length) return `-- No data for ${table}\n`;
 
-  const columns = Object.keys(rows[0]);
+  const skipColumns = exportSkipColumns[table] || new Set();
+  const columns = Object.keys(rows[0]).filter((column) => !skipColumns.has(column));
   const values = rows.map((row) => `(${columns.map((column) => sqlValue(row[column])).join(", ")})`);
 
   return [
-    `LOCK TABLES \`${table}\` WRITE;`,
-    `INSERT INTO \`${table}\` (${columns.map((column) => `\`${column}\``).join(", ")}) VALUES`,
+    `INSERT INTO "${table}" (${columns.map((column) => `"${column}"`).join(", ")}) VALUES`,
     `${values.join(",\n")};`,
-    "UNLOCK TABLES;",
     "",
   ].join("\n");
 }
@@ -158,6 +167,157 @@ async function ensureRecord(table, id, label) {
   }
 
   return record;
+}
+
+function optionalNonNegativeNumber(value, field) {
+  if (value === undefined || value === null || value === "") return null;
+
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < 0) {
+    throw new ApiError(400, `${field} must be a non-negative number`);
+  }
+
+  return number;
+}
+
+async function upsertAfterTrainingReport({ attendanceLog, playerId, sessionType, sessionDate, report }) {
+  if (!report || typeof report !== "object") return [];
+
+  const metrics = [
+    {
+      field: "total_jumps",
+      actionType: "jump",
+      value: optionalNonNegativeNumber(report.total_jumps, "total_jumps"),
+      label: "Total jumps",
+    },
+    {
+      field: "total_spikes",
+      actionType: "spike",
+      value: optionalNonNegativeNumber(report.total_spikes, "total_spikes"),
+      label: "Total spikes",
+    },
+    {
+      field: "avg_heart_rate",
+      actionType: "run",
+      value: optionalNonNegativeNumber(report.avg_heart_rate, "avg_heart_rate"),
+      label: "Average heart rate",
+    },
+  ].filter((metric) => metric.value !== null);
+
+  if (!metrics.length) return [];
+
+  const savedLogs = [];
+  for (const metric of metrics) {
+    const notes = [
+      "After training report",
+      `attendance_log_id: ${attendanceLog.id}`,
+      `metric: ${metric.field}`,
+      `${metric.label}: ${metric.value}`,
+    ].join("\n");
+    const existing = await query(
+      `SELECT id FROM performance_logs
+      WHERE user_id = ?
+        AND session_type = ?
+        AND action_type = ?
+        AND notes LIKE ?
+      ORDER BY created_at DESC
+      LIMIT 1`,
+      [playerId, sessionType, metric.actionType, `%attendance_log_id: ${attendanceLog.id}%`]
+    );
+
+    if (existing.length) {
+      await query(
+        `UPDATE performance_logs
+        SET value = ?,
+          result = 'normal',
+          notes = ?
+        WHERE id = ?`,
+        [metric.value, notes, existing[0].id]
+      );
+      savedLogs.push(await getById("performance_logs", existing[0].id));
+      continue;
+    }
+
+    const result = await query(
+      `INSERT INTO performance_logs
+        (user_id, session_type, match_id, match_number, season_id, action_type, result, value, minutes_played, fatigue_level, rpe, sleep_quality, energy_level, confidence_level, focus_level, injury_status, notes)
+      VALUES (?, ?, NULL, 1, NULL, ?, 'normal', ?, 0, NULL, NULL, NULL, NULL, NULL, NULL, 'none', ?)`,
+      [playerId, sessionType, metric.actionType, metric.value, notes]
+    );
+    savedLogs.push(await getById("performance_logs", result.insertId));
+  }
+
+  return savedLogs;
+}
+
+async function upsertTrainerAttendanceInput({ schedule, playerId, input }) {
+  if (!input || typeof input !== "object") return [];
+
+  const metrics = [
+    {
+      field: "highest_jump",
+      actionType: "jump",
+      value: optionalNonNegativeNumber(input.highest_jump, "highest_jump"),
+      label: "Highest jump",
+      unit: "inches",
+    },
+    {
+      field: "strongest_spike",
+      actionType: "spike",
+      value: optionalNonNegativeNumber(input.strongest_spike, "strongest_spike"),
+      label: "Strongest spike",
+      unit: "km/h",
+    },
+  ].filter((metric) => metric.value !== null);
+
+  if (!metrics.length) {
+    throw new ApiError(400, "Enter highest_jump or strongest_spike");
+  }
+
+  const savedLogs = [];
+  for (const metric of metrics) {
+    const notes = [
+      "Trainer attendance input",
+      `training_schedule_id: ${schedule.id}`,
+      `session_date: ${toLocalDateKey(schedule.session_date)}`,
+      `metric: ${metric.field}`,
+      `${metric.label}: ${metric.value} ${metric.unit}`,
+    ].join("\n");
+    const existing = await query(
+      `SELECT id FROM performance_logs
+      WHERE user_id = ?
+        AND session_type = ?
+        AND action_type = ?
+        AND notes LIKE ?
+        AND notes LIKE ?
+      ORDER BY created_at DESC
+      LIMIT 1`,
+      [playerId, schedule.session_type, metric.actionType, `%training_schedule_id: ${schedule.id}%`, `%metric: ${metric.field}%`]
+    );
+
+    if (existing.length) {
+      await query(
+        `UPDATE performance_logs
+        SET value = ?,
+          result = 'normal',
+          notes = ?
+        WHERE id = ?`,
+        [metric.value, notes, existing[0].id]
+      );
+      savedLogs.push(await getById("performance_logs", existing[0].id));
+      continue;
+    }
+
+    const result = await query(
+      `INSERT INTO performance_logs
+        (user_id, session_type, match_id, match_number, season_id, action_type, result, value, minutes_played, fatigue_level, rpe, sleep_quality, energy_level, confidence_level, focus_level, injury_status, notes)
+      VALUES (?, ?, NULL, 1, NULL, ?, 'normal', ?, 0, NULL, NULL, NULL, NULL, NULL, NULL, 'none', ?)`,
+      [playerId, schedule.session_type, metric.actionType, metric.value, notes]
+    );
+    savedLogs.push(await getById("performance_logs", result.insertId));
+  }
+
+  return savedLogs;
 }
 
 function visiblePlayersQuery(user) {
@@ -364,27 +524,18 @@ router.get("/routes", (req, res) => {
 });
 
 router.get("/database/export", requireRoles("coach"), asyncHandler(async (req, res) => {
-  const dbName = process.env.DB_NAME || "netmind";
+  const schemaPath = path.join(__dirname, "..", "database", "schema.sql");
   const parts = [
     `-- NetMind database export`,
     `-- Generated at ${new Date().toISOString()}`,
-    `CREATE DATABASE IF NOT EXISTS \`${dbName}\`;`,
-    `USE \`${dbName}\`;`,
-    "SET FOREIGN_KEY_CHECKS=0;",
+    fs.readFileSync(schemaPath, "utf8"),
     "",
   ];
 
   for (const table of exportTables) {
-    const createRows = await query(`SHOW CREATE TABLE \`${table}\``);
     const rows = await query(`SELECT * FROM \`${table}\``);
-    const createSql = createRows[0]["Create Table"];
-
-    parts.push(`DROP TABLE IF EXISTS \`${table}\`;`);
-    parts.push(`${createSql};`);
     parts.push(buildInsertSql(table, rows));
   }
-
-  parts.push("SET FOREIGN_KEY_CHECKS=1;");
 
   const fileDate = new Date().toISOString().replace(/[:.]/g, "-");
   res.setHeader("Content-Type", "application/sql; charset=utf-8");
@@ -601,8 +752,10 @@ router.post("/teams/:teamId/members", asyncHandler(async (req, res) => {
 
   await query(
     `INSERT INTO team_members (team_id, player_id, joined_at, is_active)
-    VALUES (?, ?, COALESCE(?, CURRENT_DATE), TRUE)
-    ON DUPLICATE KEY UPDATE joined_at = VALUES(joined_at), is_active = TRUE`,
+    VALUES (?, ?, COALESCE(?, CURRENT_DATE), true)
+    ON CONFLICT (team_id, player_id) DO UPDATE SET
+      joined_at = EXCLUDED.joined_at,
+      is_active = true`,
     [req.params.teamId, req.body.player_id, req.body.joined_at || null]
   );
 
@@ -666,6 +819,27 @@ router.delete("/players/:playerId", asyncHandler(async (req, res) => {
   }
 }));
 
+router.delete("/trainers/:trainerId", asyncHandler(async (req, res) => {
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const deleted = await deleteTrainerById(connection, req.params.trainerId);
+    if (!deleted) {
+      throw new ApiError(404, "Trainer not found");
+    }
+
+    await connection.commit();
+    res.status(204).send();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}));
+
 router.get("/teams/:teamId/trainers", asyncHandler(async (req, res) => {
   const rows = await query(
     `SELECT tt.*, u.name, u.email
@@ -703,7 +877,9 @@ router.post("/teams/:teamId/trainers", asyncHandler(async (req, res) => {
   await query(
     `INSERT INTO team_trainers (team_id, trainer_id, assigned_by)
     VALUES (?, ?, ?)
-    ON DUPLICATE KEY UPDATE assigned_by = VALUES(assigned_by), assigned_at = CURRENT_TIMESTAMP`,
+    ON CONFLICT (team_id, trainer_id) DO UPDATE SET
+      assigned_by = EXCLUDED.assigned_by,
+      assigned_at = CURRENT_TIMESTAMP`,
     [req.params.teamId, req.body.trainer_id, req.user.id]
   );
 
@@ -752,7 +928,8 @@ router.post("/coaches/:coachId/trainers", asyncHandler(async (req, res) => {
   await query(
     `INSERT INTO coach_trainers (coach_id, trainer_id)
     VALUES (?, ?)
-    ON DUPLICATE KEY UPDATE created_at = CURRENT_TIMESTAMP`,
+    ON CONFLICT (coach_id, trainer_id)
+    DO UPDATE SET created_at = CURRENT_TIMESTAMP`,
     [req.params.coachId, req.body.trainer_id]
   );
 
@@ -1207,9 +1384,9 @@ router.post("/training-schedules/:scheduleId/qr-token", qrTokenLimiter, asyncHan
   const existingRows = await query(
     `SELECT
       token,
-      DATE_FORMAT(expires_at, '%Y-%m-%dT%H:%i:%s.000Z') AS expires_at_iso
+      TO_CHAR(expires_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS".000Z"') AS expires_at_iso
     FROM training_schedule_qr_tokens
-    WHERE training_schedule_id = ? AND expires_at > UTC_TIMESTAMP()
+    WHERE training_schedule_id = ? AND expires_at > CURRENT_TIMESTAMP
     ORDER BY expires_at DESC
     LIMIT 1`,
     [schedule.id]
@@ -1277,11 +1454,34 @@ router.get("/training-schedules/:scheduleId/attendance-check", asyncHandler(asyn
     ORDER BY u.name`,
     [schedule.team_id, schedule.session_type, schedule.session_date]
   );
+  const trainerInputLogs = await query(
+    `SELECT *
+    FROM performance_logs
+    WHERE session_type = ?
+      AND notes LIKE ?
+      AND notes LIKE 'Trainer attendance input%'
+    ORDER BY created_at DESC`,
+    [schedule.session_type, `%training_schedule_id: ${schedule.id}%`]
+  );
   const logsByPlayerId = new Map(logs.map((log) => [String(log.player_id), log]));
+  const trainerInputsByPlayerId = new Map();
+
+  trainerInputLogs.forEach((log) => {
+    const playerKey = String(log.user_id);
+    const current = trainerInputsByPlayerId.get(playerKey) || {};
+    const metric = String(log.notes || "").match(/metric:\s*([a-z_]+)/i)?.[1];
+
+    if (metric === "highest_jump") current.highest_jump = log.value;
+    if (metric === "strongest_spike") current.strongest_spike = log.value;
+
+    trainerInputsByPlayerId.set(playerKey, current);
+  });
+
   const roster = players.map((player) => ({
     ...player,
     checked_in: logsByPlayerId.has(String(player.player_id)),
     attendance_log: logsByPlayerId.get(String(player.player_id)) || null,
+    trainer_input: trainerInputsByPlayerId.get(String(player.player_id)) || null,
   }));
 
   res.json({
@@ -1297,12 +1497,43 @@ router.get("/training-schedules/:scheduleId/attendance-check", asyncHandler(asyn
   });
 }));
 
+router.post("/training-schedules/:scheduleId/players/:playerId/trainer-input", asyncHandler(async (req, res) => {
+  if (!["coach", "trainer"].includes(req.user.role)) {
+    throw new ApiError(403, "Only coaches and trainers can submit trainer input");
+  }
+
+  const schedule = await ensureRecord("training_schedules", req.params.scheduleId, "Training schedule");
+  const playerRows = await query(
+    `SELECT player_id FROM team_members
+    WHERE team_id = ? AND player_id = ? AND is_active = TRUE
+    LIMIT 1`,
+    [schedule.team_id, req.params.playerId]
+  );
+
+  if (!playerRows.length) {
+    throw new ApiError(404, "Player is not active on this schedule team");
+  }
+
+  const reportLogs = await upsertTrainerAttendanceInput({
+    schedule,
+    playerId: req.params.playerId,
+    input: req.body,
+  });
+
+  res.json({
+    player_id: Number(req.params.playerId),
+    highest_jump: reportLogs.find((log) => log.notes?.includes("metric: highest_jump"))?.value ?? null,
+    strongest_spike: reportLogs.find((log) => log.notes?.includes("metric: strongest_spike"))?.value ?? null,
+    report_logs: reportLogs,
+  });
+}));
+
 router.get("/attendance-qr/:token", asyncHandler(async (req, res) => {
   const rows = await query(
     `SELECT
       qr.*,
-      DATE_FORMAT(qr.expires_at, '%Y-%m-%dT%H:%i:%s.000Z') AS expires_at_iso,
-      qr.expires_at <= UTC_TIMESTAMP() AS expired,
+      TO_CHAR(qr.expires_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS".000Z"') AS expires_at_iso,
+      qr.expires_at <= CURRENT_TIMESTAMP AS expired,
       ts.team_id,
       ts.session_type,
       ts.session_date
@@ -1332,7 +1563,7 @@ router.post("/attendance-qr/:token/check-in", qrAttendanceCheckInLimiter, asyncH
   const rows = await query(
     `SELECT
       qr.*,
-      qr.expires_at <= UTC_TIMESTAMP() AS expired,
+      qr.expires_at <= CURRENT_TIMESTAMP AS expired,
       ts.team_id,
       ts.session_type,
       ts.session_date
@@ -1362,7 +1593,14 @@ router.post("/attendance-qr/:token/check-in", qrAttendanceCheckInLimiter, asyncH
 
   if (existing.length) {
     const existingLog = await getById("attendance_logs", existing[0].id);
-    res.json(existingLog);
+    const reportLogs = await upsertAfterTrainingReport({
+      attendanceLog: existingLog,
+      playerId,
+      sessionType: record.session_type,
+      sessionDate: record.session_date,
+      report: req.body.report || req.body,
+    });
+    res.json({ ...existingLog, report_logs: reportLogs });
     return;
   }
 
@@ -1381,6 +1619,14 @@ router.post("/attendance-qr/:token/check-in", qrAttendanceCheckInLimiter, asyncH
   );
 
   const attendanceLog = await getById("attendance_logs", result.insertId);
+  const reportLogs = await upsertAfterTrainingReport({
+    attendanceLog,
+    playerId,
+    sessionType: record.session_type,
+    sessionDate: record.session_date,
+    report: req.body.report || req.body,
+  });
+
   await createNotifications({
     actorId: req.user.id,
     recipientIds: [playerId, ...(await getPlayerStaffRecipients(playerId))],
@@ -1396,7 +1642,7 @@ router.post("/attendance-qr/:token/check-in", qrAttendanceCheckInLimiter, asyncH
     },
   });
 
-  res.status(201).json(attendanceLog);
+  res.status(201).json({ ...attendanceLog, report_logs: reportLogs });
 }));
 
 router.get("/teams/:teamId/attendance", asyncHandler(async (req, res) => {
@@ -1466,7 +1712,7 @@ router.patch("/injury-logs/:injuryId/recover", asyncHandler(async (req, res) => 
 
   await query(
     `UPDATE injury_logs
-    SET recovered_at = ?, days_missed = COALESCE(?, DATEDIFF(?, occurred_at))
+    SET recovered_at = ?, days_missed = COALESCE(?, (?::date - occurred_at::date))
     WHERE id = ?`,
     [recoveredAt, req.body.days_missed || null, recoveredAt, injury.id]
   );
@@ -1547,14 +1793,14 @@ router.post("/seasons/:seasonId/rankings/recalculate", asyncHandler(async (req, 
     `INSERT INTO team_rankings
       (team_id, season_id, ranking_position, wins, losses, win_percentage, points_for, points_against, point_difference)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ON DUPLICATE KEY UPDATE
-      ranking_position = VALUES(ranking_position),
-      wins = VALUES(wins),
-      losses = VALUES(losses),
-      win_percentage = VALUES(win_percentage),
-      points_for = VALUES(points_for),
-      points_against = VALUES(points_against),
-      point_difference = VALUES(point_difference),
+    ON CONFLICT (team_id, season_id) DO UPDATE SET
+      ranking_position = EXCLUDED.ranking_position,
+      wins = EXCLUDED.wins,
+      losses = EXCLUDED.losses,
+      win_percentage = EXCLUDED.win_percentage,
+      points_for = EXCLUDED.points_for,
+      points_against = EXCLUDED.points_against,
+      point_difference = EXCLUDED.point_difference,
       calculated_at = CURRENT_TIMESTAMP`,
     [
       teamId,

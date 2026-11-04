@@ -1,6 +1,10 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
-const { getBackendBaseUrl, getGoogleRedirectUri } = require("../utils/googleOAuthConfig");
+const {
+  getBackendBaseUrl,
+  getGoogleOAuthScopes,
+  getGoogleRedirectUri,
+} = require("../utils/googleOAuthConfig");
 
 function withEnv(values, callback) {
   const previous = {};
@@ -56,5 +60,24 @@ test("Google OAuth redirect honors explicit redirect URI", () => {
     PORT: "5001",
   }, () => {
     assert.equal(getGoogleRedirectUri(), "http://localhost:7777/custom-callback");
+  });
+});
+
+test("Google OAuth scopes include Drive and Gmail send by default", () => {
+  withEnv({
+    GOOGLE_AUTH_SCOPES: undefined,
+  }, () => {
+    assert.deepEqual(getGoogleOAuthScopes(), [
+      "https://www.googleapis.com/auth/drive",
+      "https://www.googleapis.com/auth/gmail.send",
+    ]);
+  });
+});
+
+test("Google OAuth scopes honor comma-separated env override", () => {
+  withEnv({
+    GOOGLE_AUTH_SCOPES: "scope.one, scope.two ,, scope.three",
+  }, () => {
+    assert.deepEqual(getGoogleOAuthScopes(), ["scope.one", "scope.two", "scope.three"]);
   });
 });

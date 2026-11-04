@@ -247,18 +247,6 @@ const AuthSection = () => {
               </Field>
             )}
 
-            {!isSignup && (
-              <div className="auth-options">
-                <label>
-                  <input type="checkbox" />
-                  Remember Me
-                </label>
-                <button type="button">
-                  Forgot Password?
-                </button>
-              </div>
-            )}
-
             <button type="submit" className="glow-button w-full py-4 text-lg" disabled={isSubmitting}>
               {isSubmitting ? 'Please wait...' : isSignup ? 'Create Coach Account' : 'Login'}
             </button>

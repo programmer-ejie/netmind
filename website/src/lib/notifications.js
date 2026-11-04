@@ -10,6 +10,7 @@ import {
 } from './api'
 
 const SOCKET_BASE = (import.meta.env.VITE_SOCKET_BASE || API_BASE.replace(/\/api$/, '')).replace(/\/$/, '')
+const NOTIFICATIONS_SYNC_EVENT = 'netmind:notifications-sync'
 let lastDingNotificationId = null
 let notificationAudioContext = null
 let notificationAudioUnlocked = false
@@ -78,6 +79,10 @@ const playNotificationDing = (notificationId) => {
   } catch {
     // Browser autoplay rules can block audio until the user interacts with the page.
   }
+}
+
+const broadcastNotificationsSync = (detail) => {
+  window.dispatchEvent(new CustomEvent(NOTIFICATIONS_SYNC_EVENT, { detail }))
 }
 
 export function useNotifications() {
@@ -153,6 +158,26 @@ export function useNotifications() {
     }
   }, [user?.id])
 
+  useEffect(() => {
+    const syncNotifications = (event) => {
+      const { type, notification } = event.detail || {}
+
+      if (type === 'read-all') {
+        setItems((current) => current.map((item) => ({ ...item, is_read: true })))
+      }
+
+      if (type === 'read-one' && notification?.id) {
+        const updated = normalizeNotification(notification)
+        setItems((current) => current.map((item) => (item.id === updated.id ? updated : item)))
+      }
+    }
+
+    window.addEventListener(NOTIFICATIONS_SYNC_EVENT, syncNotifications)
+    return () => {
+      window.removeEventListener(NOTIFICATIONS_SYNC_EVENT, syncNotifications)
+    }
+  }, [])
+
   const unreadCount = useMemo(
     () => items.filter((item) => !item.is_read).length,
     [items],
@@ -160,12 +185,12 @@ export function useNotifications() {
 
   const markRead = async (id) => {
     const updated = normalizeNotification(await markNotificationRead(id))
-    setItems((current) => current.map((item) => (item.id === updated.id ? updated : item)))
+    broadcastNotificationsSync({ type: 'read-one', notification: updated })
   }
 
   const markAllRead = async () => {
     await markAllNotificationsRead()
-    setItems((current) => current.map((item) => ({ ...item, is_read: true })))
+    broadcastNotificationsSync({ type: 'read-all' })
   }
 
   return {
