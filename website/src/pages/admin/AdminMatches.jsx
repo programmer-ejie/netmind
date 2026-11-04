@@ -687,7 +687,7 @@ const AdminMatches = ({ currentPath = '#coach/matches' }) => {
           <form className="admin-form" onSubmit={removeMatch}>
             <div className="admin-password-warning">
               <TriangleAlert size={17} />
-              <p>This will delete the match against {deleteMatch.opponent_name} and remove its match record from NetMind.</p>
+              <p>This will permanently delete the match against {deleteMatch.opponent_name} and its connected scores, performance logs, attendance records, and lineups from NetMind.</p>
             </div>
 
             <div className="admin-delete-summary">

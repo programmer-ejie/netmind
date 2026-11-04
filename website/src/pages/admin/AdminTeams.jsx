@@ -463,7 +463,7 @@ const AdminTeams = ({ currentPath = '#coach/teams' }) => {
           <form className="admin-form" onSubmit={removeTeam}>
             <div className="admin-password-warning">
               <TriangleAlert size={17} />
-              <p>This will delete {deleteTeam.team_name} and remove its team workspace from NetMind.</p>
+              <p>This will permanently delete {deleteTeam.team_name} and its seasons, matches, scores, performance logs, schedules, QR tokens, attendance, lineups, rankings, comparisons, and player and trainer assignments. Player and trainer accounts will be kept.</p>
             </div>
 
             <div className="admin-delete-summary">

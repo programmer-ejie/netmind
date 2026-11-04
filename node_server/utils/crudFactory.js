@@ -1,4 +1,6 @@
-const { query } = require("../config/db");
+const { query, pool } = require("../config/db");
+const { deleteMatchById } = require("./matchDeletion");
+const { deleteTeamById } = require("./teamDeletion");
 const ApiError = require("./apiError");
 const {
   canAccessMatch,
@@ -625,7 +627,11 @@ function createCrudController(config) {
       }
 
       const rows = await query(`SELECT ${toSelect(config)} FROM \`${config.table}\` WHERE id = ?`, [req.params.id]);
-      const result = await query(`DELETE FROM \`${config.table}\` WHERE id = ?`, [req.params.id]);
+      const result = config.table === "matches"
+        ? await deleteMatchById(pool, req.params.id)
+        : config.table === "teams"
+        ? await deleteTeamById(pool, req.params.id)
+        : await query(`DELETE FROM \`${config.table}\` WHERE id = ?`, [req.params.id]);
 
       if (!result.affectedRows) {
         throw new ApiError(404, "Record not found");
