@@ -1,6 +1,7 @@
 const { query, pool } = require("../config/db");
 const { deleteMatchById } = require("./matchDeletion");
 const { deleteTeamById } = require("./teamDeletion");
+const { deleteTrainingScheduleById } = require("./trainingScheduleDeletion");
 const ApiError = require("./apiError");
 const {
   canAccessMatch,
@@ -631,6 +632,8 @@ function createCrudController(config) {
         ? await deleteMatchById(pool, req.params.id)
         : config.table === "teams"
         ? await deleteTeamById(pool, req.params.id)
+        : config.table === "training_schedules"
+        ? await deleteTrainingScheduleById(pool, req.params.id)
         : await query(`DELETE FROM \`${config.table}\` WHERE id = ?`, [req.params.id]);
 
       if (!result.affectedRows) {
